@@ -14,7 +14,8 @@ describe("createBoard", () => {
 
   it("creates the board and makes the creator its owner", async () => {
     const board = await makeCreateBoard(ctx)(alice, { name: "  Roadmap ", description: "Q4" });
-    expect(board).toMatchObject({ name: "Roadmap", description: "Q4", status: "active", ownerId: "alice" });
+    expect(board).toMatchObject({ name: "Roadmap", description: "Q4", status: "active" });
+    expect(board).not.toHaveProperty("ownerId");
     expect(board.createdAt).toEqual(ctx.clock.now());
     expect(await ctx.repos.members.find(board.id, "alice")).toEqual({ boardId: board.id, userId: "alice", role: "owner" });
   });

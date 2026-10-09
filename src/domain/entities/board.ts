@@ -6,9 +6,10 @@ export interface Board {
   name: string;
   description: string;
   status: BoardStatus;
-  ownerId: string;
   createdAt: Date;
 }
+
+/** Owners are derived from memberships (`role: "owner"`); the board row stores no owner. */
 
 /** `(boardId, userId)` is unique: a user holds exactly one role per board. */
 export interface BoardMember {

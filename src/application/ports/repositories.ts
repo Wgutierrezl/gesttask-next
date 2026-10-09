@@ -20,7 +20,8 @@ export interface Page {
 export interface BoardRepo {
   insert(board: Board): Promise<void>;
   findById(id: string): Promise<Board | null>;
-  listByMember(userId: string): Promise<Board[]>;
+  /** Ordered by createdAt, then id; paginated. */
+  listByMember(userId: string, page: Page): Promise<Board[]>;
   update(board: Board): Promise<void>;
   /** Cascades to members, pipelines, stages and tasks. */
   delete(id: string): Promise<void>;
@@ -30,7 +31,8 @@ export interface MemberRepo {
   /** Throws ConflictError when `(boardId, userId)` already exists (unique key, race-free). */
   insert(member: BoardMember): Promise<void>;
   find(boardId: string, userId: string): Promise<BoardMember | null>;
-  listByBoard(boardId: string): Promise<BoardMember[]>;
+  /** Ordered by userId; paginated. */
+  listByBoard(boardId: string, page: Page): Promise<BoardMember[]>;
   listByUser(userId: string): Promise<BoardMember[]>;
   updateRole(boardId: string, userId: string, role: BoardRole): Promise<void>;
   remove(boardId: string, userId: string): Promise<void>;
@@ -44,7 +46,8 @@ export interface MemberRepo {
 export interface PipelineRepo {
   insert(pipeline: Pipeline): Promise<void>;
   findById(id: string): Promise<Pipeline | null>;
-  listByBoard(boardId: string): Promise<Pipeline[]>;
+  /** Ordered by name, then id; paginated. */
+  listByBoard(boardId: string, page: Page): Promise<Pipeline[]>;
   update(pipeline: Pipeline): Promise<void>;
   delete(id: string): Promise<void>;
 }
@@ -53,8 +56,8 @@ export interface StageRepo {
   /** Throws ConflictError on a `(pipelineId, lower(name))` unique violation; same for `update`. */
   insert(stage: Stage): Promise<void>;
   findById(id: string): Promise<Stage | null>;
-  /** Ordered by position, then id. */
-  listByPipeline(pipelineId: string): Promise<Stage[]>;
+  /** Ordered by position, then id; without `page` returns the whole pipeline (transactional use). */
+  listByPipeline(pipelineId: string, page?: Page): Promise<Stage[]>;
   update(stage: Stage): Promise<void>;
   delete(id: string): Promise<void>;
 }
@@ -68,7 +71,7 @@ export interface TaskRepo {
   clearAssignee(boardId: string, userId: string): Promise<void>;
   /** Ordered by position, then id. */
   listByStage(stageId: string): Promise<Task[]>;
-  /** Ordered by position, then id; paginated. */
+  /** Ordered by stage position, stage id, task position, task id; paginated, columns never interleave. */
   listByPipeline(pipelineId: string, page: Page): Promise<Task[]>;
 }
 

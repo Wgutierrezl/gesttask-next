@@ -13,7 +13,6 @@ export function makeCreateBoard(deps: AppDeps) {
       name: data.name,
       description: data.description,
       status: "active",
-      ownerId: actor.userId,
       createdAt: deps.clock.now(),
     };
     await deps.uow.run(async (tx) => {
