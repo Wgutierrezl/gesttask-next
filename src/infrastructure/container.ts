@@ -10,6 +10,7 @@ import { makeSignUp } from "@/application/use-cases/auth/sign-up";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
 import { clientKeyFrom } from "./auth/client-key";
+import { guardAuthHandler } from "./auth/http-guard";
 import { SeededGuestSandbox } from "./auth/guest-sandbox";
 import { BetterAuthSession } from "./auth/session";
 import { transferGuestData } from "./auth/transfer-guest";
@@ -31,7 +32,7 @@ export interface Container {
   logger: Logger;
   session: SessionPort;
   auth: AuthFacade;
-  /** Serves `/api/auth/*`; the only way the web layer reaches the auth provider. */
+  /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
   authHandler: (request: Request) => Promise<Response>;
   close(): Promise<void>;
 }
@@ -67,7 +68,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signUp: async (input) => signUp(await caller(), input),
       signOut: () => signOut(),
     },
-    authHandler: (request) => auth.handler(request),
+    authHandler: guardAuthHandler((request) => auth.handler(request)),
     close,
   };
 }
