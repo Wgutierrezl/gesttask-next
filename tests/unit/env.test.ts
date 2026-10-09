@@ -133,6 +133,17 @@ describe("auth settings", () => {
   });
 });
 
+describe("BETTER_AUTH_URL in production", () => {
+  it("is required in production and optional elsewhere", () => {
+    expect(() => parseEnv({ ...localBase, NODE_ENV: "development" })).not.toThrow();
+    expect(errorOf({ ...localBase, NODE_ENV: "production" }).message).toContain("BETTER_AUTH_URL");
+    expect(errorOf({ ...localBase, NODE_ENV: "production", BETTER_AUTH_URL: "" }).message).toContain("BETTER_AUTH_URL");
+    expect(parseEnv({ ...localBase, NODE_ENV: "production", BETTER_AUTH_URL: "https://gesttask.example.com" }).BETTER_AUTH_URL).toBe(
+      "https://gesttask.example.com",
+    );
+  });
+});
+
 describe("getEnv", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

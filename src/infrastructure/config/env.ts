@@ -19,12 +19,16 @@ const authSchema = z
   .object({
     NODE_ENV: z.string().optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
-    // Public origin of the app; Better Auth derives it from the request when unset.
+    // Public origin of the app (trusted origin, cookie scope). Optional outside production.
     BETTER_AUTH_URL: optionalUrl,
   })
   .refine((env) => env.NODE_ENV !== "production" || env.BETTER_AUTH_SECRET !== PLACEHOLDER_AUTH_SECRET, {
     path: ["BETTER_AUTH_SECRET"],
     message: "placeholder secret",
+  })
+  .refine((env) => env.NODE_ENV !== "production" || env.BETTER_AUTH_URL !== undefined, {
+    path: ["BETTER_AUTH_URL"],
+    message: "required in production",
   });
 
 const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [

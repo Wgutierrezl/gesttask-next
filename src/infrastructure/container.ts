@@ -9,6 +9,7 @@ import { makeSignOut } from "@/application/use-cases/auth/sign-out";
 import { makeSignUp } from "@/application/use-cases/auth/sign-up";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
+import { sessionCookieConfig } from "./auth/cookie-config";
 import { clientKeyFrom } from "./auth/client-key";
 import { guardAuthHandler } from "./auth/http-guard";
 import { SeededGuestSandbox } from "./auth/guest-sandbox";
@@ -47,6 +48,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     logger,
+    cookies: sessionCookieConfig(env.NODE_ENV),
     onLinkAccount: ({ guestUserId, userId }) => transferGuestData(db, guestUserId, userId),
   });
   const session = new BetterAuthSession(auth, () => headers());
