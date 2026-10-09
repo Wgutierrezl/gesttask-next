@@ -2,6 +2,7 @@ import { NotFoundError } from "@/domain/errors";
 import { resolveCompletedAt, withOverdue, type Task, type TaskView } from "@/domain/entities/task";
 import type { Actor } from "../../actor";
 import type { AppDeps } from "../../deps";
+import { assertGuestTaskQuota } from "../../guest-quota";
 import { placeAtEnd } from "../../placement";
 import { loadStage } from "../../resources";
 import { parseInput } from "../../schemas/parse";
@@ -22,6 +23,7 @@ export function makeCreateTask(deps: AppDeps) {
     const task = await deps.uow.run(async (tx) => {
       const stage = await tx.stages.findById(data.stageId);
       if (!stage) throw new NotFoundError();
+      await assertGuestTaskQuota(tx, actor);
       await assertAssigneeIsMember(tx.members, stage.boardId, data.assigneeId);
       const placement = placeAtEnd(await tx.tasks.listByStage(stage.id));
       for (const relocated of placement.relocated) await tx.tasks.update(relocated);
