@@ -12,6 +12,21 @@ const dbSchema = z.object({
   DATABASE_URL: z.url(),
 });
 
+/** The value shipped in .env.example: fine locally, refused in production. */
+export const PLACEHOLDER_AUTH_SECRET = "change-me-generate-with-openssl-rand-base64-32";
+
+const authSchema = z
+  .object({
+    NODE_ENV: z.string().optional(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    // Public origin of the app; Better Auth derives it from the request when unset.
+    BETTER_AUTH_URL: optionalUrl,
+  })
+  .refine((env) => env.NODE_ENV !== "production" || env.BETTER_AUTH_SECRET !== PLACEHOLDER_AUTH_SECRET, {
+    path: ["BETTER_AUTH_SECRET"],
+    message: "placeholder secret",
+  });
+
 const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
   z.object({ STORAGE_DRIVER: z.literal("local") }),
   z.object({
@@ -29,7 +44,7 @@ const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
   }),
 ]);
 
-const envSchema = z.intersection(dbSchema, storageSchema);
+const envSchema = z.intersection(z.intersection(dbSchema, authSchema), storageSchema);
 
 export type Env = z.infer<typeof envSchema>;
 
