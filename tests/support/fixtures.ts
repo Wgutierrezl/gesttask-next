@@ -1,6 +1,8 @@
 import type { Task } from "@/domain/entities/task";
 import type { Actor } from "@/application/actor";
 import { makeCreateBoard } from "@/application/use-cases/boards/create-board";
+import { makeCreatePipeline } from "@/application/use-cases/pipelines/create-pipeline";
+import { makeCreateStage } from "@/application/use-cases/stages/create-stage";
 import type { TestContext } from "./app-context";
 
 export const actor = (userId: string): Actor => ({ userId, isGuest: false });
@@ -30,4 +32,13 @@ export function buildTask(overrides: Partial<Task> & Pick<Task, "id" | "stageId"
     createdAt: new Date("2026-10-01T00:00:00.000Z"),
     ...overrides,
   };
+}
+
+/** A seeded board with one pipeline and two stages (Todo, Done); Done is the final stage. */
+export async function seedKanban(ctx: TestContext) {
+  const { boardId } = await seedBoard(ctx);
+  const pipeline = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P" });
+  const todo = await makeCreateStage(ctx)(OWNER, { pipelineId: pipeline.id, name: "Todo" });
+  const done = await makeCreateStage(ctx)(OWNER, { pipelineId: pipeline.id, name: "Done" });
+  return { boardId, pipelineId: pipeline.id, todoId: todo.id, doneId: done.id };
 }
