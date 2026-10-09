@@ -29,6 +29,13 @@
       "when": 1791577426600,
       "tag": "0003_outbox_dead_letter",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791579654853,
+      "tag": "0004_auth_tables_user_fks",
+      "breakpoints": true
     }
   ]
 }

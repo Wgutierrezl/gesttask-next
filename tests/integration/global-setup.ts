@@ -1,6 +1,7 @@
 import pg from "pg";
 import { runMigrations } from "@/infrastructure/db/migrate";
-import { testDatabaseUrl } from "./support/db";
+import { connectTestDb, testDatabaseUrl } from "./support/db";
+import { installAutoUsers } from "./support/auto-users";
 
 /** Creates the `_test` database when missing, then applies the committed migrations to it. */
 export default async function setup(): Promise<void> {
@@ -15,4 +16,10 @@ export default async function setup(): Promise<void> {
     await admin.end();
   }
   await runMigrations(url.toString());
+  const handle = connectTestDb();
+  try {
+    await installAutoUsers(handle);
+  } finally {
+    await handle.close();
+  }
 }
