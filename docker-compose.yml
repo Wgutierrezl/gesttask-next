@@ -1,0 +1,62 @@
+# Local-first stack: Postgres + MinIO (S3 compatible). No cloud accounts needed.
+name: gesttask
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gesttask
+      POSTGRES_PASSWORD: gesttask
+      POSTGRES_DB: gesttask
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gesttask -d gesttask"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3-compatible object storage for local development (stand-in for AWS S3).
+  # The official MinIO images are no longer published, so RustFS is used instead.
+  s3:
+    image: rustfs/rustfs:1.0.1
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: gesttask
+      RUSTFS_SECRET_KEY: gesttask-secret
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - s3-data:/data
+
+  # One-shot job: waits for the S3 endpoint, creates the private bucket, then exits.
+  s3-init:
+    image: amazon/aws-cli:2.37.11
+    depends_on:
+      - s3
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: gesttask
+      AWS_SECRET_ACCESS_KEY: gesttask-secret
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 30); do
+          if aws --endpoint-url http://s3:9000 s3api head-bucket --bucket gesttask 2>/dev/null \
+             || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket gesttask; then
+            echo "bucket gesttask ready"; exit 0
+          fi
+          sleep 2
+        done
+        echo "bucket init failed" >&2; exit 1
+
+volumes:
+  postgres-data:
+  s3-data:
