@@ -15,6 +15,7 @@ const container = buildContainer({
   STORAGE_DRIVER: "local",
   BETTER_AUTH_SECRET: "integration-test-secret-0123456789abcdef",
   BETTER_AUTH_URL: "http://localhost:3000",
+  TRUSTED_PROXY_HOPS: "1", // one trusted proxy: the last x-forwarded-for entry is the client
 });
 const from = (ip: string) => void (request.headers = new Headers({ "x-forwarded-for": ip }));
 const count = async (table: string) => Number((await handle.db.execute<{ n: number }>(sql.raw(`SELECT count(*)::int AS n FROM "${table}"`))).rows[0]?.n);
