@@ -22,6 +22,9 @@ export function connectTestDb(statementTimeoutMs = 10_000): DbHandle {
 
 /** Empties every application table (the migration journal lives in the `drizzle` schema and is kept). */
 export async function resetDb(handle: DbHandle): Promise<void> {
+  const current = await handle.db.execute<{ name: string }>(sql`SELECT current_database() AS name`);
+  const name = current.rows[0]?.name ?? "";
+  if (!name.endsWith("_test")) throw new Error(`resetDb refuses to truncate "${name}": only *_test databases are allowed`);
   const { rows } = await handle.db.execute<{ tablename: string }>(
     sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
   );

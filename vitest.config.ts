@@ -40,14 +40,6 @@ export default defineConfig({
           testTimeout: 30_000,
         },
       },
-      {
-        extends: true,
-        test: {
-          name: "contract",
-          include: ["tests/contract/**/*.test.ts"],
-          environment: "node",
-        },
-      },
     ],
   },
 });

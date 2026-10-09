@@ -20,3 +20,9 @@ export function pgConstraint(error: unknown): string | undefined {
   const constraint = pgShape(error)?.constraint;
   return typeof constraint === "string" ? constraint : undefined;
 }
+
+/** Deadlock (40P01) and serialization failure (40001): the whole transaction can safely be run again. */
+export function isTransientTransactionError(error: unknown): boolean {
+  const code = pgErrorCode(error);
+  return code === "40P01" || code === "40001";
+}
