@@ -13,7 +13,17 @@ export interface Page {
  * - Reads performed through the transaction's repos MUST lock the rows they return
  *   (`SELECT ... FOR UPDATE`), so read-modify-write inside `run` cannot lose updates. Reads through
  *   `AppDeps.repos` (outside a transaction) are plain snapshots meant for authorization and listing.
- * - List reads that lock MUST lock in a deterministic order (by primary key) to avoid deadlocks.
+ * - GLOBAL LOCK ORDER (deadlock freedom). Use cases lock in this order and never go back:
+ *   boards, members (owner rows first, then the target member), pipelines, stages, tasks. Within one
+ *   type, rows are locked by primary key, and a use case that needs both a list and one of its rows
+ *   locks the LIST first and picks the target from it (never row, then list). Use cases that touch
+ *   several task columns lock the columns in stage-id order.
+ * - Locking list methods (`listByPipeline`, `listByStage`, ...) therefore MUST lock the rows ordered
+ *   by primary key and return them position-ordered. Infra pattern:
+ *     SELECT ... WHERE id IN (SELECT id FROM t WHERE <filter> ORDER BY id FOR UPDATE)
+ *     ORDER BY position, id
+ *   A plain `SELECT ... ORDER BY position FOR UPDATE` locks in position order, which differs from
+ *   the primary-key order other transactions use, and can deadlock.
  * - Uniqueness is enforced by the database, never by check-then-insert in application code: the
  *   violating insert/update throws `ConflictError`.
  */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NotFoundError } from "@/domain/errors";
 import { MAX_POSITION_LENGTH, generatePositions } from "@/domain/value-objects/position";
-import { placeAfter, positionAtEnd } from "./placement";
+import { placeAfter, placeAtEnd } from "./placement";
 
 interface Item {
   id: string;
@@ -61,7 +61,7 @@ describe("placeAfter", () => {
     let items: Item[] = [];
     for (let i = 0; i < 1000; i++) {
       items = [{ id: `p${i}`, position: placeAfter(items, null).position }, ...items];
-      items = [...items, { id: `q${i}`, position: positionAtEnd(items) }];
+      items = [...items, { id: `q${i}`, position: placeAtEnd(items).position }];
     }
     expect(sorted(items)).toEqual(items.map((i) => i.id));
     expect(Math.max(...items.map((i) => i.position.length))).toBeLessThanOrEqual(4);

@@ -38,7 +38,10 @@ export function placeAfter<T extends Positioned>(siblings: readonly T[], afterId
   return { position: keyAfter(relocated, afterId), relocated };
 }
 
-/** Position that sorts after every sibling. */
-export function positionAtEnd(siblings: readonly Positioned[]): string {
-  return generateKeyBetween(siblings[siblings.length - 1]?.position ?? null, null);
+/**
+ * Placement after the last sibling. Shares `placeAfter`'s path, so a malformed or oversized last key
+ * rebalances the column (returning the relocated siblings to persist) instead of throwing.
+ */
+export function placeAtEnd<T extends Positioned>(siblings: readonly T[]): Placement<T> {
+  return placeAfter(siblings, siblings[siblings.length - 1]?.id ?? null);
 }

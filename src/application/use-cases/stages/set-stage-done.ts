@@ -23,22 +23,22 @@ async function recomputeCompletion(tx: Repos, stageId: string, inDoneStage: bool
 export function makeSetStageDone(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<Stage> => {
     const { stageId, isDone } = parseInput(setStageDoneSchema, input);
-    await loadStage(deps.repos, actor, stageId, "pipeline:manage");
     const now = deps.clock.now();
+    const { pipelineId } = await loadStage(deps.repos, actor, stageId, "pipeline:manage");
     return deps.uow.run(async (tx) => {
-      const current = await tx.stages.findById(stageId);
+      // Lock order: the whole stage list first (by id), the target is picked from it; then task columns by stage id.
+      const stages = await tx.stages.listByPipeline(pipelineId);
+      const current = stages.find((s) => s.id === stageId);
       if (!current) throw new NotFoundError();
       if (current.isDone === isDone) return current;
-      if (isDone) {
-        const siblings = await tx.stages.listByPipeline(current.pipelineId);
-        for (const previous of siblings.filter((s) => s.isDone && s.id !== current.id)) {
-          await tx.stages.update({ ...previous, isDone: false });
-          await recomputeCompletion(tx, previous.id, false, now);
-        }
-      }
+      const previous = isDone ? stages.filter((s) => s.isDone && s.id !== current.id) : [];
+      for (const stage of previous) await tx.stages.update({ ...stage, isDone: false });
       const updated = { ...current, isDone };
       await tx.stages.update(updated);
-      await recomputeCompletion(tx, stageId, isDone, now);
+      const changed = [...previous.map((s) => ({ id: s.id, done: false })), { id: current.id, done: isDone }];
+      for (const { id, done } of changed.sort((a, b) => (a.id < b.id ? -1 : 1))) {
+        await recomputeCompletion(tx, id, done, now);
+      }
       return updated;
     });
   };
