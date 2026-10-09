@@ -15,7 +15,7 @@ const base: Task = {
   dueDate: null,
   assigneeId: null,
   completedAt: null,
-  position: "V",
+  position: "a0",
   createdAt: NOW,
 };
 

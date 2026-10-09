@@ -28,7 +28,7 @@ export function buildTask(overrides: Partial<Task> & Pick<Task, "id" | "stageId"
     dueDate: null,
     assigneeId: null,
     completedAt: null,
-    position: "V",
+    position: "a0",
     createdAt: new Date("2026-10-01T00:00:00.000Z"),
     ...overrides,
   };
