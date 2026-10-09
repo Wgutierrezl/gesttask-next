@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EnvError, parseEnv } from "@/infrastructure/config/env";
 
 const localBase = {
@@ -95,5 +95,43 @@ describe("parseEnv", () => {
 
   it("rejects a malformed DATABASE_URL", () => {
     expect(errorOf({ ...localBase, DATABASE_URL: "not a url" }).message).toContain("DATABASE_URL");
+  });
+
+  it("treats an empty S3_ENDPOINT as unset", () => {
+    const env = parseEnv({ ...s3Base, S3_ENDPOINT: "" });
+    expect(env.STORAGE_DRIVER).toBe("s3");
+    expect(env).not.toHaveProperty("S3_ENDPOINT", "");
+  });
+
+  it("still rejects a malformed non-empty S3_ENDPOINT", () => {
+    expect(errorOf({ ...s3Base, S3_ENDPOINT: "not a url" }).message).toContain("S3_ENDPOINT");
+  });
+});
+
+describe("getEnv", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("validates process.env once and returns the cached result", async () => {
+    vi.resetModules();
+    for (const [key, value] of Object.entries(localBase)) vi.stubEnv(key, value);
+    const { getEnv } = await import("@/infrastructure/config/env");
+
+    const first = getEnv();
+    vi.stubEnv("STORAGE_DRIVER", "unsupported");
+    const second = getEnv();
+
+    expect(second).toBe(first);
+  });
+
+  it("fails fast when process.env is invalid", async () => {
+    vi.resetModules();
+    for (const [key, value] of Object.entries({ ...localBase, STORAGE_DRIVER: "bogus" })) {
+      vi.stubEnv(key, value);
+    }
+    const { getEnv } = await import("@/infrastructure/config/env");
+    expect(() => getEnv()).toThrow("STORAGE_DRIVER");
   });
 });

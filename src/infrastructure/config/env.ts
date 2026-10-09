@@ -1,6 +1,12 @@
 import "server-only";
 import { z } from "zod";
 
+/** Optional URL: an empty string (`S3_ENDPOINT=` in a dotenv file) counts as unset. */
+const optionalUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.url().optional(),
+);
+
 const dbSchema = z.object({
   DB_DRIVER: z.enum(["pg", "neon"]),
   DATABASE_URL: z.url(),
@@ -14,8 +20,8 @@ const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
     AWS_REGION: z.string().min(1),
     AWS_ACCESS_KEY_ID: z.string().min(1),
     AWS_SECRET_ACCESS_KEY: z.string().min(1),
-    // Set for S3-compatible servers such as MinIO; omitted for AWS itself.
-    S3_ENDPOINT: z.url().optional(),
+    // Set for S3-compatible servers such as RustFS; omitted for AWS itself.
+    S3_ENDPOINT: optionalUrl,
   }),
   z.object({
     STORAGE_DRIVER: z.literal("blob"),

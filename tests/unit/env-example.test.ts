@@ -6,7 +6,7 @@ function readDotenv(path: string): Record<string, string> {
   const entries = readFileSync(path, "utf8")
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line !== "" && !line.startsWith("#"))
+    .filter((line) => line !== "" && !line.startsWith("#") && line.includes("="))
     .map((line) => {
       const separator = line.indexOf("=");
       return [line.slice(0, separator), line.slice(separator + 1)] as const;
