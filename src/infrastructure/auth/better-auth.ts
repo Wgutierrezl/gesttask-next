@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
@@ -5,6 +6,7 @@ import { anonymous } from "better-auth/plugins";
 import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { Database } from "../db/client";
 import type { Logger } from "../logging/logger";
+import { GUEST_TTL_MS } from "./guest-ttl";
 import { sessionCookieConfig, type SessionCookieConfig } from "./cookie-config";
 import { DISABLED_AUTH_PATHS } from "./http-guard";
 
@@ -54,6 +56,22 @@ export function createAuth(config: AuthConfig) {
     logger: toAuthLogger(config.logger),
     disabledPaths: DISABLED_AUTH_PATHS,
     emailAndPassword: { enabled: true, minPasswordLength: MIN_PASSWORD_LENGTH },
+    databaseHooks: {
+      session: {
+        create: {
+          // A guest session never outlives the sandbox it opens: the TTL counts from the guest's creation.
+          before: async (session) => {
+            const { rows } = await config.db.execute<{ is_anonymous: boolean; created_at: Date }>(
+              sql`SELECT is_anonymous, created_at FROM "user" WHERE id = ${session.userId}`,
+            );
+            const guest = rows[0];
+            if (!guest?.is_anonymous) return;
+            const limit = new Date(new Date(guest.created_at).getTime() + GUEST_TTL_MS);
+            return session.expiresAt > limit ? { data: { ...session, expiresAt: limit } } : undefined;
+          },
+        },
+      },
+    },
     plugins: [
       anonymous({
         // Kept on link so the sandbox can be moved first; the TTL cleanup removes the leftover row.
