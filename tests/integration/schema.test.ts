@@ -136,6 +136,39 @@ describe("cascades", () => {
     expect(await db.select().from(t.attachments)).toEqual([]);
   });
 
+  it("keeps a comment's denormalized board id equal to its task's board", async () => {
+    const { task } = await seedTree();
+    const stranger = { id: id(), name: "x", description: "", status: "active" as const, createdAt: NOW };
+    await db.insert(t.boards).values(stranger);
+    const failure = await violation(
+      db.insert(t.comments).values({ id: id(), taskId: task.id, boardId: stranger.id, authorId: "u1", body: "hi", createdAt: NOW }),
+    );
+    expect(failure).toEqual({ code: "23503", constraint: "comments_task_board_fk" });
+  });
+
+  it("keeps an attachment's board id equal to its comment's board, while pending uploads may have no comment", async () => {
+    const { board, task } = await seedTree();
+    const stranger = { id: id(), name: "x", description: "", status: "active" as const, createdAt: NOW };
+    await db.insert(t.boards).values(stranger);
+    const comment = { id: id(), taskId: task.id, boardId: board.id, authorId: "u1", body: "hi", createdAt: NOW };
+    await db.insert(t.comments).values(comment);
+    const attachment = (boardId: string, commentId: string | null, storageKey: string) => ({
+      id: id(), commentId, boardId, uploaderId: "u1", storageKey, fileName: "f", contentType: "x/y", size: 1,
+      status: "pending" as const, createdAt: NOW,
+    });
+    const failure = await violation(db.insert(t.attachments).values(attachment(stranger.id, comment.id, "bad")));
+    expect(failure).toEqual({ code: "23503", constraint: "attachments_comment_board_fk" });
+    await db.insert(t.attachments).values(attachment(board.id, comment.id, "ok"));
+    await db.insert(t.attachments).values(attachment(stranger.id, null, "orphan"));
+  });
+
+  it("indexes the board id of comments and attachments (cascade deletes scan them)", async () => {
+    const { rows } = await db.execute<{ indexname: string }>(
+      sql`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('comments_board_id_idx', 'attachments_board_id_idx')`,
+    );
+    expect(rows.map((r) => r.indexname).sort()).toEqual(["attachments_board_id_idx", "comments_board_id_idx"]);
+  });
+
   it("makes storage keys unique", async () => {
     const { board } = await seedTree();
     const attachment = (storageKey: string) => ({

@@ -15,6 +15,13 @@
       "when": 1791575185331,
       "tag": "0001_outbox_lease",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791577067386,
+      "tag": "0002_composite_board_fks",
+      "breakpoints": true
     }
   ]
 }
