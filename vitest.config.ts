@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 const alias = {
+  "@tests": fileURLToPath(new URL("./tests", import.meta.url)),
   "@": fileURLToPath(new URL("./src", import.meta.url)),
   // `server-only` throws outside the react-server condition; neutralize it in tests.
   "server-only": fileURLToPath(new URL("./tests/support/server-only.ts", import.meta.url)),
