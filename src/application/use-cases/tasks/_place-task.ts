@@ -1,5 +1,4 @@
 import { NotFoundError } from "@/domain/errors";
-import { isTerminalStage } from "@/domain/entities/pipeline";
 import { resolveCompletedAt, withOverdue, type Task, type TaskView } from "@/domain/entities/task";
 import type { AppDeps } from "../../deps";
 import { placeAfter } from "../../placement";
@@ -23,7 +22,8 @@ export async function placeTask(
     const destinationId = toStageId ?? task.stageId;
     if (afterTaskId === task.id && destinationId === task.stageId) return task;
     const stages = await tx.stages.listByPipeline(task.pipelineId);
-    if (!stages.some((s) => s.id === destinationId)) throw new NotFoundError();
+    const destination = stages.find((s) => s.id === destinationId);
+    if (!destination) throw new NotFoundError();
     const others = (await tx.tasks.listByStage(destinationId)).filter((t) => t.id !== task.id);
     const placement = placeAfter(others, afterTaskId);
     for (const relocated of placement.relocated) await tx.tasks.update(relocated);
@@ -31,7 +31,7 @@ export async function placeTask(
       ...task,
       stageId: destinationId,
       position: placement.position,
-      completedAt: resolveCompletedAt(task.completedAt, isTerminalStage(destinationId, stages), now),
+      completedAt: resolveCompletedAt(task.completedAt, destination.isDone, now),
     };
     await tx.tasks.update(moved);
     return moved;

@@ -22,7 +22,7 @@ describe("in-memory repositories", () => {
 
   it("rejects duplicate stage names per pipeline, ignoring case, like the unique index", async () => {
     const { repos } = createTestContext();
-    const stage = (id: string, name: string, pipelineId = "p1") => ({ id, pipelineId, boardId: "b1", name, position: "a0" });
+    const stage = (id: string, name: string, pipelineId = "p1") => ({ id, pipelineId, boardId: "b1", name, isDone: false, position: "a0" });
     await repos.stages.insert(stage("s1", "Todo"));
     await repos.stages.insert(stage("s2", "Doing"));
     await repos.stages.insert(stage("s3", "todo", "p2"));
@@ -30,6 +30,22 @@ describe("in-memory repositories", () => {
     await expect(repos.stages.update(stage("s2", "todo"))).rejects.toBeInstanceOf(ConflictError);
     await repos.stages.update(stage("s1", "TODO"));
     expect((await repos.stages.findById("s1"))?.name).toBe("TODO");
+  });
+
+  it("allows at most one done stage per pipeline, like the partial unique index", async () => {
+    const { repos } = createTestContext();
+    const stage = (id: string, pipelineId: string, isDone: boolean) => ({
+      id, pipelineId, boardId: "b1", name: id, isDone, position: "a0",
+    });
+    await repos.stages.insert(stage("s1", "p1", true));
+    await repos.stages.insert(stage("s2", "p1", false));
+    await repos.stages.insert(stage("s3", "p2", true));
+    await expect(repos.stages.insert(stage("s4", "p1", true))).rejects.toBeInstanceOf(ConflictError);
+    await expect(repos.stages.update(stage("s2", "p1", true))).rejects.toBeInstanceOf(ConflictError);
+    await repos.stages.update(stage("s1", "p1", true));
+    await repos.stages.update(stage("s1", "p1", false));
+    await repos.stages.update(stage("s2", "p1", true));
+    expect((await repos.stages.findById("s2"))?.isDone).toBe(true);
   });
 
   it("clears an assignee across one board's tasks only", async () => {
@@ -63,7 +79,7 @@ describe("in-memory repositories", () => {
     await repos.boards.insert(board("b1"));
     await repos.members.insert({ boardId: "b1", userId: "u1", role: "owner" });
     await repos.pipelines.insert({ id: "p1", boardId: "b1", name: "p", description: "" });
-    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "a0" });
+    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", isDone: false, position: "a0" });
     await repos.tasks.insert(task("t1", "a0"));
     await repos.boards.delete("b1");
     expect([store.members, store.pipelines, store.stages, store.tasks].map((m) => m.size)).toEqual([0, 0, 0, 0]);
@@ -71,8 +87,8 @@ describe("in-memory repositories", () => {
 
   it("cascades pipeline and stage deletes to their tasks", async () => {
     const { repos, store } = createTestContext();
-    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "a0" });
-    await repos.stages.insert({ id: "s2", pipelineId: "p1", boardId: "b1", name: "s2", position: "a1" });
+    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", isDone: false, position: "a0" });
+    await repos.stages.insert({ id: "s2", pipelineId: "p1", boardId: "b1", name: "s2", isDone: false, position: "a1" });
     await repos.tasks.insert(task("t1", "a0"));
     await repos.tasks.insert(task("t2", "a0", { stageId: "s2" }));
     await repos.stages.delete("s1");
@@ -102,7 +118,7 @@ describe("in-memory repositories", () => {
 describe("in-memory pagination and ordering", () => {
   it("orders pipeline tasks by stage position before task position", async () => {
     const { repos } = createTestContext();
-    const stage = (id: string, position: string) => ({ id, pipelineId: "p1", boardId: "b1", name: id, position });
+    const stage = (id: string, position: string) => ({ id, pipelineId: "p1", boardId: "b1", name: id, isDone: false, position });
     await repos.stages.insert(stage("s2", "a1"));
     await repos.stages.insert(stage("s1", "a0"));
     for (const t of [task("x", "a0", { stageId: "s2" }), task("y", "a5", { stageId: "s1" }), task("z", "a1", { stageId: "s1" })]) {

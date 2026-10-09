@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
-import { MEMBER, OWNER, STRANGER, buildTask, seedBoard, seedKanban } from "@tests/support/fixtures";
+import { MEMBER, OWNER, STRANGER, buildTask, clearStages, seedBoard, seedKanban } from "@tests/support/fixtures";
 import { makeCreateBoard } from "./boards/create-board";
 import { makeListMyBoards } from "./boards/list-my-boards";
 import { makeAddMember } from "./members/add-member";
@@ -50,6 +50,7 @@ describe("paginated lists (default 50, max 200)", () => {
     expect(names(await makeListPipelines(ctx)(OWNER, { boardId }))).toEqual(["A", "B", "C"]);
     expect(names(await makeListPipelines(ctx)(OWNER, { boardId, limit: 1, offset: 1 }))).toEqual(["B"]);
     const pipelineId = pipelines[0]!.id;
+    clearStages(ctx, pipelineId);
     for (const name of ["x", "y", "z"]) await makeCreateStage(ctx)(OWNER, { pipelineId, name });
     expect(names(await makeListStages(ctx)(OWNER, { pipelineId }))).toEqual(["x", "y", "z"]);
     expect(names(await makeListStages(ctx)(OWNER, { pipelineId, limit: 2, offset: 1 }))).toEqual(["y", "z"]);

@@ -1,4 +1,3 @@
-import { isTerminalStage } from "@/domain/entities/pipeline";
 import { resolveCompletedAt, withOverdue, type Task, type TaskView } from "@/domain/entities/task";
 import type { Actor } from "../../actor";
 import type { AppDeps } from "../../deps";
@@ -15,14 +14,14 @@ export function makeCreateTask(deps: AppDeps) {
     await assertAssigneeIsMember(deps.repos.members, stage.boardId, data.assigneeId);
     const now = deps.clock.now();
     const task = await deps.uow.run(async (tx) => {
-      const [siblings, stages] = await Promise.all([tx.tasks.listByStage(stage.id), tx.stages.listByPipeline(stage.pipelineId)]);
+      const siblings = await tx.tasks.listByStage(stage.id);
       const created: Task = {
         ...data,
         id: deps.ids.next(),
         boardId: stage.boardId,
         pipelineId: stage.pipelineId,
         status: "active",
-        completedAt: resolveCompletedAt(null, isTerminalStage(stage.id, stages), now),
+        completedAt: resolveCompletedAt(null, stage.isDone, now),
         position: positionAtEnd(siblings),
         createdAt: now,
       };

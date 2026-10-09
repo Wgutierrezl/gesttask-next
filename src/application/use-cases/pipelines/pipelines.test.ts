@@ -27,6 +27,40 @@ describe("pipelines", () => {
     expect(await makeListPipelines(ctx)(OWNER, { boardId })).toEqual([]);
   });
 
+  it("creates the default stages with only the last one flagged done (REQ-TSK-05)", async () => {
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P" });
+    const stages = await ctx.repos.stages.listByPipeline(created.id);
+    expect(stages.map((s) => [s.name, s.isDone])).toEqual([
+      ["To do", false],
+      ["In progress", false],
+      ["Done", true],
+    ]);
+    expect(stages.every((s) => s.boardId === boardId && s.pipelineId === created.id)).toBe(true);
+  });
+
+  it("creates the pipeline and its stages atomically", async () => {
+    const base = ctx.uow;
+    let inserts = 0;
+    const flaky = {
+      run: <T>(fn: Parameters<typeof base.run<T>>[0]) =>
+        base.run((tx) =>
+          fn({
+            ...tx,
+            stages: {
+              ...tx.stages,
+              insert: async (stage) => {
+                if (++inserts === 2) throw new Error("boom");
+                await tx.stages.insert(stage);
+              },
+            },
+          }),
+        ),
+    };
+    await expect(makeCreatePipeline({ ...ctx, uow: flaky })(OWNER, { boardId, name: "P" })).rejects.toThrow("boom");
+    expect(ctx.store.pipelines.size).toBe(0);
+    expect(ctx.store.stages.size).toBe(0);
+  });
+
   it("validates names", async () => {
     await expect(makeCreatePipeline(ctx)(OWNER, { boardId, name: "" })).rejects.toBeInstanceOf(ValidationError);
     expect(ctx.store.pipelines.size).toBe(0);
@@ -60,7 +94,7 @@ describe("pipelines", () => {
 
   it("cascades a pipeline delete to its stages and tasks", async () => {
     const { id } = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P" });
-    await ctx.repos.stages.insert({ id: "s1", pipelineId: id, boardId, name: "Todo", position: "a0" });
+    await ctx.repos.stages.insert({ id: "s1", pipelineId: id, boardId, name: "Todo", isDone: false, position: "a0" });
     await makeDeletePipeline(ctx)(OWNER, { pipelineId: id });
     expect(ctx.store.stages.size).toBe(0);
   });
