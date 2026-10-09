@@ -22,9 +22,11 @@ function setup(current: Actor | null = null) {
     async signOut() { calls.push("signout"); session = null; },
   };
   const sessionPort: SessionPort = { getActor: async () => session };
-  const sandbox: GuestSandbox & { provisioned: string[] } = {
+  const sandbox: GuestSandbox & { provisioned: string[]; boards: Set<string> } = {
     provisioned: [],
-    async provision(actor) { this.provisioned.push(actor.userId); },
+    boards: new Set<string>(),
+    async hasBoards(actor) { return this.boards.has(actor.userId); },
+    async provision(actor) { this.provisioned.push(actor.userId); this.boards.add(actor.userId); },
   };
   const limiter = new InMemoryRateLimiter(clock);
   return { calls, auth, session: sessionPort, sandbox, limiter, deps: { auth, session: sessionPort, sandbox, limiter } };
@@ -38,12 +40,29 @@ describe("signInGuest", () => {
     expect(s.sandbox.provisioned).toEqual(["guest-1"]);
   });
 
-  it("reuses the existing guest session instead of creating another user", async () => {
+  it("reuses the existing guest session and its boards: no new user, no second sandbox, no rate-limit hit", async () => {
     const s = setup({ userId: "guest-0", isGuest: true });
-    const actor = await makeSignInGuest(s.deps)(CALLER);
-    expect(actor.userId).toBe("guest-0");
+    s.sandbox.boards.add("guest-0");
+    const signIn = makeSignInGuest(s.deps);
+    for (let i = 0; i < 20; i++) expect((await signIn(CALLER)).userId).toBe("guest-0");
     expect(s.calls).toEqual([]);
-    expect(s.sandbox.provisioned).toEqual(["guest-0"]); // idempotent: heals a failed first provisioning
+    expect(s.sandbox.provisioned).toEqual([]);
+  });
+
+  it("re-provisions a guest that owns no boards, charging the guest rate limit before touching anything", async () => {
+    const s = setup({ userId: "guest-0", isGuest: true });
+    const signIn = makeSignInGuest(s.deps);
+    await signIn(CALLER);
+    expect(s.sandbox.provisioned).toEqual(["guest-0"]);
+    for (let i = 0; i < 4; i++) {
+      s.sandbox.boards.clear(); // the guest deleted its sandbox
+      await signIn(CALLER);
+    }
+    s.sandbox.boards.clear();
+    s.sandbox.provisioned.length = 0;
+    const failure = await signIn(CALLER).catch((e) => e);
+    expect(failure).toBeInstanceOf(RateLimitError);
+    expect(s.sandbox.provisioned).toEqual([]);
   });
 
   it("refuses a signed-in real user", async () => {

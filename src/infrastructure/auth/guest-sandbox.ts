@@ -18,6 +18,10 @@ export class SeededGuestSandbox implements GuestSandbox {
     private readonly deps: SeedDeps,
   ) {}
 
+  async hasBoards(guest: Actor): Promise<boolean> {
+    return (await this.deps.uow.run((tx) => tx.members.listByUser(guest.userId))).some((m) => m.role === "owner");
+  }
+
   async provision(guest: Actor): Promise<void> {
     await ensureDemoUsers(this.db);
     await seedDemoBoard(this.deps, { ownerId: guest.userId, boardId: sandboxBoardId(guest.userId) });

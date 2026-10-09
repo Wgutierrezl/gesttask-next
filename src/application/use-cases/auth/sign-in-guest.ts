@@ -15,18 +15,16 @@ interface Deps {
 
 /**
  * "Try demo" (REQ-AUTH-02): an anonymous user with its own sandbox board. A visitor that already is a guest
- * gets the same sandbox back; the rate limit is checked BEFORE any user is created (REQ-SEC-03).
+ * keeps its boards (no new sandbox, no hit); one that owns none gets a sandbox again. Every path that
+ * provisions is rate limited BEFORE any user or board is created (REQ-SEC-03).
  */
 export function makeSignInGuest(deps: Deps) {
   return async (caller: AnonymousCaller): Promise<Actor> => {
     const current = await deps.session.getActor();
     if (current && !current.isGuest) throw new ConflictError("Already signed in");
-    if (current) {
-      await deps.sandbox.provision(current);
-      return current;
-    }
+    if (current && (await deps.sandbox.hasBoards(current))) return current;
     await enforceRateLimit(deps.limiter, `guest-login:${caller.clientKey}`, GUEST_LOGIN_RULE);
-    const guest = await deps.auth.signInGuest();
+    const guest = current ?? (await deps.auth.signInGuest());
     await deps.sandbox.provision(guest);
     return guest;
   };
