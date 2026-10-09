@@ -24,6 +24,8 @@ export interface Page {
  *     ORDER BY position, id
  *   A plain `SELECT ... ORDER BY position FOR UPDATE` locks in position order, which differs from
  *   the primary-key order other transactions use, and can deadlock.
+ * - PAGINATED listings (`listByMember`, `listByBoard`, `listByPipeline` with a `Page`) are snapshot reads
+ *   even inside a transaction: they feed the UI and are never used to read-modify-write.
  * - Uniqueness is enforced by the database, never by check-then-insert in application code: the
  *   violating insert/update throws `ConflictError`.
  */
