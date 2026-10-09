@@ -1,11 +1,14 @@
 import { ConflictError } from "@/domain/errors";
 import { comparePositions } from "@/domain/value-objects/position";
+import type { Task } from "@/domain/entities/task";
 import type { Stage } from "@/domain/entities/pipeline";
-import type { Repos } from "@/application/ports/repositories";
+import type { Page, Repos } from "@/application/ports/repositories";
 import type { InMemoryStore } from "./in-memory-store";
 
 const copy = <T>(value: T): T => structuredClone(value);
 const copies = <T>(values: Iterable<T>): T[] => [...values].map(copy);
+const slice = <T>(values: T[], page?: Page): T[] => (page ? values.slice(page.offset, page.offset + page.limit) : values);
+const byText = (a: string, b: string) => comparePositions(a, b);
 const byPositionThenId = (a: { position: string; id: string }, b: { position: string; id: string }) =>
   comparePositions(a.position, b.position) || comparePositions(a.id, b.id);
 
@@ -28,9 +31,11 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
     boards: {
       insert: async (board) => void store.boards.set(board.id, copy(board)),
       findById: async (id) => copy(store.boards.get(id) ?? null),
-      listByMember: async (userId) => {
+      listByMember: async (userId, page) => {
         const ids = new Set([...store.members.values()].filter((m) => m.userId === userId).map((m) => m.boardId));
-        return copies([...store.boards.values()].filter((b) => ids.has(b.id)));
+        const boards = [...store.boards.values()].filter((b) => ids.has(b.id));
+        boards.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || byText(a.id, b.id));
+        return copies(slice(boards, page));
       },
       update: async (board) => void store.boards.set(board.id, copy(board)),
       delete: async (id) => {
@@ -48,7 +53,10 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         store.members.set(key, copy(member));
       },
       find: async (boardId, userId) => copy(store.members.get(memberKey(boardId, userId)) ?? null),
-      listByBoard: async (boardId) => copies([...store.members.values()].filter((m) => m.boardId === boardId)),
+      listByBoard: async (boardId, page) =>
+        copies(
+          slice([...store.members.values()].filter((m) => m.boardId === boardId).sort((a, b) => byText(a.userId, b.userId)), page),
+        ),
       listByUser: async (userId) => copies([...store.members.values()].filter((m) => m.userId === userId)),
       updateRole: async (boardId, userId, role) => {
         const member = store.members.get(memberKey(boardId, userId));
@@ -61,7 +69,15 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
     pipelines: {
       insert: async (pipeline) => void store.pipelines.set(pipeline.id, copy(pipeline)),
       findById: async (id) => copy(store.pipelines.get(id) ?? null),
-      listByBoard: async (boardId) => copies([...store.pipelines.values()].filter((p) => p.boardId === boardId)),
+      listByBoard: async (boardId, page) =>
+        copies(
+          slice(
+            [...store.pipelines.values()]
+              .filter((p) => p.boardId === boardId)
+              .sort((a, b) => byText(a.name, b.name) || byText(a.id, b.id)),
+            page,
+          ),
+        ),
       update: async (pipeline) => void store.pipelines.set(pipeline.id, copy(pipeline)),
       delete: async (id) => {
         store.pipelines.delete(id);
@@ -75,8 +91,8 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         store.stages.set(stage.id, copy(stage));
       },
       findById: async (id) => copy(store.stages.get(id) ?? null),
-      listByPipeline: async (pipelineId) =>
-        copies([...store.stages.values()].filter((s) => s.pipelineId === pipelineId).sort(byPositionThenId)),
+      listByPipeline: async (pipelineId, page) =>
+        copies(slice([...store.stages.values()].filter((s) => s.pipelineId === pipelineId).sort(byPositionThenId), page)),
       update: async (stage) => {
         assertStageNameFree(stage);
         store.stages.set(stage.id, copy(stage));
@@ -98,13 +114,13 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       },
       listByStage: async (stageId) =>
         copies([...store.tasks.values()].filter((t) => t.stageId === stageId).sort(byPositionThenId)),
-      listByPipeline: async (pipelineId, { limit, offset }) =>
-        copies(
-          [...store.tasks.values()]
-            .filter((t) => t.pipelineId === pipelineId)
-            .sort(byPositionThenId)
-            .slice(offset, offset + limit),
-        ),
+      listByPipeline: async (pipelineId, page) => {
+        const stages = new Map([...store.stages.values()].map((s) => [s.id, s]));
+        const stageOrder = (task: Task) => stages.get(task.stageId) ?? { id: task.stageId, position: "" };
+        const tasks = [...store.tasks.values()].filter((t) => t.pipelineId === pipelineId);
+        tasks.sort((a, b) => byPositionThenId(stageOrder(a), stageOrder(b)) || byPositionThenId(a, b));
+        return copies(slice(tasks, page));
+      },
     },
   };
 }

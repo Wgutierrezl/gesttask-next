@@ -5,7 +5,7 @@ import type { Task } from "@/domain/entities/task";
 import { createTestContext } from "@tests/support/app-context";
 
 const NOW = new Date("2026-10-09T00:00:00Z");
-const board = (id: string): Board => ({ id, name: id, description: "", status: "active", ownerId: "u1", createdAt: NOW });
+const board = (id: string): Board => ({ id, name: id, description: "", status: "active", createdAt: NOW });
 const task = (id: string, position: string, extra: Partial<Task> = {}): Task => ({
   id, boardId: "b1", pipelineId: "p1", stageId: "s1", title: id, description: "", priority: "low",
   status: "active", dueDate: null, assigneeId: null, completedAt: null, position, createdAt: NOW, ...extra,
@@ -96,5 +96,19 @@ describe("in-memory repositories", () => {
     const { uow, repos } = createTestContext();
     await uow.run((tx) => tx.boards.insert(board("b1")));
     expect(await repos.boards.findById("b1")).not.toBeNull();
+  });
+});
+
+describe("in-memory pagination and ordering", () => {
+  it("orders pipeline tasks by stage position before task position", async () => {
+    const { repos } = createTestContext();
+    const stage = (id: string, position: string) => ({ id, pipelineId: "p1", boardId: "b1", name: id, position });
+    await repos.stages.insert(stage("s2", "a1"));
+    await repos.stages.insert(stage("s1", "a0"));
+    for (const t of [task("x", "a0", { stageId: "s2" }), task("y", "a5", { stageId: "s1" }), task("z", "a1", { stageId: "s1" })]) {
+      await repos.tasks.insert(t);
+    }
+    const ids = async (offset: number) => (await repos.tasks.listByPipeline("p1", { limit: 2, offset })).map((t) => t.id);
+    expect([...(await ids(0)), ...(await ids(2))]).toEqual(["z", "y", "x"]);
   });
 });

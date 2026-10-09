@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema } from "./common";
+import { idSchema, paginationSchema } from "./common";
 
 const name = z.string().trim().min(1).max(100);
 const description = z.string().max(2000);
@@ -11,3 +11,4 @@ export const updatePipelineSchema = z.object({
   description: description.optional(),
 });
 export const pipelineIdSchema = z.object({ pipelineId: idSchema });
+export const listStagesSchema = paginationSchema.extend({ pipelineId: idSchema });
