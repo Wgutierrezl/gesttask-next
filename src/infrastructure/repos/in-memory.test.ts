@@ -30,7 +30,7 @@ describe("in-memory repositories", () => {
 
   it("lists tasks by position then id", async () => {
     const { repos } = createTestContext();
-    for (const t of [task("c", "V"), task("b", "V"), task("a", "W")]) await repos.tasks.insert(t);
+    for (const t of [task("c", "a0"), task("b", "a0"), task("a", "a1")]) await repos.tasks.insert(t);
     expect((await repos.tasks.listByStage("s1")).map((t) => t.id)).toEqual(["b", "c", "a"]);
     expect((await repos.tasks.listByPipeline("p1", { limit: 2, offset: 1 })).map((t) => t.id)).toEqual(["c", "a"]);
   });
@@ -40,18 +40,18 @@ describe("in-memory repositories", () => {
     await repos.boards.insert(board("b1"));
     await repos.members.insert({ boardId: "b1", userId: "u1", role: "owner" });
     await repos.pipelines.insert({ id: "p1", boardId: "b1", name: "p", description: "" });
-    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "V" });
-    await repos.tasks.insert(task("t1", "V"));
+    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "a0" });
+    await repos.tasks.insert(task("t1", "a0"));
     await repos.boards.delete("b1");
     expect([store.members, store.pipelines, store.stages, store.tasks].map((m) => m.size)).toEqual([0, 0, 0, 0]);
   });
 
   it("cascades pipeline and stage deletes to their tasks", async () => {
     const { repos, store } = createTestContext();
-    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "V" });
-    await repos.stages.insert({ id: "s2", pipelineId: "p1", boardId: "b1", name: "s2", position: "W" });
-    await repos.tasks.insert(task("t1", "V"));
-    await repos.tasks.insert(task("t2", "V", { stageId: "s2" }));
+    await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", position: "a0" });
+    await repos.stages.insert({ id: "s2", pipelineId: "p1", boardId: "b1", name: "s2", position: "a1" });
+    await repos.tasks.insert(task("t1", "a0"));
+    await repos.tasks.insert(task("t2", "a0", { stageId: "s2" }));
     await repos.stages.delete("s1");
     expect([...store.tasks.keys()]).toEqual(["t2"]);
     await repos.pipelines.delete("p1");

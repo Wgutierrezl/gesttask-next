@@ -54,6 +54,15 @@ describe("stages", () => {
     expect(await names()).toEqual(["C", "B", "A"]);
   });
 
+  it("treats dropping a stage on itself as a no-op", async () => {
+    const [a, b] = [await addStage("A"), await addStage("B")];
+    const before = JSON.stringify([...ctx.store.stages]);
+    expect(await makeReorderStage(ctx)(OWNER, { stageId: a.id, afterStageId: a.id })).toEqual(a);
+    expect(await makeReorderStage(ctx)(OWNER, { stageId: b.id, afterStageId: b.id })).toEqual(b);
+    expect(JSON.stringify([...ctx.store.stages])).toBe(before);
+    await expect(makeReorderStage(ctx)(STRANGER, { stageId: a.id, afterStageId: a.id })).rejects.toBeInstanceOf(NotFoundError);
+  });
+
   it("rejects reordering relative to an unknown stage", async () => {
     const a = await addStage("A");
     const ghost = "00000000-0000-4000-8000-0000000000ff";
@@ -80,7 +89,7 @@ describe("stages", () => {
   describe("delete (REQ-PIP-02)", () => {
     const seedTasks = async (stageId: string, ids: string[]) => {
       for (const [i, id] of ids.entries()) {
-        await ctx.repos.tasks.insert(buildTask({ id, stageId, pipelineId, boardId, position: `V${i + 1}` }));
+        await ctx.repos.tasks.insert(buildTask({ id, stageId, pipelineId, boardId, position: `a${i}` }));
       }
     };
 

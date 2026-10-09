@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { MAX_POSITION_LENGTH } from "@/domain/value-objects/position";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, STRANGER, buildTask, seedKanban } from "@tests/support/fixtures";
@@ -71,14 +72,29 @@ describe("task placement", () => {
       expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, position: t.position });
     });
 
-    it("answers NotFound when the anchor task is unknown, self, or in another stage", async () => {
+    it("answers NotFound when the anchor task is unknown or in another stage", async () => {
       const [a, b] = [await add("A"), await add("B", k.doneId)];
-      for (const afterTaskId of [ghost, a.id, b.id]) {
+      for (const afterTaskId of [ghost, b.id]) {
         await expect(makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: k.todoId, afterTaskId })).rejects.toBeInstanceOf(
           NotFoundError,
         );
       }
       await expect(makeReorderTask(ctx)(OWNER, { taskId: a.id, afterTaskId: b.id })).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("treats dropping a task on itself as a no-op that writes nothing", async () => {
+      const [a, b] = [await add("A"), await add("B")];
+      const before = JSON.stringify([...ctx.store.tasks]);
+      ctx.clock.set(new Date("2026-10-20T00:00:00.000Z"));
+      const moved = await makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: k.todoId, afterTaskId: a.id });
+      const reordered = await makeReorderTask(ctx)(OWNER, { taskId: b.id, afterTaskId: b.id });
+      expect(moved).toMatchObject({ id: a.id, stageId: k.todoId, position: a.position });
+      expect(reordered).toMatchObject({ id: b.id, position: b.position });
+      expect(JSON.stringify([...ctx.store.tasks])).toBe(before);
+      await expect(makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: k.doneId, afterTaskId: a.id })).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(makeReorderTask(ctx)(STRANGER, { taskId: a.id, afterTaskId: a.id })).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it.each([
@@ -101,6 +117,21 @@ describe("task placement", () => {
   });
 
   describe("position integrity", () => {
+    it("keeps order and short keys over 1000 inserts into the same gap", async () => {
+      const [a, b] = [await add("A"), await add("B")];
+      for (let i = 0; i < 1000; i++) {
+        const t = await add(`N${i}`, k.doneId);
+        await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: k.todoId, afterTaskId: a.id });
+      }
+      const tasks = await ctx.repos.tasks.listByStage(k.todoId);
+      expect(tasks).toHaveLength(1002);
+      expect(tasks[0]?.id).toBe(a.id);
+      expect(tasks.at(-1)?.id).toBe(b.id);
+      expect(tasks.slice(1, 4).map((t) => t.title)).toEqual(["N999", "N998", "N997"]);
+      expect(new Set(tasks.map((t) => t.position)).size).toBe(1002);
+      expect(Math.max(...tasks.map((t) => t.position.length))).toBeLessThanOrEqual(MAX_POSITION_LENGTH);
+    });
+
     it("keeps a strict total order across repeated moves into the same gap", async () => {
       const [a, b] = [await add("A"), await add("B")];
       for (let i = 0; i < 40; i++) {
@@ -117,7 +148,7 @@ describe("task placement", () => {
       const ids = { a: "00000000-0000-4000-8000-00000000000a", b: "00000000-0000-4000-8000-00000000000b" };
       for (const [title, id] of Object.entries(ids)) {
         const base = { id, title, stageId: k.todoId, pipelineId: k.pipelineId, boardId: k.boardId };
-        await ctx.repos.tasks.insert(buildTask({ ...base, position: "V" }));
+        await ctx.repos.tasks.insert(buildTask({ ...base, position: "a0" }));
       }
       const moving = await add("M", k.doneId);
       await makeMoveTask(ctx)(OWNER, { taskId: moving.id, toStageId: k.todoId, afterTaskId: ids.a });

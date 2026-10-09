@@ -60,7 +60,7 @@ describe("pipelines", () => {
 
   it("cascades a pipeline delete to its stages and tasks", async () => {
     const { id } = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P" });
-    await ctx.repos.stages.insert({ id: "s1", pipelineId: id, boardId, name: "Todo", position: "V" });
+    await ctx.repos.stages.insert({ id: "s1", pipelineId: id, boardId, name: "Todo", position: "a0" });
     await makeDeletePipeline(ctx)(OWNER, { pipelineId: id });
     expect(ctx.store.stages.size).toBe(0);
   });
