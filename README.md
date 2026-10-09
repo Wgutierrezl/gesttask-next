@@ -28,7 +28,7 @@ flowchart LR
 
 - Next.js 16, React 19, TypeScript (strict), Tailwind CSS 4
 - Zod for validation, PostgreSQL (local via Docker) and S3-compatible storage (RustFS locally)
-- Vitest (unit, integration, contract), ESLint, dependency-cruiser, GitHub Actions
+- Vitest (unit, integration), ESLint, dependency-cruiser, GitHub Actions
 
 ## Local setup
 
@@ -53,7 +53,7 @@ Postgres is published on port 5433 to avoid clashing with a local instance on 54
 | `pnpm depcruise` | Verify architecture layer boundaries |
 | `pnpm test:unit` | Unit tests |
 | `pnpm test:coverage` | Unit tests with a 90% threshold on `domain` and `application` |
-| `pnpm test:integration` / `test:contract` | Tests against real Postgres and S3-compatible services |
+| `pnpm test:integration` | Tests against real Postgres (needs `pnpm db:up`); also runs the repository contract suites |
 | `pnpm db:up` / `db:down` | Start or stop the local Docker stack |
 
 ## Lessons from v1
