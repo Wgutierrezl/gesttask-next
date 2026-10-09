@@ -261,13 +261,23 @@ describe("stages", () => {
         expect(completedAt("t1")).toEqual(ctx.clock.now());
       });
 
-      it("reopens tasks of a deleted done stage moved into a regular stage", async () => {
+      it("rejects deleting the done stage while it is flagged, keeping its tasks completed", async () => {
         const [todo, done] = [await addStage("Todo"), await addStage("Done")];
         await setDone(done.id);
         await put("t1", done.id, STAMP);
+        await expect(makeDeleteStage(ctx)(OWNER, { stageId: done.id, moveToStageId: todo.id })).rejects.toBeInstanceOf(ConflictError);
+        expect(ctx.store.stages.get(done.id)?.isDone).toBe(true);
+        expect(completedAt("t1")).toEqual(STAMP);
+      });
+
+      it("reopens the tasks of a formerly done stage once the flag moved elsewhere and it is deleted", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        await setDone(todo.id);
         await makeDeleteStage(ctx)(OWNER, { stageId: done.id, moveToStageId: todo.id });
-        expect(completedAt("t1")).toBeNull();
-        expect([...ctx.store.stages.values()].some((s) => s.isDone)).toBe(false);
+        expect(ctx.store.stages.has(done.id)).toBe(false);
+        expect(completedAt("t1")).toEqual(ctx.clock.now());
       });
     });
   });
