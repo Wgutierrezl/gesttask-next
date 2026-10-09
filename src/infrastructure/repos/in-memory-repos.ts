@@ -1,7 +1,8 @@
-import { ConflictError } from "@/domain/errors";
+import { ConflictError, NotFoundError } from "@/domain/errors";
 import { comparePositions } from "@/domain/value-objects/position";
 import type { Task } from "@/domain/entities/task";
 import type { Stage } from "@/domain/entities/pipeline";
+import type { Pipeline } from "@/domain/entities/pipeline";
 import type { Page, Repos } from "@/application/ports/repositories";
 import type { InMemoryStore } from "./in-memory-store";
 
@@ -35,6 +36,19 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       }
     }
   };
+  // The composite foreign keys of the real schema: a violation reads as a vanished parent (NotFoundError).
+  const assertBoard = (boardId: string) => {
+    if (!store.boards.has(boardId)) throw new NotFoundError();
+  };
+  const assertPipelineOnBoard = (pipelineId: string, boardId: string): Pipeline => {
+    const pipeline = store.pipelines.get(pipelineId);
+    if (!pipeline || pipeline.boardId !== boardId) throw new NotFoundError();
+    return pipeline;
+  };
+  const assertTaskParents = (task: Task) => {
+    assertPipelineOnBoard(task.pipelineId, task.boardId);
+    if (store.stages.get(task.stageId)?.pipelineId !== task.pipelineId) throw new NotFoundError();
+  };
   return {
     boards: {
       insert: async (board) => void store.boards.set(board.id, copy(board)),
@@ -57,6 +71,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
     members: {
       insert: async (member) => {
         const key = memberKey(member.boardId, member.userId);
+        assertBoard(member.boardId);
         if (store.members.has(key)) throw new ConflictError("User is already a member of this board");
         store.members.set(key, copy(member));
       },
@@ -75,7 +90,10 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         [...store.members.values()].filter((m) => m.boardId === boardId && m.role === role).length,
     },
     pipelines: {
-      insert: async (pipeline) => void store.pipelines.set(pipeline.id, copy(pipeline)),
+      insert: async (pipeline) => {
+        assertBoard(pipeline.boardId);
+        store.pipelines.set(pipeline.id, copy(pipeline));
+      },
       findById: async (id) => copy(store.pipelines.get(id) ?? null),
       listByBoard: async (boardId, page) =>
         copies(
@@ -95,6 +113,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
     },
     stages: {
       insert: async (stage) => {
+        assertPipelineOnBoard(stage.pipelineId, stage.boardId);
         assertStageNameFree(stage);
         assertSingleDoneStage(stage);
         store.stages.set(stage.id, copy(stage));
@@ -103,6 +122,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       listByPipeline: async (pipelineId, page) =>
         copies(slice([...store.stages.values()].filter((s) => s.pipelineId === pipelineId).sort(byPositionThenId), page)),
       update: async (stage) => {
+        assertPipelineOnBoard(stage.pipelineId, stage.boardId);
         assertStageNameFree(stage);
         assertSingleDoneStage(stage);
         store.stages.set(stage.id, copy(stage));
@@ -113,9 +133,15 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       },
     },
     tasks: {
-      insert: async (task) => void store.tasks.set(task.id, copy(task)),
+      insert: async (task) => {
+        assertTaskParents(task);
+        store.tasks.set(task.id, copy(task));
+      },
       findById: async (id) => copy(store.tasks.get(id) ?? null),
-      update: async (task) => void store.tasks.set(task.id, copy(task)),
+      update: async (task) => {
+        assertTaskParents(task);
+        store.tasks.set(task.id, copy(task));
+      },
       delete: async (id) => void store.tasks.delete(id),
       clearAssignee: async (boardId, userId) => {
         for (const task of store.tasks.values()) {

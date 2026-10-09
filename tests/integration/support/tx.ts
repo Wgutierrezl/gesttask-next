@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AppDeps } from "@/application/deps";
+import { sql } from "drizzle-orm";
 import type { DbHandle } from "@/infrastructure/db/client";
 import { createDrizzleRepos } from "@/infrastructure/repos/drizzle-repos";
 import { DrizzleUnitOfWork } from "@/infrastructure/repos/drizzle-unit-of-work";
@@ -36,4 +37,30 @@ export async function settlesWithin(promise: Promise<unknown>, ms: number): Prom
   );
   await sleep(ms);
   return settled;
+}
+
+/**
+ * Resolves once `count` backends are waiting on a lock, i.e. a transaction is provably blocked behind
+ * another one. Deterministic replacement for "sleep and check it has not finished yet".
+ */
+export async function waitUntilBlocked(handle: DbHandle, count = 1, timeoutMs = 5_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const { rows } = await handle.db.execute<{ waiting: number }>(sql`
+      SELECT count(*)::int AS waiting FROM pg_stat_activity
+      WHERE datname = current_database() AND wait_event_type = 'Lock' AND pid <> pg_backend_pid()`);
+    if ((rows[0]?.waiting ?? 0) >= count) return;
+    if (Date.now() > deadline) throw new Error(`no transaction became blocked on a lock within ${timeoutMs} ms`);
+    await sleep(10);
+  }
+}
+
+/** Tracks whether a promise has settled, without awaiting it. */
+export function track<T>(promise: Promise<T>): { promise: Promise<T>; settled: () => boolean } {
+  let done = false;
+  void promise.then(
+    () => (done = true),
+    () => (done = true),
+  );
+  return { promise, settled: () => done };
 }

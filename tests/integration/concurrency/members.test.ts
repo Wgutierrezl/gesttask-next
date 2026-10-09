@@ -4,7 +4,7 @@ import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeCreateBoard } from "@/application/use-cases/boards/create-board";
 import { actor } from "@tests/support/fixtures";
 import { connectTestDb, resetDb } from "../support/db";
-import { deferred, drizzleDeps, settlesWithin } from "../support/tx";
+import { deferred, drizzleDeps, track, waitUntilBlocked } from "../support/tx";
 
 const handle = connectTestDb(5_000);
 const deps = drizzleDeps(handle);
@@ -46,12 +46,13 @@ describe("members under real concurrency", () => {
     });
     await locked.promise;
 
-    const second = deps.uow.run((tx) => tx.members.countByRole(boardId, "owner"));
-    expect(await settlesWithin(second, 400)).toBe(false);
+    const second = track(deps.uow.run((tx) => tx.members.countByRole(boardId, "owner")));
+    await waitUntilBlocked(handle);
+    expect(second.settled()).toBe(false);
 
     release.resolve();
     expect(await first).toBe(2);
-    expect(await second).toBe(1);
+    expect(await second.promise).toBe(1);
   });
 
   it("find locks the member row: a concurrent role change waits for the first transaction", async () => {
@@ -66,11 +67,12 @@ describe("members under real concurrency", () => {
     });
     await locked.promise;
 
-    const second = deps.uow.run((tx) => tx.members.updateRole(boardId, "m1", "guest"));
-    expect(await settlesWithin(second, 400)).toBe(false);
+    const second = track(deps.uow.run((tx) => tx.members.updateRole(boardId, "m1", "guest")));
+    await waitUntilBlocked(handle);
+    expect(second.settled()).toBe(false);
     release.resolve();
     await first;
-    await second;
+    await second.promise;
     expect((await deps.repos.members.find(boardId, "m1"))?.role).toBe("guest");
   });
 
@@ -84,7 +86,8 @@ describe("members under real concurrency", () => {
       await release.promise;
     });
     await locked.promise;
-    expect(await settlesWithin(deps.repos.members.countByRole(boardId, "owner"), 400)).toBe(true);
+    // Would fail by lock_timeout, not hang, if the plain read queued behind the holder's row locks.
+    expect(await deps.repos.members.countByRole(boardId, "owner")).toBe(1);
     release.resolve();
     await holder;
   });

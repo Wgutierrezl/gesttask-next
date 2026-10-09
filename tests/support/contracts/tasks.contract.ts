@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { at, makePipeline, makeStage, makeTask, seedStage, uuid, type RepoHarness } from "./harness";
+import { NotFoundError } from "@/domain/errors";
+import { at, makeBoard, makePipeline, makeStage, makeTask, seedStage, uuid, type RepoHarness } from "./harness";
 
 /** Behaviour every TaskRepo implementation must share, including FK cascades and ordering. */
 export function runTaskContract(name: string, setup: () => RepoHarness): void {
@@ -83,6 +84,35 @@ export function runTaskContract(name: string, setup: () => RepoHarness): void {
       expect((await h.repos.tasks.findById(elsewhere.id))?.assigneeId).toBe("u1");
     });
 
+    describe("referential integrity", () => {
+      it("rejects a task whose stage does not exist", async () => {
+        const { stage } = await seedStage(h);
+        await expect(h.repos.tasks.insert(makeTask({ ...stage, id: uuid() }))).rejects.toBeInstanceOf(NotFoundError);
+        expect(await h.repos.tasks.listByStage(stage.id)).toEqual([]);
+      });
+
+      it("rejects a task whose stage belongs to another pipeline (insert and update)", async () => {
+        const { board, stage } = await seedStage(h);
+        const otherPipeline = makePipeline(board.id);
+        await h.repos.pipelines.insert(otherPipeline);
+        const otherStage = makeStage(otherPipeline);
+        await h.repos.stages.insert(otherStage);
+        // pipelineId says "stage's pipeline" for stageId of the OTHER pipeline.
+        await expect(h.repos.tasks.insert(makeTask(stage, { stageId: otherStage.id }))).rejects.toBeInstanceOf(NotFoundError);
+        const task = makeTask(stage);
+        await h.repos.tasks.insert(task);
+        await expect(h.repos.tasks.update({ ...task, stageId: otherStage.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await h.repos.tasks.findById(task.id)).toEqual(task);
+      });
+
+      it("rejects a task whose boardId differs from its pipeline's board", async () => {
+        const { stage } = await seedStage(h);
+        const stranger = makeBoard();
+        await h.repos.boards.insert(stranger);
+        await expect(h.repos.tasks.insert(makeTask(stage, { boardId: stranger.id }))).rejects.toBeInstanceOf(NotFoundError);
+      });
+    });
+
     describe("cascades", () => {
       const seedTasks = async () => {
         const ctx = await seedStage(h);
@@ -92,16 +122,20 @@ export function runTaskContract(name: string, setup: () => RepoHarness): void {
       };
       const remaining = async (ids: string[]) => (await Promise.all(ids.map((id) => h.repos.tasks.findById(id)))).filter(Boolean);
 
-      it("deleting a stage deletes its tasks", async () => {
-        const { stage, tasks } = await seedTasks();
+      it("deleting a stage deletes its tasks, and the task listings no longer show them", async () => {
+        const { stage, pipeline, tasks } = await seedTasks();
         await h.repos.stages.delete(stage.id);
         expect(await remaining(tasks.map((t) => t.id))).toEqual([]);
+        expect(await h.repos.tasks.listByStage(stage.id)).toEqual([]);
+        expect(await h.repos.tasks.listByPipeline(pipeline.id, { limit: 10, offset: 0 })).toEqual([]);
       });
 
-      it("deleting a pipeline deletes its stages and tasks", async () => {
-        const { pipeline, tasks } = await seedTasks();
+      it("deleting a pipeline deletes its stages and tasks, and the task listings no longer show them", async () => {
+        const { pipeline, stage, tasks } = await seedTasks();
         await h.repos.pipelines.delete(pipeline.id);
         expect(await remaining(tasks.map((t) => t.id))).toEqual([]);
+        expect(await h.repos.tasks.listByStage(stage.id)).toEqual([]);
+        expect(await h.repos.tasks.listByPipeline(pipeline.id, { limit: 10, offset: 0 })).toEqual([]);
       });
 
       it("deleting a board deletes everything below it in one go", async () => {
