@@ -18,12 +18,13 @@ export interface Page {
  *   type, rows are locked by primary key, and a use case that needs both a list and one of its rows
  *   locks the LIST first and picks the target from it (never row, then list). Use cases that touch
  *   several task columns lock the columns in stage-id order.
- * - Locking list methods (`listByPipeline`, `listByStage`, ...) therefore MUST lock the rows ordered
- *   by primary key and return them position-ordered. Infra pattern:
- *     SELECT ... WHERE id IN (SELECT id FROM t WHERE <filter> ORDER BY id FOR UPDATE)
- *     ORDER BY position, id
- *   A plain `SELECT ... ORDER BY position FOR UPDATE` locks in position order, which differs from
- *   the primary-key order other transactions use, and can deadlock.
+ * - Locking list methods (`listByPipeline`, `listByStage`, ...) therefore MUST lock the rows ordered by
+ *   primary key and return them position-ordered. Infra pattern, as TWO statements:
+ *     SELECT id FROM t WHERE <filter> ORDER BY id FOR UPDATE;   -- acquires the locks in PK order
+ *     SELECT ... FROM t WHERE <filter> ORDER BY position, id;    -- then reads with a fresh snapshot
+ *   A plain `ORDER BY position FOR UPDATE` locks in position order (deadlock-prone), and folding both
+ *   into `WHERE id IN (SELECT ... FOR UPDATE)` reads with the snapshot taken before the lock wait, so
+ *   rows committed by the transaction we waited for come back stale (lost updates).
  * - PAGINATED listings (`listByMember`, `listByBoard`, `listByPipeline` with a `Page`) are snapshot reads
  *   even inside a transaction: they feed the UI and are never used to read-modify-write.
  * - Uniqueness is enforced by the database, never by check-then-insert in application code: the

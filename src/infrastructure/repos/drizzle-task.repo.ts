@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { TaskRepo } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
 import { stages, tasks } from "../db/schema";
@@ -27,11 +27,15 @@ export function createTaskRepo(db: Database, lock: boolean): TaskRepo {
     clearAssignee: async (boardId, userId) =>
       void (await exec(db.update(tasks).set({ assigneeId: null }).where(and(eq(tasks.boardId, boardId), eq(tasks.assigneeId, userId))))),
     listByStage: (stageId) => {
-      const ordered = db.select(columns).from(tasks);
-      if (!lock) return exec(ordered.where(eq(tasks.stageId, stageId)).orderBy(asc(tasks.position), asc(tasks.id)));
-      // Lock in primary-key order (the global order), return position-ordered.
-      const locked = db.select({ id: tasks.id }).from(tasks).where(eq(tasks.stageId, stageId)).orderBy(asc(tasks.id)).for("update");
-      return exec(ordered.where(inArray(tasks.id, locked)).orderBy(asc(tasks.position), asc(tasks.id)));
+      const ordered = () => exec(db.select(columns).from(tasks).where(eq(tasks.stageId, stageId)).orderBy(asc(tasks.position), asc(tasks.id)));
+      if (!lock) return ordered();
+      // Two statements on purpose: lock in primary-key order (the global order), then read with a fresh
+      // snapshot. A single `WHERE id IN (SELECT ... FOR UPDATE)` reads with the snapshot taken before the
+      // lock wait and would return stale rows committed meanwhile by another transaction.
+      return (async () => {
+        await exec(db.select({ id: tasks.id }).from(tasks).where(eq(tasks.stageId, stageId)).orderBy(asc(tasks.id)).for("update"));
+        return ordered();
+      })();
     },
     // Paginated listing: a snapshot read. Columns follow stage position, then stage id, so pages never interleave.
     listByPipeline: (pipelineId, page) =>
