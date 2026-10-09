@@ -3,17 +3,23 @@
  * Violations of any `error` rule fail CI (`pnpm depcruise`).
  */
 
-// Matches the zod package whether it is resolved through a plain or a pnpm-linked node_modules.
-const ZOD = "node_modules/zod/";
+// Matches the zod package under a plain node_modules or a pnpm layout
+// (node_modules/.pnpm/zod@x/node_modules/zod/), anchored so "not-zod" never matches.
+const ZOD = "(^|/)node_modules/zod/";
+
+// Colocated unit tests (src/**/*.test.ts) may import the test runner; production code may not.
+const NOT_A_TEST = "\\.test\\.ts$";
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
     {
       name: "domain-is-self-contained",
-      comment: "domain is pure TypeScript: no third-party, node built-in or outer-layer imports.",
+      comment:
+        "domain is pure TypeScript: no npm packages (not even zod: Zod schemas live in application), " +
+        "no node built-ins and no outer-layer imports.",
       severity: "error",
-      from: { path: "^src/domain/" },
+      from: { path: "^src/domain/", pathNot: NOT_A_TEST },
       to: { pathNot: "^src/domain/" },
     },
     {
@@ -21,7 +27,7 @@ module.exports = {
       comment:
         "application may import domain and zod only (no next, react, drizzle-orm or infrastructure).",
       severity: "error",
-      from: { path: "^src/application/" },
+      from: { path: "^src/application/", pathNot: NOT_A_TEST },
       to: { pathNot: ["^src/(application|domain)/", ZOD] },
     },
     {
@@ -40,6 +46,13 @@ module.exports = {
       severity: "error",
       from: { path: "^src/infrastructure/" },
       to: { path: "^src/(app|components)/" },
+    },
+    {
+      name: "not-to-unresolvable",
+      comment: "Every import must resolve, otherwise the layer rules cannot be trusted.",
+      severity: "error",
+      from: {},
+      to: { couldNotResolve: true },
     },
     {
       name: "no-circular",

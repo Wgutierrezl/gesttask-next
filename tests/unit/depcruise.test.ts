@@ -14,7 +14,9 @@ async function violationsIn(fixture: "valid" | "violations"): Promise<IViolation
     validate: true,
     tsPreCompilationDeps: true,
     doNotFollow: { path: "node_modules" },
-  } as never);
+  } as never,
+  // Real tsConfig so the `@/` alias resolves exactly as it does in the project.
+  { tsConfig: `${baseDir}/tsconfig.json` } as never);
   return (result.output as ICruiseResult).summary.violations;
 }
 
@@ -38,6 +40,22 @@ describe("dependency boundaries", () => {
       expect(ruleNamesFor(violations, "domain/uses-node-builtin.ts")).toContain(
         "domain-is-self-contained",
       );
+    });
+
+    it("rejects outer-layer imports made through the @/ alias", async () => {
+      const violations = await violationsIn("violations");
+      expect(ruleNamesFor(violations, "domain/uses-alias.ts")).toContain("domain-is-self-contained");
+    });
+
+    it("rejects imports that cannot be resolved", async () => {
+      const violations = await violationsIn("violations");
+      expect(ruleNamesFor(violations, "domain/uses-missing.ts")).toContain("not-to-unresolvable");
+    });
+
+    it("lets colocated test files import the test runner", async () => {
+      const violations = await violationsIn("valid");
+      expect(ruleNamesFor(violations, "domain/priority.test.ts")).toEqual([]);
+      expect(ruleNamesFor(violations, "application/schema.test.ts")).toEqual([]);
     });
 
     it("rejects imports from outer layers", async () => {
