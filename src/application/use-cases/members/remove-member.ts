@@ -15,6 +15,7 @@ export function makeRemoveMember(deps: AppDeps) {
       if (!target) throw new NotFoundError();
       await assertNotLastOwner(tx.members, target);
       await tx.members.remove(boardId, userId);
+      await tx.tasks.clearAssignee(boardId, userId);
     });
   };
 }

@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
-import { GUEST, MEMBER, OWNER, STRANGER, actor, seedBoard } from "@tests/support/fixtures";
+import { GUEST, MEMBER, OWNER, STRANGER, actor, seedBoard, seedKanban } from "@tests/support/fixtures";
+import { makeCreateStage } from "../stages/create-stage";
+import { makeCreatePipeline } from "../pipelines/create-pipeline";
+import { makeCreateTask } from "../tasks/create-task";
 import { makeAddMember } from "./add-member";
 import { makeChangeMemberRole } from "./change-member-role";
 import { makeListMembers } from "./list-members";
@@ -49,6 +52,27 @@ describe("members", () => {
     expect(changed.role).toBe("guest");
     await makeRemoveMember(ctx)(OWNER, { boardId, userId: MEMBER.userId });
     expect(await ctx.repos.members.find(boardId, MEMBER.userId)).toBeNull();
+  });
+
+  it("unassigns the removed member's tasks on this board only, in the same transaction", async () => {
+    const k = await seedKanban(ctx);
+    const other = await seedBoard(ctx);
+    const otherPipeline = await makeCreatePipeline(ctx)(OWNER, { boardId: other.boardId, name: "Q" });
+    const otherStage = await makeCreateStage(ctx)(OWNER, { pipelineId: otherPipeline.id, name: "S" });
+    const mine = await makeCreateTask(ctx)(OWNER, { stageId: k.todoId, title: "mine", assigneeId: "member" });
+    const kept = await makeCreateTask(ctx)(OWNER, { stageId: k.todoId, title: "kept", assigneeId: "guest" });
+    const elsewhere = await makeCreateTask(ctx)(OWNER, { stageId: otherStage.id, title: "elsewhere", assigneeId: "member" });
+    await makeRemoveMember(ctx)(OWNER, { boardId: k.boardId, userId: "member" });
+    expect((await ctx.repos.tasks.findById(mine.id))?.assigneeId).toBeNull();
+    expect((await ctx.repos.tasks.findById(kept.id))?.assigneeId).toBe("guest");
+    expect((await ctx.repos.tasks.findById(elsewhere.id))?.assigneeId).toBe("member");
+  });
+
+  it("keeps assignees when the removal itself is rejected", async () => {
+    const k = await seedKanban(ctx);
+    const task = await makeCreateTask(ctx)(OWNER, { stageId: k.todoId, title: "mine", assigneeId: "owner" });
+    await expect(makeRemoveMember(ctx)(OWNER, { boardId: k.boardId, userId: "owner" })).rejects.toBeInstanceOf(ConflictError);
+    expect((await ctx.repos.tasks.findById(task.id))?.assigneeId).toBe("owner");
   });
 
   it("answers NotFound when the target is not a member", async () => {

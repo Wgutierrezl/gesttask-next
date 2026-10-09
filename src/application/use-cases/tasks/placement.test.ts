@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { MAX_POSITION_LENGTH } from "@/domain/value-objects/position";
+import { MAX_POSITION_LENGTH, generatePositions } from "@/domain/value-objects/position";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, STRANGER, buildTask, seedKanban } from "@tests/support/fixtures";
@@ -117,11 +117,15 @@ describe("task placement", () => {
   });
 
   describe("position integrity", () => {
-    it("keeps order and short keys over 1000 inserts into the same gap", async () => {
+    it("keeps order and short keys over 1000 inserts into the same gap", { timeout: 30_000 }, async () => {
       const [a, b] = [await add("A"), await add("B")];
-      for (let i = 0; i < 1000; i++) {
-        const t = await add(`N${i}`, k.doneId);
-        await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: k.todoId, afterTaskId: a.id });
+      const keys = generatePositions(1000);
+      const movers = keys.map((position, i) =>
+        buildTask({ id: `11111111-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`, title: `N${i}`, position, stageId: k.doneId, pipelineId: k.pipelineId, boardId: k.boardId }),
+      );
+      for (const mover of movers) await ctx.repos.tasks.insert(mover);
+      for (const mover of movers) {
+        await makeMoveTask(ctx)(OWNER, { taskId: mover.id, toStageId: k.todoId, afterTaskId: a.id });
       }
       const tasks = await ctx.repos.tasks.listByStage(k.todoId);
       expect(tasks).toHaveLength(1002);

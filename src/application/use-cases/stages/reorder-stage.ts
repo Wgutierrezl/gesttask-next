@@ -1,3 +1,4 @@
+import { NotFoundError } from "@/domain/errors";
 import type { Stage } from "@/domain/entities/pipeline";
 import type { Actor } from "../../actor";
 import type { AppDeps } from "../../deps";
@@ -13,12 +14,14 @@ export function makeReorderStage(deps: AppDeps) {
     const stage = await loadStage(deps.repos, actor, stageId, "pipeline:manage");
     if (afterStageId === stage.id) return stage;
     return deps.uow.run(async (tx) => {
-      const siblings = (await tx.stages.listByPipeline(stage.pipelineId)).filter((s) => s.id !== stage.id);
+      const current = await tx.stages.findById(stageId);
+      if (!current) throw new NotFoundError();
+      const siblings = (await tx.stages.listByPipeline(current.pipelineId)).filter((s) => s.id !== current.id);
       const placement = placeAfter(siblings, afterStageId);
       for (const relocated of placement.relocated) await tx.stages.update(relocated);
-      const moved = { ...stage, position: placement.position };
+      const moved = { ...current, position: placement.position };
       await tx.stages.update(moved);
-      await syncCompletion(tx, stage.pipelineId, deps.clock.now());
+      await syncCompletion(tx, current.pipelineId, deps.clock.now());
       return moved;
     });
   };

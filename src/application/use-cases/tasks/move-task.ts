@@ -10,7 +10,7 @@ import { placeTask } from "./_place-task";
 export function makeMoveTask(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<TaskView> => {
     const { taskId, toStageId, afterTaskId } = parseInput(moveTaskSchema, input);
-    const task = await loadTask(deps.repos, actor, taskId, "task:write");
-    return placeTask(deps, task, toStageId, afterTaskId);
+    await loadTask(deps.repos, actor, taskId, "task:write");
+    return placeTask(deps, taskId, toStageId, afterTaskId);
   };
 }

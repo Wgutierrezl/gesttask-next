@@ -8,6 +8,15 @@ export interface Page {
   offset: number;
 }
 
+/**
+ * Concurrency contract for every repository handed out by `UnitOfWork.run`:
+ * - Reads performed through the transaction's repos MUST lock the rows they return
+ *   (`SELECT ... FOR UPDATE`), so read-modify-write inside `run` cannot lose updates. Reads through
+ *   `AppDeps.repos` (outside a transaction) are plain snapshots meant for authorization and listing.
+ * - List reads that lock MUST lock in a deterministic order (by primary key) to avoid deadlocks.
+ * - Uniqueness is enforced by the database, never by check-then-insert in application code: the
+ *   violating insert/update throws `ConflictError`.
+ */
 export interface BoardRepo {
   insert(board: Board): Promise<void>;
   findById(id: string): Promise<Board | null>;
@@ -18,13 +27,17 @@ export interface BoardRepo {
 }
 
 export interface MemberRepo {
-  /** Throws ConflictError when `(boardId, userId)` already exists. */
+  /** Throws ConflictError when `(boardId, userId)` already exists (unique key, race-free). */
   insert(member: BoardMember): Promise<void>;
   find(boardId: string, userId: string): Promise<BoardMember | null>;
   listByBoard(boardId: string): Promise<BoardMember[]>;
   listByUser(userId: string): Promise<BoardMember[]>;
   updateRole(boardId: string, userId: string, role: BoardRole): Promise<void>;
   remove(boardId: string, userId: string): Promise<void>;
+  /**
+   * Inside a transaction this MUST lock the board's owner rows (or the board row), so two
+   * concurrent demotions/removals cannot both observe "another owner exists" (REQ-BRD-04).
+   */
   countByRole(boardId: string, role: BoardRole): Promise<number>;
 }
 
@@ -37,6 +50,7 @@ export interface PipelineRepo {
 }
 
 export interface StageRepo {
+  /** Throws ConflictError on a `(pipelineId, lower(name))` unique violation; same for `update`. */
   insert(stage: Stage): Promise<void>;
   findById(id: string): Promise<Stage | null>;
   /** Ordered by position, then id. */
@@ -50,6 +64,8 @@ export interface TaskRepo {
   findById(id: string): Promise<Task | null>;
   update(task: Task): Promise<void>;
   delete(id: string): Promise<void>;
+  /** Sets `assigneeId` to null on every task of the board assigned to the user. */
+  clearAssignee(boardId: string, userId: string): Promise<void>;
   /** Ordered by position, then id. */
   listByStage(stageId: string): Promise<Task[]>;
   /** Ordered by position, then id; paginated. */
