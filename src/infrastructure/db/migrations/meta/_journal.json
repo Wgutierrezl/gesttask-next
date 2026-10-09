@@ -22,6 +22,13 @@
       "when": 1791577067386,
       "tag": "0002_composite_board_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791577426600,
+      "tag": "0003_outbox_dead_letter",
+      "breakpoints": true
     }
   ]
 }
