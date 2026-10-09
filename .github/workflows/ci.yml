@@ -104,6 +104,8 @@ jobs:
           exit 1
       - name: Apply migrations
         run: pnpm db:migrate
+      - name: Seed the demo board twice (must be idempotent)
+        run: pnpm db:seed && pnpm db:seed
       - run: pnpm test:integration
       - run: pnpm test:contract
 
