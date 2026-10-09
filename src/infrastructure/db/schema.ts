@@ -104,6 +104,8 @@ export const tasks = pgTable(
     createdAt: timestamptz("created_at").notNull(),
   },
   (t) => [
+    // Target of the composite foreign key that keeps comments.board_id equal to the task's board.
+    unique("tasks_id_board_id_uq").on(t.id, t.boardId),
     foreignKey({ columns: [t.pipelineId, t.boardId], foreignColumns: [pipelines.id, pipelines.boardId], name: "tasks_pipeline_board_fk" })
       .onDelete("cascade"),
     foreignKey({ columns: [t.stageId, t.pipelineId], foreignColumns: [stages.id, stages.pipelineId], name: "tasks_stage_pipeline_fk" })
@@ -118,20 +120,26 @@ export const comments = pgTable(
   "comments",
   {
     id: uuid("id").primaryKey(),
-    taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").notNull(),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
     authorId: text("author_id").notNull(),
     body: text("body").notNull(),
     createdAt: timestamptz("created_at").notNull(),
   },
-  (t) => [index("comments_task_created_idx").on(t.taskId, t.createdAt)],
+  (t) => [
+    unique("comments_id_board_id_uq").on(t.id, t.boardId),
+    foreignKey({ columns: [t.taskId, t.boardId], foreignColumns: [tasks.id, tasks.boardId], name: "comments_task_board_fk" })
+      .onDelete("cascade"),
+    index("comments_task_created_idx").on(t.taskId, t.createdAt),
+    index("comments_board_id_idx").on(t.boardId),
+  ],
 );
 
 export const attachments = pgTable(
   "attachments",
   {
     id: uuid("id").primaryKey(),
-    commentId: uuid("comment_id").references(() => comments.id, { onDelete: "cascade" }),
+    commentId: uuid("comment_id"),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
     uploaderId: text("uploader_id").notNull(),
     storageKey: text("storage_key").notNull().unique(),
@@ -141,7 +149,14 @@ export const attachments = pgTable(
     status: attachmentStatus("status").notNull().default("pending"),
     createdAt: timestamptz("created_at").notNull(),
   },
-  (t) => [index("attachments_comment_idx").on(t.commentId), index("attachments_status_created_idx").on(t.status, t.createdAt)],
+  (t) => [
+    // MATCH SIMPLE: a pending upload with no comment yet skips the check; once linked, boards must agree.
+    foreignKey({ columns: [t.commentId, t.boardId], foreignColumns: [comments.id, comments.boardId], name: "attachments_comment_board_fk" })
+      .onDelete("cascade"),
+    index("attachments_comment_idx").on(t.commentId),
+    index("attachments_board_id_idx").on(t.boardId),
+    index("attachments_status_created_idx").on(t.status, t.createdAt),
+  ],
 );
 
 /** Outbox: keys of stored objects whose rows were deleted; processed after commit (slice 6). */

@@ -55,8 +55,8 @@ export async function seedDemoBoard(
   const { ownerId, boardId } = options;
   const now = deps.clock.now();
   try {
-    await deps.uow.run(async (tx) => {
-      if (await tx.boards.findById(boardId)) throw new ConflictError("Demo board already exists");
+    const created = await deps.uow.run(async (tx) => {
+      if (await tx.boards.findById(boardId)) return false;
       const board: Board = { id: boardId, name: "Product launch (demo)", description: "A sample board to explore.", status: "active", createdAt: now };
       await tx.boards.insert(board);
       await tx.members.insert({ boardId, userId: ownerId, role: "owner" });
@@ -85,10 +85,15 @@ export async function seedDemoBoard(
           await tx.tasks.insert(task);
         }
       }
+      return true;
     });
-    return { created: true, boardId };
+    return { created, boardId };
   } catch (error) {
-    if (error instanceof ConflictError) return { created: false, boardId };
+    // A concurrent run may have created the board between our check and our insert. That is the only
+    // conflict we absorb: confirm the board exists, otherwise the conflict was something else.
+    if (error instanceof ConflictError && (await deps.uow.run((tx) => tx.boards.findById(boardId)))) {
+      return { created: false, boardId };
+    }
     throw error;
   }
 }
