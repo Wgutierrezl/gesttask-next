@@ -4,13 +4,7 @@ import { createBoardRepo } from "./drizzle-board.repo";
 import { createMemberRepo } from "./drizzle-member.repo";
 import { createPipelineRepo } from "./drizzle-pipeline.repo";
 import { createStageRepo } from "./drizzle-stage.repo";
-
-/** Tasks arrive in the next stacked branch; touching them fails loudly. */
-function notYet(name: string): never {
-  throw new Error(`${name} repository is not implemented yet`);
-}
-const pending = <T extends object>(name: string): T =>
-  new Proxy({}, { get: () => () => notYet(name) }) as T;
+import { createTaskRepo } from "./drizzle-task.repo";
 
 /**
  * Binds every repository to `db`, which is either the pool (plain snapshot reads, `lock = false`) or a
@@ -22,6 +16,6 @@ export function createDrizzleRepos(db: Database, lock: boolean): Repos {
     members: createMemberRepo(db, lock),
     pipelines: createPipelineRepo(db, lock),
     stages: createStageRepo(db, lock),
-    tasks: pending("task"),
+    tasks: createTaskRepo(db, lock),
   };
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Repos, UnitOfWork } from "@/application/ports/repositories";
 import type { Board } from "@/domain/entities/board";
 import type { Pipeline, Stage } from "@/domain/entities/pipeline";
+import type { Task } from "@/domain/entities/task";
 
 /** What a repository contract needs from an implementation (in-memory fakes or Drizzle adapters). */
 export interface RepoHarness {
@@ -36,4 +37,18 @@ export async function seedPipeline(h: RepoHarness): Promise<{ board: Board; pipe
   await h.repos.boards.insert(board);
   await h.repos.pipelines.insert(pipeline);
   return { board, pipeline };
+}
+
+export const makeTask = (stage: Stage, extra: Partial<Task> = {}): Task => ({
+  id: uuid(), boardId: stage.boardId, pipelineId: stage.pipelineId, stageId: stage.id, title: "Task", description: "",
+  priority: "medium", status: "active", dueDate: null, assigneeId: null, completedAt: null, position: "a0", createdAt: T0,
+  ...extra,
+});
+
+/** A board, one pipeline and one stage: the parent chain a task needs. */
+export async function seedStage(h: RepoHarness, stageExtra: Partial<Stage> = {}) {
+  const { board, pipeline } = await seedPipeline(h);
+  const stage = makeStage(pipeline, stageExtra);
+  await h.repos.stages.insert(stage);
+  return { board, pipeline, stage };
 }
