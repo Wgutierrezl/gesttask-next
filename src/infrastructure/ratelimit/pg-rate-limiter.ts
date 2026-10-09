@@ -1,4 +1,5 @@
 import { lt, sql } from "drizzle-orm";
+import { ValidationError } from "@/domain/errors";
 import type { Clock, RateLimitDecision, RateLimiter } from "@/application/ports/services";
 import type { Database } from "../db/client";
 import { rateLimits } from "../db/schema";
@@ -14,6 +15,12 @@ export class PgRateLimiter implements RateLimiter {
   ) {}
 
   async hit(key: string, rule: { limit: number; windowSeconds: number }): Promise<RateLimitDecision> {
+    if (!Number.isInteger(rule.windowSeconds) || rule.windowSeconds <= 0) {
+      throw new ValidationError("Rate limit window must be a positive integer number of seconds");
+    }
+    if (!Number.isInteger(rule.limit) || rule.limit < 0) {
+      throw new ValidationError("Rate limit must be a non-negative integer");
+    }
     const now = this.clock.now().getTime();
     const windowMs = rule.windowSeconds * 1000;
     const windowStart = Math.floor(now / windowMs) * windowMs;
