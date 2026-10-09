@@ -15,6 +15,8 @@ describe("buildContainer", () => {
     const container = buildContainer(valid);
     expect(typeof container.session.getActor).toBe("function");
     expect(typeof container.authHandler).toBe("function");
+    expect(Object.keys(container.auth).sort()).toEqual(["signInEmail", "signInGuest", "signOut", "signUp"]);
+    await container.close();
   }, 30_000); // first import transforms the whole auth library
 
   it("fails fast on invalid configuration, naming keys but not values", async () => {
