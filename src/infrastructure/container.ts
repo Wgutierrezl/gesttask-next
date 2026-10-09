@@ -55,7 +55,8 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const authPort = new BetterAuthPort(auth, () => headers());
   const limiter = new PgRateLimiter(db, clock);
   const sandbox = new SeededGuestSandbox(db, { uow: new DrizzleUnitOfWork(db), ids: { next: randomUUID }, clock });
-  const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET) });
+  const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
+  const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });

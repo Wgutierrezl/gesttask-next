@@ -144,6 +144,22 @@ describe("BETTER_AUTH_URL in production", () => {
   });
 });
 
+describe("proxy trust settings", () => {
+  it("defaults to no trusted proxies and not-Vercel", () => {
+    const env = parseEnv(localBase);
+    expect(env.TRUSTED_PROXY_HOPS).toBe(0);
+    expect(env.VERCEL).toBeUndefined();
+  });
+
+  it("accepts a small non-negative integer of hops and rejects the rest", () => {
+    expect(parseEnv({ ...localBase, TRUSTED_PROXY_HOPS: "2" }).TRUSTED_PROXY_HOPS).toBe(2);
+    expect(parseEnv({ ...localBase, TRUSTED_PROXY_HOPS: "" }).TRUSTED_PROXY_HOPS).toBe(0);
+    for (const bad of ["-1", "1.5", "abc", "11"]) {
+      expect(errorOf({ ...localBase, TRUSTED_PROXY_HOPS: bad }).message, bad).toContain("TRUSTED_PROXY_HOPS");
+    }
+  });
+});
+
 describe("getEnv", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
