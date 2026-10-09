@@ -21,6 +21,20 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
 | Schema generation | `@better-auth/cli@1.4.21 generate --config <file with exported auth>` emits the Drizzle tables (run through `pnpm dlx`, not a dependency). The generated shape is mirrored in `schema.ts`; a test compares it with `getAuthTables` so drift fails CI. |
 | Env | `BETTER_AUTH_SECRET` (min 32 chars) and optional `BETTER_AUTH_URL`; validated by Zod in `config/env.ts`. |
 
+## Decisions taken while implementing slice 3
+
+- Foreign keys to `user`: memberships cascade, `tasks.assignee_id` is set to null, `comments.author_id` and
+  `attachments.uploader_id` RESTRICT, so deleting a user can never silently drop comments or orphan storage
+  objects; they go away only through the board delete (where slice 6 queues the objects).
+- A guest is an anonymous user that owns a sandbox cloned from the demo board under a deterministic id, so
+  provisioning is idempotent and race-free. Quotas: 3 boards and 200 tasks (soft under concurrency).
+- Signing in or up from a guest session moves the sandbox to the account (`transferGuestData`).
+- Guest sandboxes expire 24 hours after creation; `purgeExpiredGuests` is invoked by the cron in slice 9.
+- Rate limits live in Postgres, keyed by an HMAC of the client address: guest 5/h, email login 10/15 min per
+  client and email, sign-up 10/h.
+- `proxy.ts` only pre-filters on the cookie; the `(app)` layout validates the session and every use case is
+  reached through `withActor`.
+
 ## Consequences
 
 - Our rate limiter (Postgres) guards sign-in; Better Auth's built-in limiter is not relied upon.
