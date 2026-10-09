@@ -102,6 +102,8 @@ jobs:
           done
           echo "bucket creation failed" >&2
           exit 1
+      - name: Apply migrations
+        run: pnpm db:migrate
       - run: pnpm test:integration
       - run: pnpm test:contract
 

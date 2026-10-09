@@ -34,6 +34,10 @@ export default defineConfig({
           name: "integration",
           include: ["tests/integration/**/*.test.ts"],
           environment: "node",
+          // Every file truncates the same Postgres database, so files must not overlap.
+          fileParallelism: false,
+          globalSetup: ["tests/integration/global-setup.ts"],
+          testTimeout: 30_000,
         },
       },
       {
