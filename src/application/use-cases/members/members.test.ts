@@ -75,6 +75,23 @@ describe("members", () => {
     expect((await ctx.repos.tasks.findById(task.id))?.assigneeId).toBe("owner");
   });
 
+  it("rolls the membership removal back when unassigning the member's tasks fails", async () => {
+    const k = await seedKanban(ctx);
+    const task = await makeCreateTask(ctx)(OWNER, { stageId: k.todoId, title: "mine", assigneeId: "member" });
+    const failing: TestContext = {
+      ...ctx,
+      uow: {
+        run: (work) =>
+          ctx.uow.run((tx) =>
+            work({ ...tx, tasks: { ...tx.tasks, clearAssignee: () => Promise.reject(new Error("boom")) } }),
+          ),
+      },
+    };
+    await expect(makeRemoveMember(failing)(OWNER, { boardId: k.boardId, userId: "member" })).rejects.toThrow("boom");
+    expect(await ctx.repos.members.find(k.boardId, "member")).not.toBeNull();
+    expect((await ctx.repos.tasks.findById(task.id))?.assigneeId).toBe("member");
+  });
+
   it("answers NotFound when the target is not a member", async () => {
     await expect(makeRemoveMember(ctx)(OWNER, { boardId, userId: "ghost" })).rejects.toBeInstanceOf(NotFoundError);
     await expect(
