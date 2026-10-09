@@ -28,6 +28,10 @@ export function createMemberRepo(db: Database, lock: boolean): MemberRepo {
       ),
     listByUser: (userId) =>
       exec(db.select(columns).from(boardMembers).where(eq(boardMembers.userId, userId)).orderBy(asc(boardMembers.boardId))),
+    lockUserQuota: async (userId) => {
+      if (!lock) throw new Error("lockUserQuota needs a transaction: an advisory xact lock outside one is released immediately");
+      await exec(db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`));
+    },
     updateRole: async (boardId, userId, role) =>
       void (await exec(db.update(boardMembers).set({ role }).where(isMember(boardId, userId)))),
     remove: async (boardId, userId) => void (await exec(db.delete(boardMembers).where(isMember(boardId, userId)))),

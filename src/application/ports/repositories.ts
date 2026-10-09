@@ -50,6 +50,11 @@ export interface MemberRepo {
   /** Ordered by userId; paginated. */
   listByBoard(boardId: string, page: Page): Promise<BoardMember[]>;
   listByUser(userId: string): Promise<BoardMember[]>;
+  /**
+   * Serializes the quota checks of one user: takes a transaction-scoped lock that concurrent transactions of
+   * the same user wait on until commit. Only valid inside a unit of work; a snapshot-read repo must refuse.
+   */
+  lockUserQuota(userId: string): Promise<void>;
   updateRole(boardId: string, userId: string, role: BoardRole): Promise<void>;
   remove(boardId: string, userId: string): Promise<void>;
   /**
