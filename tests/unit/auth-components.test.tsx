@@ -29,7 +29,7 @@ describe("CredentialsForm", () => {
     const html = renderToStaticMarkup(<CredentialsForm mode="sign-up" action={noop} />);
     expect(html).toContain('name="name"');
     expect(html).toContain('autoComplete="new-password"');
-    expect(html).toContain('minLength="8"');
+    expect(html).toContain('minLength="10"');
     expect(html).not.toContain('name="next"');
   });
 });

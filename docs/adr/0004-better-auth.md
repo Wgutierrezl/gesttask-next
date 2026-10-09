@@ -31,9 +31,30 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
 - Signing in or up from a guest session moves the sandbox to the account (`transferGuestData`).
 - Guest sandboxes expire 24 hours after creation; `purgeExpiredGuests` is invoked by the cron in slice 9.
 - Rate limits live in Postgres, keyed by an HMAC of the client address: guest 5/h, email login 10/15 min per
-  client and email, sign-up 10/h.
+  client and email plus 50/h per email alone (distributed guessing), sign-up 10/h.
 - `proxy.ts` only pre-filters on the cookie; the `(app)` layout validates the session and every use case is
   reached through `withActor`.
+
+## Security hardening (review of slice 3)
+
+- **Raw handler.** `/api/auth/[...all]` is an allowlist: only `GET /get-session` and `POST /sign-out` reach
+  Better Auth; anything else is a 404. Better Auth also lists sign-in/sign-up/anonymous in `disabledPaths`
+  (checked against 1.7.7: it only affects HTTP, `auth.api.*` keeps working). Credential and guest flows exist
+  only as use cases, so rate limits, schemas and sandbox provisioning cannot be bypassed.
+- **Origin and cookies.** `BETTER_AUTH_URL` is required in production and is the only trusted origin. One
+  `SessionCookieConfig` (prefix, `Secure` in production, httpOnly, SameSite=Lax, path /) feeds both Better Auth
+  and the proxy. CSRF and origin checks are enabled explicitly because Better Auth skips them in test mode.
+- **Client address.** Forwarding headers are spoofable, so they are not trusted by default. On Vercel
+  (`VERCEL` set) `x-vercel-forwarded-for`/`x-real-ip` are used; elsewhere `TRUSTED_PROXY_HOPS` (default 0:
+  ignore `x-forwarded-for`) selects the entry that many hops from the right. If no address can be determined,
+  production refuses the flow with a clear error instead of sharing one global bucket; development and tests
+  use a local bucket. The HMAC key is a domain-separated subkey of `BETTER_AUTH_SECRET`.
+- **Sign-up enumeration (accepted trade-off).** Registering an existing email answers "Email already
+  registered". Hiding it would need email verification (send a mail either way), which is out of scope for v1.
+  Mitigation: sign-up is limited to 10/h per client, and login failures are generic. Revisit together with
+  email verification and password reset.
+- **Credentials policy.** Passwords need at least 10 characters (Better Auth is configured with the same
+  constant); emails on the reserved `.invalid` TLD cannot be registered because demo users live there.
 
 ## Consequences
 

@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { anonymous } from "better-auth/plugins";
+import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { Database } from "../db/client";
 import type { Logger } from "../logging/logger";
 import { sessionCookieConfig, type SessionCookieConfig } from "./cookie-config";
@@ -52,7 +53,7 @@ export function createAuth(config: AuthConfig) {
     },
     logger: toAuthLogger(config.logger),
     disabledPaths: DISABLED_AUTH_PATHS,
-    emailAndPassword: { enabled: true, minPasswordLength: 8 },
+    emailAndPassword: { enabled: true, minPasswordLength: MIN_PASSWORD_LENGTH },
     plugins: [
       anonymous({
         // Kept on link so the sandbox can be moved first; the TTL cleanup removes the leftover row.
