@@ -18,10 +18,12 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:coverage": "vitest run --project unit --coverage",
-    "test:integration": "vitest run --project integration --passWithNoTests",
+    "test:integration": "vitest run --project integration",
     "test:contract": "vitest run --project contract --passWithNoTests",
     "db:up": "docker compose up -d --wait",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.0",
