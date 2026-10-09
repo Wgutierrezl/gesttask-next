@@ -29,3 +29,7 @@ export const updateTaskSchema = z.object({
 
 export const taskIdSchema = z.object({ taskId: idSchema });
 export const listTasksByPipelineSchema = paginationSchema.extend({ pipelineId: idSchema });
+
+/** `afterTaskId: null` means "at the top"; clients never send raw positions. */
+export const moveTaskSchema = z.object({ taskId: idSchema, toStageId: idSchema, afterTaskId: idSchema.nullable() });
+export const reorderTaskSchema = z.object({ taskId: idSchema, afterTaskId: idSchema.nullable() });
