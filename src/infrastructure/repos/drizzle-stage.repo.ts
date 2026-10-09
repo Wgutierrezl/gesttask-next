@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import type { StageRepo } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
-import { stages } from "../db/schema";
+import { pipelines, stages } from "../db/schema";
 import { exec } from "./drizzle-errors";
 
 const columns = {
@@ -28,10 +28,13 @@ export function createStageRepo(db: Database, lock: boolean): StageRepo {
       if (!lock) {
         return exec(db.select(columns).from(stages).where(eq(stages.pipelineId, pipelineId)).orderBy(asc(stages.position), asc(stages.id)));
       }
-      // Two statements on purpose. First lock in primary-key order (the global order); only then read.
-      // A single `WHERE id IN (SELECT ... FOR UPDATE)` would take its snapshot BEFORE waiting for the
-      // locks and return rows another transaction committed meanwhile in their stale form.
+      // Lock the pipeline row first: stage inserts take a KEY SHARE lock on it for the foreign key, which
+      // FOR UPDATE conflicts with, so no stage can appear (a phantom) while the listing is in use.
+      // Then lock the stage rows in primary-key order (the global order) and only afterwards read: a single
+      // `WHERE id IN (SELECT ... FOR UPDATE)` would take its snapshot BEFORE waiting for the locks and
+      // return rows another transaction committed meanwhile in their stale form.
       return (async () => {
+        await exec(db.select({ id: pipelines.id }).from(pipelines).where(eq(pipelines.id, pipelineId)).for("update"));
         await exec(db.select({ id: stages.id }).from(stages).where(eq(stages.pipelineId, pipelineId)).orderBy(asc(stages.id)).for("update"));
         return exec(db.select(columns).from(stages).where(eq(stages.pipelineId, pipelineId)).orderBy(asc(stages.position), asc(stages.id)));
       })();

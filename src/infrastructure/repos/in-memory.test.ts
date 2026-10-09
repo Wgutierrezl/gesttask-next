@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ConflictError } from "@/domain/errors";
 import type { Board } from "@/domain/entities/board";
 import type { Task } from "@/domain/entities/task";
+import type { Repos } from "@/application/ports/repositories";
 import { createTestContext } from "@tests/support/app-context";
 
 const NOW = new Date("2026-10-09T00:00:00Z");
@@ -11,9 +12,19 @@ const task = (id: string, position: string, extra: Partial<Task> = {}): Task => 
   status: "active", dueDate: null, assigneeId: null, completedAt: null, position, createdAt: NOW, ...extra,
 });
 
+/** The fakes enforce the same parent keys as the schema, so tests build the chain they need first. */
+async function seedParents(repos: Repos, chain: { boards?: string[]; pipelines?: Array<[string, string]>; stages?: Array<[string, string, string]> }) {
+  for (const id of chain.boards ?? []) await repos.boards.insert(board(id));
+  for (const [id, boardId] of chain.pipelines ?? []) await repos.pipelines.insert({ id, boardId, name: id, description: "" });
+  for (const [id, pipelineId, boardId] of chain.stages ?? []) {
+    await repos.stages.insert({ id, pipelineId, boardId, name: id, isDone: false, position: "a0" });
+  }
+}
+
 describe("in-memory repositories", () => {
   it("rejects duplicate memberships like the DB unique constraint", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1"] });
     await repos.members.insert({ boardId: "b1", userId: "u1", role: "owner" });
     await expect(repos.members.insert({ boardId: "b1", userId: "u1", role: "member" })).rejects.toBeInstanceOf(
       ConflictError,
@@ -22,6 +33,7 @@ describe("in-memory repositories", () => {
 
   it("rejects duplicate stage names per pipeline, ignoring case, like the unique index", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1"], pipelines: [["p1", "b1"], ["p2", "b1"]] });
     const stage = (id: string, name: string, pipelineId = "p1") => ({ id, pipelineId, boardId: "b1", name, isDone: false, position: "a0" });
     await repos.stages.insert(stage("s1", "Todo"));
     await repos.stages.insert(stage("s2", "Doing"));
@@ -34,6 +46,7 @@ describe("in-memory repositories", () => {
 
   it("allows at most one done stage per pipeline, like the partial unique index", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1"], pipelines: [["p1", "b1"], ["p2", "b1"]] });
     const stage = (id: string, pipelineId: string, isDone: boolean) => ({
       id, pipelineId, boardId: "b1", name: id, isDone, position: "a0",
     });
@@ -50,9 +63,10 @@ describe("in-memory repositories", () => {
 
   it("clears an assignee across one board's tasks only", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1", "b2"], pipelines: [["p1", "b1"], ["p9", "b2"]], stages: [["s1", "p1", "b1"], ["s9", "p9", "b2"]] });
     await repos.tasks.insert(task("t1", "a0", { assigneeId: "u1" }));
     await repos.tasks.insert(task("t2", "a1", { assigneeId: "u2" }));
-    await repos.tasks.insert(task("t3", "a2", { boardId: "b2", assigneeId: "u1" }));
+    await repos.tasks.insert(task("t3", "a2", { boardId: "b2", pipelineId: "p9", stageId: "s9", assigneeId: "u1" }));
     await repos.tasks.clearAssignee("b1", "u1");
     expect((await repos.tasks.findById("t1"))?.assigneeId).toBeNull();
     expect((await repos.tasks.findById("t2"))?.assigneeId).toBe("u2");
@@ -69,6 +83,7 @@ describe("in-memory repositories", () => {
 
   it("lists tasks by position then id", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1"], pipelines: [["p1", "b1"]], stages: [["s1", "p1", "b1"]] });
     for (const t of [task("c", "a0"), task("b", "a0"), task("a", "a1")]) await repos.tasks.insert(t);
     expect((await repos.tasks.listByStage("s1")).map((t) => t.id)).toEqual(["b", "c", "a"]);
     expect((await repos.tasks.listByPipeline("p1", { limit: 2, offset: 1 })).map((t) => t.id)).toEqual(["c", "a"]);
@@ -87,6 +102,7 @@ describe("in-memory repositories", () => {
 
   it("cascades pipeline and stage deletes to their tasks", async () => {
     const { repos, store } = createTestContext();
+    await seedParents(repos, { boards: ["b1"], pipelines: [["p1", "b1"]] });
     await repos.stages.insert({ id: "s1", pipelineId: "p1", boardId: "b1", name: "s", isDone: false, position: "a0" });
     await repos.stages.insert({ id: "s2", pipelineId: "p1", boardId: "b1", name: "s2", isDone: false, position: "a1" });
     await repos.tasks.insert(task("t1", "a0"));
@@ -118,6 +134,7 @@ describe("in-memory repositories", () => {
 describe("in-memory pagination and ordering", () => {
   it("orders pipeline tasks by stage position before task position", async () => {
     const { repos } = createTestContext();
+    await seedParents(repos, { boards: ["b1"], pipelines: [["p1", "b1"]] });
     const stage = (id: string, position: string) => ({ id, pipelineId: "p1", boardId: "b1", name: id, isDone: false, position });
     await repos.stages.insert(stage("s2", "a1"));
     await repos.stages.insert(stage("s1", "a0"));

@@ -11,6 +11,7 @@ describe("requireBoardAccess", () => {
 
   beforeEach(async () => {
     ctx = createTestContext();
+    await ctx.repos.boards.insert({ id: board, name: "b", description: "", status: "active", createdAt: new Date() });
     for (const role of BOARD_ROLES) {
       await ctx.repos.members.insert({ boardId: board, userId: role, role });
     }

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { ConflictError } from "@/domain/errors";
+import { ConflictError, NotFoundError } from "@/domain/errors";
 import { makeBoard, makePipeline, makeStage, seedPipeline, uuid, type RepoHarness } from "./harness";
 
 /** Behaviour every PipelineRepo/StageRepo implementation must share. */
@@ -8,6 +8,27 @@ export function runPipelineContract(name: string, setup: () => RepoHarness): voi
     const h = setup();
     beforeEach(() => h.reset());
     afterAll(() => h.close?.());
+
+    describe("referential integrity", () => {
+      it("rejects a child whose parent does not exist with NotFoundError", async () => {
+        const { board, pipeline } = await seedPipeline(h);
+        await expect(h.repos.pipelines.insert(makePipeline(uuid()))).rejects.toBeInstanceOf(NotFoundError);
+        await expect(h.repos.members.insert({ boardId: uuid(), userId: "u1", role: "owner" })).rejects.toBeInstanceOf(NotFoundError);
+        await expect(h.repos.stages.insert(makeStage({ ...pipeline, id: uuid() }))).rejects.toBeInstanceOf(NotFoundError);
+        expect(await h.repos.pipelines.listByBoard(board.id, { limit: 10, offset: 0 })).toEqual([pipeline]);
+      });
+
+      it("rejects a stage whose boardId differs from its pipeline's board (insert and update)", async () => {
+        const { pipeline } = await seedPipeline(h);
+        const stranger = makeBoard();
+        await h.repos.boards.insert(stranger);
+        await expect(h.repos.stages.insert(makeStage(pipeline, { boardId: stranger.id }))).rejects.toBeInstanceOf(NotFoundError);
+        const stage = makeStage(pipeline);
+        await h.repos.stages.insert(stage);
+        await expect(h.repos.stages.update({ ...stage, boardId: stranger.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await h.repos.stages.findById(stage.id)).toEqual(stage);
+      });
+    });
 
     describe("pipelines", () => {
       it("round-trips, updates and returns null for an unknown id", async () => {
