@@ -1,5 +1,6 @@
 import { ConflictError } from "@/domain/errors";
 import { comparePositions } from "@/domain/value-objects/position";
+import type { Stage } from "@/domain/entities/pipeline";
 import type { Repos } from "@/application/ports/repositories";
 import type { InMemoryStore } from "./in-memory-store";
 
@@ -15,6 +16,14 @@ function dropWhere<V>(map: Map<string, V>, predicate: (value: V) => boolean): vo
 /** Fake repositories mirroring the Postgres semantics the real ones must honour (FK cascades, unique keys). */
 export function createInMemoryRepos(store: InMemoryStore): Repos {
   const memberKey = (boardId: string, userId: string) => `${boardId}:${userId}`;
+  const assertStageNameFree = (stage: Stage) => {
+    const name = stage.name.toLowerCase();
+    for (const other of store.stages.values()) {
+      if (other.id !== stage.id && other.pipelineId === stage.pipelineId && other.name.toLowerCase() === name) {
+        throw new ConflictError("A stage with this name already exists in the pipeline");
+      }
+    }
+  };
   return {
     boards: {
       insert: async (board) => void store.boards.set(board.id, copy(board)),
@@ -61,11 +70,17 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       },
     },
     stages: {
-      insert: async (stage) => void store.stages.set(stage.id, copy(stage)),
+      insert: async (stage) => {
+        assertStageNameFree(stage);
+        store.stages.set(stage.id, copy(stage));
+      },
       findById: async (id) => copy(store.stages.get(id) ?? null),
       listByPipeline: async (pipelineId) =>
         copies([...store.stages.values()].filter((s) => s.pipelineId === pipelineId).sort(byPositionThenId)),
-      update: async (stage) => void store.stages.set(stage.id, copy(stage)),
+      update: async (stage) => {
+        assertStageNameFree(stage);
+        store.stages.set(stage.id, copy(stage));
+      },
       delete: async (id) => {
         store.stages.delete(id);
         dropWhere(store.tasks, (t) => t.stageId === id);
@@ -76,6 +91,11 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       findById: async (id) => copy(store.tasks.get(id) ?? null),
       update: async (task) => void store.tasks.set(task.id, copy(task)),
       delete: async (id) => void store.tasks.delete(id),
+      clearAssignee: async (boardId, userId) => {
+        for (const task of store.tasks.values()) {
+          if (task.boardId === boardId && task.assigneeId === userId) task.assigneeId = null;
+        }
+      },
       listByStage: async (stageId) =>
         copies([...store.tasks.values()].filter((t) => t.stageId === stageId).sort(byPositionThenId)),
       listByPipeline: async (pipelineId, { limit, offset }) =>

@@ -10,15 +10,17 @@ export function makeUpdateBoard(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<Board> => {
     const { boardId, ...changes } = parseInput(updateBoardSchema, input);
     await requireBoardAccess(deps.repos.members, actor, boardId, "board:update");
-    const current = await deps.repos.boards.findById(boardId);
-    if (!current) throw new NotFoundError();
-    const updated: Board = {
-      ...current,
-      name: changes.name ?? current.name,
-      description: changes.description ?? current.description,
-      status: changes.status ?? current.status,
-    };
-    await deps.repos.boards.update(updated);
-    return updated;
+    return deps.uow.run(async (tx) => {
+      const current = await tx.boards.findById(boardId);
+      if (!current) throw new NotFoundError();
+      const updated: Board = {
+        ...current,
+        name: changes.name ?? current.name,
+        description: changes.description ?? current.description,
+        status: changes.status ?? current.status,
+      };
+      await tx.boards.update(updated);
+      return updated;
+    });
   };
 }

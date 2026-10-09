@@ -5,7 +5,7 @@ import { positionAtEnd } from "../../placement";
 import { loadPipeline } from "../../resources";
 import { parseInput } from "../../schemas/parse";
 import { createStageSchema } from "../../schemas/stage";
-import { assertNameAvailable, syncCompletion } from "./_stage-rules";
+import { syncCompletion } from "./_stage-rules";
 
 export function makeCreateStage(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<Stage> => {
@@ -13,7 +13,6 @@ export function makeCreateStage(deps: AppDeps) {
     const pipeline = await loadPipeline(deps.repos, actor, pipelineId, "pipeline:manage");
     return deps.uow.run(async (tx) => {
       const siblings = await tx.stages.listByPipeline(pipelineId);
-      assertNameAvailable(siblings, name);
       const stage: Stage = {
         id: deps.ids.next(),
         pipelineId,

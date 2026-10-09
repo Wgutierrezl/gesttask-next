@@ -20,6 +20,29 @@ describe("in-memory repositories", () => {
     );
   });
 
+  it("rejects duplicate stage names per pipeline, ignoring case, like the unique index", async () => {
+    const { repos } = createTestContext();
+    const stage = (id: string, name: string, pipelineId = "p1") => ({ id, pipelineId, boardId: "b1", name, position: "a0" });
+    await repos.stages.insert(stage("s1", "Todo"));
+    await repos.stages.insert(stage("s2", "Doing"));
+    await repos.stages.insert(stage("s3", "todo", "p2"));
+    await expect(repos.stages.insert(stage("s4", "TODO"))).rejects.toBeInstanceOf(ConflictError);
+    await expect(repos.stages.update(stage("s2", "todo"))).rejects.toBeInstanceOf(ConflictError);
+    await repos.stages.update(stage("s1", "TODO"));
+    expect((await repos.stages.findById("s1"))?.name).toBe("TODO");
+  });
+
+  it("clears an assignee across one board's tasks only", async () => {
+    const { repos } = createTestContext();
+    await repos.tasks.insert(task("t1", "a0", { assigneeId: "u1" }));
+    await repos.tasks.insert(task("t2", "a1", { assigneeId: "u2" }));
+    await repos.tasks.insert(task("t3", "a2", { boardId: "b2", assigneeId: "u1" }));
+    await repos.tasks.clearAssignee("b1", "u1");
+    expect((await repos.tasks.findById("t1"))?.assigneeId).toBeNull();
+    expect((await repos.tasks.findById("t2"))?.assigneeId).toBe("u2");
+    expect((await repos.tasks.findById("t3"))?.assigneeId).toBe("u1");
+  });
+
   it("returns copies, never live references", async () => {
     const { repos } = createTestContext();
     await repos.boards.insert(board("b1"));
