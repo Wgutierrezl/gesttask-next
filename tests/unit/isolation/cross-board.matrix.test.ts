@@ -117,6 +117,13 @@ const worldOf = (ctx: TestContext, ids: Ids) => ({
   tasks: [...ctx.store.tasks.values()].filter((t) => t.boardId === ids.boardId),
 });
 const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
+/**
+ * Use cases that run BEFORE a session exists (REQ-AUTH-04 exceptions). They take no board id, so isolation
+ * does not apply; their own tests cover rate limits and credential handling. Every other use case sits behind
+ * `withActor`, which answers Unauthenticated without a session.
+ */
+const PUBLIC_USE_CASES = ["auth/sign-in-email.ts", "auth/sign-in-guest.ts", "auth/sign-out.ts", "auth/sign-up.ts"];
+
 const CASES = Object.entries(RESOURCES);
 
 async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promise<Ids> {
@@ -150,7 +157,7 @@ describe("cross-board isolation matrix (REQ-ISO-01)", () => {
     const onDisk = (readdirSync(root, { recursive: true }) as string[])
       .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.split("/").pop()!.startsWith("_"))
       .sort();
-    expect([...Object.keys(RESOURCES), ...Object.keys(SELF_SCOPED)].sort()).toEqual(onDisk);
+    expect([...Object.keys(RESOURCES), ...Object.keys(SELF_SCOPED), ...PUBLIC_USE_CASES].sort()).toEqual(onDisk);
   });
 
   it("builds two disjoint worlds, so a NotFound can only come from authorization", () => {
