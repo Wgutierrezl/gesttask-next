@@ -145,12 +145,18 @@ export const attachments = pgTable(
 );
 
 /** Outbox: keys of stored objects whose rows were deleted; processed after commit (slice 6). */
-export const storageDeletions = pgTable("storage_deletions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  storageKey: text("storage_key").notNull(),
-  attempts: integer("attempts").notNull().default(0),
-  createdAt: timestamptz("created_at").notNull().defaultNow(),
-});
+export const storageDeletions = pgTable(
+  "storage_deletions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storageKey: text("storage_key").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    /** Lease: a row is claimable once this passes; claiming and failing push it into the future. */
+    nextAttemptAt: timestamptz("next_attempt_at").notNull().defaultNow(),
+  },
+  (t) => [index("storage_deletions_due_idx").on(t.nextAttemptAt, t.createdAt)],
+);
 
 /** Fixed-window rate limiter state, one row per (key, window). */
 export const rateLimits = pgTable(
