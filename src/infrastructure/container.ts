@@ -49,7 +49,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     baseURL: env.BETTER_AUTH_URL,
     logger,
     cookies: sessionCookieConfig(env.NODE_ENV),
-    onLinkAccount: ({ guestUserId, userId }) => transferGuestData(db, guestUserId, userId),
+    onLinkAccount: ({ guestUserId, userId }) => transferGuestData(db, guestUserId, userId, logger),
   });
   const session = new BetterAuthSession(auth, () => headers());
   const authPort = new BetterAuthPort(auth, () => headers());

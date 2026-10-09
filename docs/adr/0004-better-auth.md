@@ -30,7 +30,16 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
 - A guest is an anonymous user that owns a sandbox cloned from the demo board under a deterministic id, so
   provisioning is idempotent and race-free. Quotas: 3 boards and 200 tasks (soft under concurrency).
 - Signing in or up from a guest session moves the sandbox to the account (`transferGuestData`).
-- Guest sandboxes expire 24 hours after creation; `purgeExpiredGuests` is invoked by the cron in slice 9.
+- Guest sandboxes expire 24 hours after creation (guest sessions are capped at the same TTL).
+  `purgeExpiredGuests` is invoked by the cron in slice 9 and requires the `beforeDeleteBoards` hook (slice 6
+  wires it to the storage outbox). It deletes only boards whose members are all expired guests or login-less
+  demo users; on any other board only the expired guests leave and, if the board lost its last owner, a
+  remaining member is promoted.
+- Quotas take a per-user advisory transaction lock before counting (concurrent creations cannot overshoot);
+  the task quota counts every board the guest belongs to. A guest that already owns a board keeps it; one that
+  owns none gets a sandbox again, charged to the guest rate limit.
+- Linking merges roles: if the account already belongs to a board the guest owns, it becomes owner. A failing
+  transfer is logged (ids only) and does not fail the sign-up; the guest data expires with its TTL.
 - Rate limits live in Postgres, keyed by an HMAC of the client address: guest 5/h, email login 10/15 min per
   client and email plus 50/h per email alone (distributed guessing), sign-up 10/h.
 - `proxy.ts` only pre-filters on the cookie; the `(app)` layout validates the session and every use case is

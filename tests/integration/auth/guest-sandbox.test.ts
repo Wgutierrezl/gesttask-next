@@ -68,7 +68,7 @@ describe("SeededGuestSandbox", () => {
 describe("linking a guest to a real account", () => {
   it("moves the sandbox to the account the guest signs up with", async () => {
     const { auth } = authFixture(handle, {
-      onLinkAccount: async (link) => (await import("@/infrastructure/auth/transfer-guest")).transferGuestData(handle.db, link.guestUserId, link.userId),
+      onLinkAccount: async (link) => (await import("@/infrastructure/auth/transfer-guest")).transferGuestData(handle.db, link.guestUserId, link.userId, authFixture(handle).logger),
     });
     const anonymous = await auth.api.signInAnonymous({ returnHeaders: true });
     const guest = { userId: anonymous.response!.user.id, isGuest: true as const };
