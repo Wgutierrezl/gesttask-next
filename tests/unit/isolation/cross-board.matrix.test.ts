@@ -31,7 +31,7 @@ import type { Actor } from "@/application/actor";
 import { can, type BoardAction } from "@/domain/policy/board-policy";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
-import { GUEST, MEMBER, OWNER, STRANGER, seedKanban } from "@tests/support/fixtures";
+import { GUEST, MEMBER, OWNER, RIVAL, RIVAL_MEMBER, STRANGER, seedKanban } from "@tests/support/fixtures";
 
 interface Ids {
   boardId: string;
@@ -39,57 +39,100 @@ interface Ids {
   stageId: string;
   doneId: string;
   taskId: string;
+  anchorTodoId: string;
+  anchorDoneId: string;
 }
+type IdKey = keyof Ids;
 type Run = (deps: AppDeps, actor: Actor, ids: Ids) => Promise<unknown>;
 
 const ghost = (n: number) => `00000000-0000-4000-8000-0000000fff${n.toString(16).padStart(2, "0")}`;
-const GHOSTS: Ids = { boardId: ghost(1), pipelineId: ghost(2), stageId: ghost(3), doneId: ghost(4), taskId: ghost(5) };
+const GHOSTS: Ids = {
+  boardId: ghost(1),
+  pipelineId: ghost(2),
+  stageId: ghost(3),
+  doneId: ghost(4),
+  taskId: ghost(5),
+  anchorTodoId: ghost(6),
+  anchorDoneId: ghost(7),
+};
+const ID_KEYS = Object.keys(GHOSTS) as IdKey[];
+
+interface Case {
+  action: BoardAction;
+  /** Every resource id the use case reads from its input; each one is attacked on its own. */
+  uses: IdKey[];
+  run: Run;
+}
 
 /**
  * Every use case MUST be registered here (the completeness test below fails otherwise).
- * `action` is the policy action it needs; `null` marks self-scoped use cases that take no
- * resource id and therefore cannot be aimed at someone else's data.
+ * Resource use cases declare the policy `action` they need and the ids they consume.
+ * Self-scoped use cases (`SELF_SCOPED`) take no resource id and therefore cannot be aimed at
+ * someone else's data; the suite proves their input carries no foreign id and their output leaks none.
  */
-const REGISTRY: Record<string, { action: BoardAction | null; run: Run }> = {
-  "boards/create-board.ts": { action: null, run: (d, a) => makeCreateBoard(d)(a, { name: "x" }) },
-  "boards/list-my-boards.ts": { action: null, run: (d, a) => makeListMyBoards(d)(a) },
-  "boards/update-board.ts": { action: "board:update", run: (d, a, i) => makeUpdateBoard(d)(a, { boardId: i.boardId, name: "x" }) },
-  "boards/delete-board.ts": { action: "board:delete", run: (d, a, i) => makeDeleteBoard(d)(a, { boardId: i.boardId }) },
-  "members/add-member.ts": { action: "member:manage", run: (d, a, i) => makeAddMember(d)(a, { boardId: i.boardId, userId: "carol", role: "member" }) },
-  "members/remove-member.ts": { action: "member:manage", run: (d, a, i) => makeRemoveMember(d)(a, { boardId: i.boardId, userId: "member" }) },
-  "members/change-member-role.ts": { action: "member:manage", run: (d, a, i) => makeChangeMemberRole(d)(a, { boardId: i.boardId, userId: "member", role: "guest" }) },
-  "members/list-members.ts": { action: "board:view", run: (d, a, i) => makeListMembers(d)(a, { boardId: i.boardId }) },
-  "members/list-my-memberships.ts": { action: null, run: (d, a) => makeListMyMemberships(d)(a) },
-  "pipelines/create-pipeline.ts": { action: "pipeline:manage", run: (d, a, i) => makeCreatePipeline(d)(a, { boardId: i.boardId, name: "x" }) },
-  "pipelines/list-pipelines.ts": { action: "board:view", run: (d, a, i) => makeListPipelines(d)(a, { boardId: i.boardId }) },
-  "pipelines/update-pipeline.ts": { action: "pipeline:manage", run: (d, a, i) => makeUpdatePipeline(d)(a, { pipelineId: i.pipelineId, name: "x" }) },
-  "pipelines/delete-pipeline.ts": { action: "pipeline:manage", run: (d, a, i) => makeDeletePipeline(d)(a, { pipelineId: i.pipelineId }) },
-  "stages/create-stage.ts": { action: "pipeline:manage", run: (d, a, i) => makeCreateStage(d)(a, { pipelineId: i.pipelineId, name: "x" }) },
-  "stages/list-stages.ts": { action: "board:view", run: (d, a, i) => makeListStages(d)(a, { pipelineId: i.pipelineId }) },
-  "stages/rename-stage.ts": { action: "pipeline:manage", run: (d, a, i) => makeRenameStage(d)(a, { stageId: i.stageId, name: "x" }) },
-  "stages/reorder-stage.ts": { action: "pipeline:manage", run: (d, a, i) => makeReorderStage(d)(a, { stageId: i.stageId, afterStageId: null }) },
-  "stages/delete-stage.ts": { action: "pipeline:manage", run: (d, a, i) => makeDeleteStage(d)(a, { stageId: i.stageId, moveToStageId: i.doneId }) },
-  "tasks/create-task.ts": { action: "task:write", run: (d, a, i) => makeCreateTask(d)(a, { stageId: i.stageId, title: "x" }) },
-  "tasks/get-task.ts": { action: "board:view", run: (d, a, i) => makeGetTask(d)(a, { taskId: i.taskId }) },
-  "tasks/update-task.ts": { action: "task:write", run: (d, a, i) => makeUpdateTask(d)(a, { taskId: i.taskId, title: "x" }) },
-  "tasks/delete-task.ts": { action: "task:write", run: (d, a, i) => makeDeleteTask(d)(a, { taskId: i.taskId }) },
-  "tasks/list-tasks-by-pipeline.ts": { action: "board:view", run: (d, a, i) => makeListTasksByPipeline(d)(a, { pipelineId: i.pipelineId }) },
-  "tasks/move-task.ts": { action: "task:write", run: (d, a, i) => makeMoveTask(d)(a, { taskId: i.taskId, toStageId: i.doneId, afterTaskId: null }) },
-  "tasks/reorder-task.ts": { action: "task:write", run: (d, a, i) => makeReorderTask(d)(a, { taskId: i.taskId, afterTaskId: null }) },
+const RESOURCES: Record<string, Case> = {
+  "boards/update-board.ts": { action: "board:update", uses: ["boardId"], run: (d, a, i) => makeUpdateBoard(d)(a, { boardId: i.boardId, name: "x" }) },
+  "boards/delete-board.ts": { action: "board:delete", uses: ["boardId"], run: (d, a, i) => makeDeleteBoard(d)(a, { boardId: i.boardId }) },
+  "members/add-member.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeAddMember(d)(a, { boardId: i.boardId, userId: "carol", role: "member" }) },
+  "members/remove-member.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeRemoveMember(d)(a, { boardId: i.boardId, userId: "member" }) },
+  "members/change-member-role.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeChangeMemberRole(d)(a, { boardId: i.boardId, userId: "member", role: "guest" }) },
+  "members/list-members.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListMembers(d)(a, { boardId: i.boardId }) },
+  "pipelines/create-pipeline.ts": { action: "pipeline:manage", uses: ["boardId"], run: (d, a, i) => makeCreatePipeline(d)(a, { boardId: i.boardId, name: "x" }) },
+  "pipelines/list-pipelines.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListPipelines(d)(a, { boardId: i.boardId }) },
+  "pipelines/update-pipeline.ts": { action: "pipeline:manage", uses: ["pipelineId"], run: (d, a, i) => makeUpdatePipeline(d)(a, { pipelineId: i.pipelineId, name: "x" }) },
+  "pipelines/delete-pipeline.ts": { action: "pipeline:manage", uses: ["pipelineId"], run: (d, a, i) => makeDeletePipeline(d)(a, { pipelineId: i.pipelineId }) },
+  "stages/create-stage.ts": { action: "pipeline:manage", uses: ["pipelineId"], run: (d, a, i) => makeCreateStage(d)(a, { pipelineId: i.pipelineId, name: "x" }) },
+  "stages/list-stages.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeListStages(d)(a, { pipelineId: i.pipelineId }) },
+  "stages/rename-stage.ts": { action: "pipeline:manage", uses: ["stageId"], run: (d, a, i) => makeRenameStage(d)(a, { stageId: i.stageId, name: "x" }) },
+  "stages/reorder-stage.ts": { action: "pipeline:manage", uses: ["stageId", "doneId"], run: (d, a, i) => makeReorderStage(d)(a, { stageId: i.stageId, afterStageId: i.doneId }) },
+  "stages/delete-stage.ts": { action: "pipeline:manage", uses: ["stageId", "doneId"], run: (d, a, i) => makeDeleteStage(d)(a, { stageId: i.stageId, moveToStageId: i.doneId }) },
+  "tasks/create-task.ts": { action: "task:write", uses: ["stageId"], run: (d, a, i) => makeCreateTask(d)(a, { stageId: i.stageId, title: "x" }) },
+  "tasks/get-task.ts": { action: "board:view", uses: ["taskId"], run: (d, a, i) => makeGetTask(d)(a, { taskId: i.taskId }) },
+  "tasks/update-task.ts": { action: "task:write", uses: ["taskId"], run: (d, a, i) => makeUpdateTask(d)(a, { taskId: i.taskId, title: "x" }) },
+  "tasks/delete-task.ts": { action: "task:write", uses: ["taskId"], run: (d, a, i) => makeDeleteTask(d)(a, { taskId: i.taskId }) },
+  "tasks/list-tasks-by-pipeline.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeListTasksByPipeline(d)(a, { pipelineId: i.pipelineId }) },
+  "tasks/move-task.ts": { action: "task:write", uses: ["taskId", "doneId", "anchorDoneId"], run: (d, a, i) => makeMoveTask(d)(a, { taskId: i.taskId, toStageId: i.doneId, afterTaskId: i.anchorDoneId }) },
+  "tasks/reorder-task.ts": { action: "task:write", uses: ["taskId", "anchorTodoId"], run: (d, a, i) => makeReorderTask(d)(a, { taskId: i.taskId, afterTaskId: i.anchorTodoId }) },
+};
+
+interface SelfScoped {
+  input: unknown;
+  run: (deps: AppDeps, actor: Actor, input: unknown) => Promise<unknown>;
+}
+const SELF_SCOPED: Record<string, SelfScoped> = {
+  "boards/create-board.ts": { input: { name: "x" }, run: (d, a, input) => makeCreateBoard(d)(a, input) },
+  "boards/list-my-boards.ts": { input: {}, run: (d, a, input) => makeListMyBoards(d)(a, input) },
+  "members/list-my-memberships.ts": { input: undefined, run: (d, a) => makeListMyMemberships(d)(a) },
 };
 
 const snapshot = (ctx: TestContext) => JSON.stringify(Object.values(ctx.store).map((table) => [...table]));
 const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
-const RESOURCE_CASES = Object.entries(REGISTRY).filter(([, c]) => c.action !== null) as [string, { action: BoardAction; run: Run }][];
+const CASES = Object.entries(RESOURCES);
+
+async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promise<Ids> {
+  const k = await seedKanban(ctx, owner);
+  const add = (stageId: string, title: string) => makeCreateTask(ctx)(owner, { stageId, title: `${label}-${title}` });
+  const [task, anchorTodo, anchorDone] = [await add(k.todoId, "secret"), await add(k.todoId, "anchor"), await add(k.doneId, "anchor")];
+  return {
+    boardId: k.boardId,
+    pipelineId: k.pipelineId,
+    stageId: k.todoId,
+    doneId: k.doneId,
+    taskId: task.id,
+    anchorTodoId: anchorTodo.id,
+    anchorDoneId: anchorDone.id,
+  };
+}
 
 describe("cross-board isolation matrix (REQ-ISO-01)", () => {
   let ctx: TestContext;
-  let ids: Ids;
+  let a: Ids;
+  let b: Ids;
   beforeEach(async () => {
     ctx = createTestContext();
-    const k = await seedKanban(ctx);
-    const task = await makeCreateTask(ctx)(OWNER, { stageId: k.todoId, title: "secret" });
-    ids = { boardId: k.boardId, pipelineId: k.pipelineId, stageId: k.todoId, doneId: k.doneId, taskId: task.id };
+    a = await buildWorld(ctx, OWNER, "A");
+    b = await buildWorld(ctx, RIVAL, "B");
+    await ctx.repos.members.insert({ boardId: b.boardId, userId: RIVAL_MEMBER.userId, role: "member" });
   });
 
   it("registers every use case on disk, and nothing stale", () => {
@@ -97,39 +140,79 @@ describe("cross-board isolation matrix (REQ-ISO-01)", () => {
     const onDisk = (readdirSync(root, { recursive: true }) as string[])
       .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.split("/").pop()!.startsWith("_"))
       .sort();
-    expect(Object.keys(REGISTRY).sort()).toEqual(onDisk);
+    expect([...Object.keys(RESOURCES), ...Object.keys(SELF_SCOPED)].sort()).toEqual(onDisk);
   });
 
-  describe.each(RESOURCE_CASES)("%s", (_file, { action, run }) => {
-    it("answers NotFound to a non-member and changes nothing", async () => {
+  it("builds two disjoint worlds, so a NotFound can only come from authorization", () => {
+    for (const key of ID_KEYS) expect(a[key]).not.toBe(b[key]);
+    expect(new Set(ID_KEYS.map((key) => a[key])).size).toBe(ID_KEYS.length);
+  });
+
+  describe.each(CASES)("%s", (_file, { action, uses, run }) => {
+    it("succeeds for the rival owner on the rival's own ids (positive control)", async () => {
+      await expect(run(ctx, RIVAL, b)).resolves.not.toThrow();
+    });
+
+    it.each([["rival owner", RIVAL], ["rival member", RIVAL_MEMBER], ["stranger", STRANGER]])(
+      "answers NotFound to the %s on board A's ids and changes nothing",
+      async (_who, who) => {
+        const before = snapshot(ctx);
+        expect(await failure(run(ctx, who, a))).toBeInstanceOf(NotFoundError);
+        expect(snapshot(ctx)).toBe(before);
+      },
+    );
+
+    it.each(uses)("answers NotFound when only %s is foreign and every other id is the rival's own", async (key) => {
       const before = snapshot(ctx);
-      expect(await failure(run(ctx, STRANGER, ids))).toBeInstanceOf(NotFoundError);
+      expect(await failure(run(ctx, RIVAL, { ...b, [key]: a[key] }))).toBeInstanceOf(NotFoundError);
       expect(snapshot(ctx)).toBe(before);
     });
 
-    it("answers a stranger exactly the same for foreign and non-existent ids (REQ-ISO-08)", async () => {
-      const foreign = await failure(run(ctx, STRANGER, ids));
-      const missing = await failure(run(ctx, STRANGER, GHOSTS));
+    it.each(uses.length > 1 ? uses : [])("answers NotFound when only %s is the rival's own and the rest is foreign", async (key) => {
+      const before = snapshot(ctx);
+      expect(await failure(run(ctx, RIVAL, { ...a, [key]: b[key] }))).toBeInstanceOf(NotFoundError);
+      expect(snapshot(ctx)).toBe(before);
+    });
+
+    it("answers a rival exactly the same for foreign and non-existent ids (REQ-ISO-08)", async () => {
+      const foreign = await failure(run(ctx, RIVAL, a));
+      const missing = await failure(run(ctx, RIVAL, GHOSTS));
       expect(missing).toBeInstanceOf(NotFoundError);
       expect(missing).toEqual(foreign);
     });
 
     it.each([MEMBER, GUEST].filter((who) => !can(who.userId as "member" | "guest", action)))(
-      "answers Forbidden to $userId and changes nothing",
+      "answers Forbidden to $userId on their own board and changes nothing",
       async (who) => {
         const before = snapshot(ctx);
-        expect(await failure(run(ctx, who, ids))).toBeInstanceOf(ForbiddenError);
+        expect(await failure(run(ctx, who, a))).toBeInstanceOf(ForbiddenError);
         expect(snapshot(ctx)).toBe(before);
       },
     );
   });
 
-  describe("self-scoped use cases never expose another user's data", () => {
-    it("lists nothing for a user without boards or memberships (REQ-ISO-05)", async () => {
-      expect(await REGISTRY["boards/list-my-boards.ts"]!.run(ctx, STRANGER, ids)).toEqual([]);
-      expect(await REGISTRY["members/list-my-memberships.ts"]!.run(ctx, STRANGER, ids)).toEqual([]);
-      expect(makeListMyMemberships(ctx).length).toBe(1);
+  describe.each(Object.entries(SELF_SCOPED))("%s (self-scoped)", (_file, { input, run }) => {
+    it("carries no id of board A in its input", () => {
+      const serialized = JSON.stringify(input ?? null);
+      for (const key of ID_KEYS) expect(serialized).not.toContain(a[key]);
     });
+
+    it("never returns board A's data to a user outside it", async () => {
+      const membersOfA = JSON.stringify(await ctx.repos.members.listByBoard(a.boardId, { limit: 200, offset: 0 }));
+      const result = JSON.stringify((await run(ctx, RIVAL, input)) ?? null);
+      for (const key of ID_KEYS) expect(result).not.toContain(a[key]);
+      expect(result).not.toContain("A-secret");
+      expect(result).not.toContain('"userId":"owner"');
+      expect(JSON.stringify(await ctx.repos.members.listByBoard(a.boardId, { limit: 200, offset: 0 }))).toBe(membersOfA);
+    });
+  });
+
+  it("lists only the caller's own boards and memberships (REQ-ISO-05)", async () => {
+    const boards = (await makeListMyBoards(ctx)(RIVAL)) as { id: string }[];
+    expect(boards.map((board) => board.id)).toEqual([b.boardId]);
+    expect(await makeListMyBoards(ctx)(STRANGER)).toEqual([]);
+    expect(await makeListMyMemberships(ctx)(STRANGER)).toEqual([]);
+    expect(makeListMyMemberships(ctx).length).toBe(1);
   });
 });
 
