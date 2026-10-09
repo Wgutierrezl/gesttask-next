@@ -25,6 +25,9 @@ export interface Page {
  *   A plain `ORDER BY position FOR UPDATE` locks in position order (deadlock-prone), and folding both
  *   into `WHERE id IN (SELECT ... FOR UPDATE)` reads with the snapshot taken before the lock wait, so
  *   rows committed by the transaction we waited for come back stale (lost updates).
+ * - Lists scoped to a parent (`stages.listByPipeline`, `tasks.listByStage`) lock the PARENT row first
+ *   (FOR UPDATE conflicts with the KEY SHARE lock every child insert/move takes for its foreign key), so
+ *   no row can appear in the list while a transaction is using it. The lock order stays top-down.
  * - PAGINATED listings (`listByMember`, `listByBoard`, `listByPipeline` with a `Page`) are snapshot reads
  *   even inside a transaction: they feed the UI and are never used to read-modify-write.
  * - Uniqueness is enforced by the database, never by check-then-insert in application code: the

@@ -1,0 +1,1 @@
+ALTER TABLE "storage_deletions" ADD COLUMN "dead_at" timestamp with time zone;

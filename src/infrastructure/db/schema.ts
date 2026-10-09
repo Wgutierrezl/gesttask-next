@@ -169,6 +169,8 @@ export const storageDeletions = pgTable(
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     /** Lease: a row is claimable once this passes; claiming and failing push it into the future. */
     nextAttemptAt: timestamptz("next_attempt_at").notNull().defaultNow(),
+    /** Dead letter: set once the row ran out of attempts; it is never claimed again but kept for inspection. */
+    deadAt: timestamptz("dead_at"),
   },
   (t) => [index("storage_deletions_due_idx").on(t.nextAttemptAt, t.createdAt)],
 );
