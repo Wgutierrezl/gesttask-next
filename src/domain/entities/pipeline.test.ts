@@ -1,19 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isTerminalStage, type Stage } from "./pipeline";
+import { DEFAULT_STAGES } from "./pipeline";
 
-const stage = (id: string, position: string): Stage => ({ id, pipelineId: "p", boardId: "b", name: id, position });
-
-describe("isTerminalStage", () => {
-  const stages = [stage("done", "z"), stage("todo", "A"), stage("doing", "M")];
-
-  it("is true only for the stage with the highest position, regardless of input order", () => {
-    expect(isTerminalStage("done", stages)).toBe(true);
-    expect(isTerminalStage("todo", stages)).toBe(false);
-    expect(isTerminalStage("doing", stages)).toBe(false);
+describe("DEFAULT_STAGES", () => {
+  it("are To do, In progress and Done, in that order", () => {
+    expect(DEFAULT_STAGES.map((s) => s.name)).toEqual(["To do", "In progress", "Done"]);
   });
 
-  it("is false for unknown stages and empty pipelines", () => {
-    expect(isTerminalStage("ghost", stages)).toBe(false);
-    expect(isTerminalStage("any", [])).toBe(false);
+  it("flags only the last stage as done (REQ-TSK-05)", () => {
+    expect(DEFAULT_STAGES.map((s) => s.isDone)).toEqual([false, false, true]);
   });
 });

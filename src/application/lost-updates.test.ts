@@ -9,6 +9,7 @@ import { makeCreatePipeline } from "./use-cases/pipelines/create-pipeline";
 import { makeUpdatePipeline } from "./use-cases/pipelines/update-pipeline";
 import { makeRenameStage } from "./use-cases/stages/rename-stage";
 import { makeReorderStage } from "./use-cases/stages/reorder-stage";
+import { makeSetStageDone } from "./use-cases/stages/set-stage-done";
 import { makeCreateTask } from "./use-cases/tasks/create-task";
 import { makeMoveTask } from "./use-cases/tasks/move-task";
 import { makeReorderTask } from "./use-cases/tasks/reorder-task";
@@ -70,10 +71,12 @@ describe("read-modify-write happens inside the transaction", () => {
   it("stage mutations answer NotFound when the stage vanished before the transaction", async () => {
     const gone = (c: TestContext) => withInterleavedWrite(c, (store) => void store.stages.delete(k.doneId));
     await expect(makeRenameStage(gone(ctx))(OWNER, { stageId: k.doneId, name: "x" })).rejects.toBeInstanceOf(NotFoundError);
-    ctx.store.stages.set(k.doneId, { id: k.doneId, pipelineId: k.pipelineId, boardId: k.boardId, name: "Done", position: "a1" });
+    ctx.store.stages.set(k.doneId, { id: k.doneId, pipelineId: k.pipelineId, boardId: k.boardId, name: "Done", isDone: true, position: "a1" });
     await expect(
       makeReorderStage(gone(ctx))(OWNER, { stageId: k.doneId, afterStageId: null }),
     ).rejects.toBeInstanceOf(NotFoundError);
+    ctx.store.stages.set(k.doneId, { id: k.doneId, pipelineId: k.pipelineId, boardId: k.boardId, name: "Done", isDone: true, position: "a1" });
+    await expect(makeSetStageDone(gone(ctx))(OWNER, { stageId: k.doneId, isDone: false })).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("updateBoard and updatePipeline keep concurrent changes to other fields", async () => {

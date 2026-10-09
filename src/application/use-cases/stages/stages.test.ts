@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
-import { GUEST, MEMBER, OWNER, STRANGER, buildTask, seedBoard } from "@tests/support/fixtures";
+import { GUEST, MEMBER, OWNER, STRANGER, buildTask, clearStages, seedBoard } from "@tests/support/fixtures";
 import { makeCreateBoard } from "../boards/create-board";
 import { makeCreatePipeline } from "../pipelines/create-pipeline";
 import { makeCreateStage } from "./create-stage";
@@ -9,6 +9,7 @@ import { makeDeleteStage } from "./delete-stage";
 import { makeListStages } from "./list-stages";
 import { makeRenameStage } from "./rename-stage";
 import { makeReorderStage } from "./reorder-stage";
+import { makeSetStageDone } from "./set-stage-done";
 
 describe("stages", () => {
   let ctx: TestContext;
@@ -21,6 +22,7 @@ describe("stages", () => {
     ctx = createTestContext();
     ({ boardId } = await seedBoard(ctx));
     pipelineId = (await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P" })).id;
+    clearStages(ctx, pipelineId); // start from an empty pipeline; defaults are covered in pipelines.test
   });
 
   it("appends stages in creation order with strictly increasing positions", async () => {
@@ -28,6 +30,10 @@ describe("stages", () => {
     expect(a!.boardId).toBe(boardId);
     expect(a!.position < b!.position && b!.position < c!.position).toBe(true);
     expect(await names()).toEqual(["Todo", "Doing", "Done"]);
+  });
+
+  it("creates stages that are not done", async () => {
+    expect((await addStage("Todo")).isDone).toBe(false);
   });
 
   it("keeps stage names unique within a pipeline, ignoring case (REQ-PIP-01)", async () => {
@@ -81,6 +87,8 @@ describe("stages", () => {
     await expect(makeRenameStage(ctx)(who, { stageId: stage.id, name: "X" })).rejects.toBeInstanceOf(error);
     await expect(makeReorderStage(ctx)(who, { stageId: stage.id, afterStageId: null })).rejects.toBeInstanceOf(error);
     await expect(makeDeleteStage(ctx)(who, { stageId: stage.id })).rejects.toBeInstanceOf(error);
+    await expect(makeSetStageDone(ctx)(who, { stageId: stage.id, isDone: true })).rejects.toBeInstanceOf(error);
+    expect(ctx.store.stages.get(stage.id)?.isDone).toBe(false);
     expect(await names()).toEqual(["Todo"]);
     if (who === STRANGER) await expect(makeListStages(ctx)(who, { pipelineId })).rejects.toBeInstanceOf(NotFoundError);
     else expect(await makeListStages(ctx)(who, { pipelineId })).toHaveLength(1);
@@ -139,31 +147,128 @@ describe("stages", () => {
     });
   });
 
-  describe("completion follows the final stage (REQ-TSK-05)", () => {
-    it("completes tasks of the new final stage and reopens those of the former one", async () => {
-      const [todo, done] = [await addStage("Todo"), await addStage("Done")];
-      const stamp = new Date("2026-10-02T00:00:00.000Z");
-      await ctx.repos.tasks.insert(buildTask({ id: "t1", stageId: done!.id, pipelineId, boardId, completedAt: stamp }));
-      await ctx.repos.tasks.insert(buildTask({ id: "t2", stageId: todo!.id, pipelineId, boardId }));
-      await makeReorderStage(ctx)(OWNER, { stageId: todo!.id, afterStageId: done!.id });
-      expect(ctx.store.tasks.get("t1")?.completedAt).toBeNull();
-      expect(ctx.store.tasks.get("t2")?.completedAt).toEqual(ctx.clock.now());
+  describe("completion follows the done flag (REQ-TSK-05)", () => {
+    const STAMP = new Date("2026-10-02T00:00:00.000Z");
+    const put = (id: string, stageId: string, completedAt: Date | null) =>
+      ctx.repos.tasks.insert(buildTask({ id, stageId, pipelineId, boardId, completedAt }));
+    const completedAt = (id: string) => ctx.store.tasks.get(id)?.completedAt;
+    const setDone = (stageId: string, isDone = true) => makeSetStageDone(ctx)(OWNER, { stageId, isDone });
+
+    describe("setStageDone", () => {
+      it("flags the stage and completes the tasks already in it", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await put("t1", done.id, null);
+        await put("t2", todo.id, null);
+        expect(await setDone(done.id)).toEqual({ ...done, isDone: true });
+        expect(completedAt("t1")).toEqual(ctx.clock.now());
+        expect(completedAt("t2")).toBeNull();
+      });
+
+      it("moves the flag: clears the previous done stage and reopens only its tasks", async () => {
+        const [a, b, other] = [await addStage("A"), await addStage("B"), await addStage("Other")];
+        await setDone(a.id);
+        await put("ta", a.id, STAMP);
+        await put("tb", b.id, null);
+        await put("keep", other.id, STAMP); // not in the old or new done stage: must stay untouched
+        await setDone(b.id);
+        expect(ctx.store.stages.get(a.id)?.isDone).toBe(false);
+        expect(ctx.store.stages.get(b.id)?.isDone).toBe(true);
+        expect([...ctx.store.stages.values()].filter((s) => s.isDone)).toHaveLength(1);
+        expect(completedAt("ta")).toBeNull();
+        expect(completedAt("tb")).toEqual(ctx.clock.now());
+        expect(completedAt("keep")).toEqual(STAMP);
+      });
+
+      it("keeps the original stamp of tasks already completed in the new done stage", async () => {
+        const done = await addStage("Done");
+        await put("t1", done.id, STAMP);
+        await setDone(done.id);
+        expect(completedAt("t1")).toEqual(STAMP);
+      });
+
+      it("clears the flag and reopens its tasks when called with isDone false", async () => {
+        const done = await addStage("Done");
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        expect((await setDone(done.id, false)).isDone).toBe(false);
+        expect(completedAt("t1")).toBeNull();
+        expect([...ctx.store.stages.values()].some((s) => s.isDone)).toBe(false);
+      });
+
+      it("is a no-op when the flag already has the requested value", async () => {
+        const [a, b] = [await addStage("A"), await addStage("B")];
+        await setDone(a.id);
+        await put("t1", a.id, STAMP);
+        const before = JSON.stringify([[...ctx.store.stages], [...ctx.store.tasks]]);
+        await setDone(a.id);
+        await setDone(b.id, false);
+        expect(JSON.stringify([[...ctx.store.stages], [...ctx.store.tasks]])).toBe(before);
+      });
+
+      it("answers NotFound for a missing stage and rejects invalid input", async () => {
+        const ghost = "00000000-0000-4000-8000-0000000000ff";
+        await expect(setDone(ghost)).rejects.toBeInstanceOf(NotFoundError);
+        await expect(makeSetStageDone(ctx)(OWNER, { stageId: ghost })).rejects.toBeInstanceOf(ValidationError);
+      });
     });
 
-    it("reopens tasks of the previous final stage when a new stage is appended", async () => {
-      const done = await addStage("Done");
-      const stamp = new Date("2026-10-02T00:00:00.000Z");
-      await ctx.repos.tasks.insert(buildTask({ id: "t1", stageId: done.id, pipelineId, boardId, completedAt: stamp }));
-      await addStage("Archive");
-      expect(ctx.store.tasks.get("t1")?.completedAt).toBeNull();
+    describe("structural changes never touch completion", () => {
+      it("does not reopen done tasks when a stage is added at the end", async () => {
+        const done = await addStage("Done");
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        await addStage("Archive");
+        expect(completedAt("t1")).toEqual(STAMP);
+        expect(ctx.store.stages.get(done.id)?.isDone).toBe(true);
+      });
+
+      it("keeps tasks completed when the done stage is renamed", async () => {
+        const done = await addStage("Done");
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        const renamed = await makeRenameStage(ctx)(OWNER, { stageId: done.id, name: "Shipped" });
+        expect(renamed.isDone).toBe(true);
+        expect(completedAt("t1")).toEqual(STAMP);
+      });
+
+      it("keeps the flag and completion when stages are reordered", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        await put("t2", todo.id, null);
+        await makeReorderStage(ctx)(OWNER, { stageId: done.id, afterStageId: null });
+        await makeReorderStage(ctx)(OWNER, { stageId: todo.id, afterStageId: done.id });
+        expect(ctx.store.stages.get(done.id)?.isDone).toBe(true);
+        expect(completedAt("t1")).toEqual(STAMP);
+        expect(completedAt("t2")).toBeNull();
+      });
+
+      it("keeps untouched tasks as they are when another stage is deleted", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        await makeDeleteStage(ctx)(OWNER, { stageId: todo.id });
+        expect(completedAt("t1")).toEqual(STAMP);
+      });
     });
 
-    it("keeps the original stamp of tasks that stay in the final stage", async () => {
-      const [todo, done] = [await addStage("Todo"), await addStage("Done")];
-      const stamp = new Date("2026-10-02T00:00:00.000Z");
-      await ctx.repos.tasks.insert(buildTask({ id: "t1", stageId: done!.id, pipelineId, boardId, completedAt: stamp }));
-      await makeDeleteStage(ctx)(OWNER, { stageId: todo!.id });
-      expect(ctx.store.tasks.get("t1")?.completedAt).toEqual(stamp);
+    describe("deleting a stage that has tasks", () => {
+      it("completes tasks moved into the done stage", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await setDone(done.id);
+        await put("t1", todo.id, null);
+        await makeDeleteStage(ctx)(OWNER, { stageId: todo.id, moveToStageId: done.id });
+        expect(completedAt("t1")).toEqual(ctx.clock.now());
+      });
+
+      it("reopens tasks of a deleted done stage moved into a regular stage", async () => {
+        const [todo, done] = [await addStage("Todo"), await addStage("Done")];
+        await setDone(done.id);
+        await put("t1", done.id, STAMP);
+        await makeDeleteStage(ctx)(OWNER, { stageId: done.id, moveToStageId: todo.id });
+        expect(completedAt("t1")).toBeNull();
+        expect([...ctx.store.stages.values()].some((s) => s.isDone)).toBe(false);
+      });
     });
   });
 });

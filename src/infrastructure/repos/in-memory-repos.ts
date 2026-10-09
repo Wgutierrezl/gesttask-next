@@ -19,6 +19,14 @@ function dropWhere<V>(map: Map<string, V>, predicate: (value: V) => boolean): vo
 /** Fake repositories mirroring the Postgres semantics the real ones must honour (FK cascades, unique keys). */
 export function createInMemoryRepos(store: InMemoryStore): Repos {
   const memberKey = (boardId: string, userId: string) => `${boardId}:${userId}`;
+  const assertSingleDoneStage = (stage: Stage) => {
+    if (!stage.isDone) return;
+    for (const other of store.stages.values()) {
+      if (other.id !== stage.id && other.pipelineId === stage.pipelineId && other.isDone) {
+        throw new ConflictError("The pipeline already has a done stage");
+      }
+    }
+  };
   const assertStageNameFree = (stage: Stage) => {
     const name = stage.name.toLowerCase();
     for (const other of store.stages.values()) {
@@ -88,6 +96,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
     stages: {
       insert: async (stage) => {
         assertStageNameFree(stage);
+        assertSingleDoneStage(stage);
         store.stages.set(stage.id, copy(stage));
       },
       findById: async (id) => copy(store.stages.get(id) ?? null),
@@ -95,6 +104,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         copies(slice([...store.stages.values()].filter((s) => s.pipelineId === pipelineId).sort(byPositionThenId), page)),
       update: async (stage) => {
         assertStageNameFree(stage);
+        assertSingleDoneStage(stage);
         store.stages.set(stage.id, copy(stage));
       },
       delete: async (id) => {

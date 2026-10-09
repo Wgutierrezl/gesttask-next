@@ -5,7 +5,6 @@ import { positionAtEnd } from "../../placement";
 import { loadPipeline } from "../../resources";
 import { parseInput } from "../../schemas/parse";
 import { createStageSchema } from "../../schemas/stage";
-import { syncCompletion } from "./_stage-rules";
 
 export function makeCreateStage(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<Stage> => {
@@ -18,10 +17,10 @@ export function makeCreateStage(deps: AppDeps) {
         pipelineId,
         boardId: pipeline.boardId,
         name,
+        isDone: false,
         position: positionAtEnd(siblings),
       };
       await tx.stages.insert(stage);
-      await syncCompletion(tx, pipelineId, deps.clock.now());
       return stage;
     });
   };

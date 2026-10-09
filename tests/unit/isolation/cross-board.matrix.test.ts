@@ -20,6 +20,7 @@ import { makeDeleteStage } from "@/application/use-cases/stages/delete-stage";
 import { makeListStages } from "@/application/use-cases/stages/list-stages";
 import { makeRenameStage } from "@/application/use-cases/stages/rename-stage";
 import { makeReorderStage } from "@/application/use-cases/stages/reorder-stage";
+import { makeSetStageDone } from "@/application/use-cases/stages/set-stage-done";
 import { makeCreateTask } from "@/application/use-cases/tasks/create-task";
 import { makeDeleteTask } from "@/application/use-cases/tasks/delete-task";
 import { makeGetTask } from "@/application/use-cases/tasks/get-task";
@@ -85,6 +86,7 @@ const RESOURCES: Record<string, Case> = {
   "stages/list-stages.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeListStages(d)(a, { pipelineId: i.pipelineId }) },
   "stages/rename-stage.ts": { action: "pipeline:manage", uses: ["stageId"], run: (d, a, i) => makeRenameStage(d)(a, { stageId: i.stageId, name: "x" }) },
   "stages/reorder-stage.ts": { action: "pipeline:manage", uses: ["stageId", "doneId"], run: (d, a, i) => makeReorderStage(d)(a, { stageId: i.stageId, afterStageId: i.doneId }) },
+  "stages/set-stage-done.ts": { action: "pipeline:manage", uses: ["stageId"], run: (d, a, i) => makeSetStageDone(d)(a, { stageId: i.stageId, isDone: true }) },
   "stages/delete-stage.ts": { action: "pipeline:manage", uses: ["stageId", "doneId"], run: (d, a, i) => makeDeleteStage(d)(a, { stageId: i.stageId, moveToStageId: i.doneId }) },
   "tasks/create-task.ts": { action: "task:write", uses: ["stageId"], run: (d, a, i) => makeCreateTask(d)(a, { stageId: i.stageId, title: "x" }) },
   "tasks/get-task.ts": { action: "board:view", uses: ["taskId"], run: (d, a, i) => makeGetTask(d)(a, { taskId: i.taskId }) },

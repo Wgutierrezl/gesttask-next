@@ -6,7 +6,6 @@ import { placeAfter } from "../../placement";
 import { loadStage } from "../../resources";
 import { parseInput } from "../../schemas/parse";
 import { reorderStageSchema } from "../../schemas/stage";
-import { syncCompletion } from "./_stage-rules";
 
 export function makeReorderStage(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<Stage> => {
@@ -21,7 +20,6 @@ export function makeReorderStage(deps: AppDeps) {
       for (const relocated of placement.relocated) await tx.stages.update(relocated);
       const moved = { ...current, position: placement.position };
       await tx.stages.update(moved);
-      await syncCompletion(tx, current.pipelineId, deps.clock.now());
       return moved;
     });
   };

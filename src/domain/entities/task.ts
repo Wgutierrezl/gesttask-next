@@ -31,8 +31,8 @@ export function withOverdue(task: Task, now: Date): TaskView {
   return { ...task, overdue: isOverdue(task, now) };
 }
 
-/** Set once when entering the final stage, kept while it stays there, cleared when it leaves. */
-export function resolveCompletedAt(current: Date | null, inTerminalStage: boolean, now: Date): Date | null {
-  if (!inTerminalStage) return null;
+/** Set once when entering the done stage, kept while it stays there, cleared when it leaves. */
+export function resolveCompletedAt(current: Date | null, inDoneStage: boolean, now: Date): Date | null {
+  if (!inDoneStage) return null;
   return current ?? now;
 }

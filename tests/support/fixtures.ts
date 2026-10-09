@@ -2,7 +2,6 @@ import type { Task } from "@/domain/entities/task";
 import type { Actor } from "@/application/actor";
 import { makeCreateBoard } from "@/application/use-cases/boards/create-board";
 import { makeCreatePipeline } from "@/application/use-cases/pipelines/create-pipeline";
-import { makeCreateStage } from "@/application/use-cases/stages/create-stage";
 import type { TestContext } from "./app-context";
 
 export const actor = (userId: string): Actor => ({ userId, isGuest: false });
@@ -38,11 +37,22 @@ export function buildTask(overrides: Partial<Task> & Pick<Task, "id" | "stageId"
   };
 }
 
-/** A seeded board with one pipeline and two stages (Todo, Done); Done is the final stage. */
+/** A seeded board with one pipeline holding the default stages (To do, In progress, Done); Done is flagged. */
 export async function seedKanban(ctx: TestContext, owner: Actor = OWNER) {
   const { boardId } = await seedBoard(ctx, owner);
   const pipeline = await makeCreatePipeline(ctx)(owner, { boardId, name: "P" });
-  const todo = await makeCreateStage(ctx)(owner, { pipelineId: pipeline.id, name: "Todo" });
-  const done = await makeCreateStage(ctx)(owner, { pipelineId: pipeline.id, name: "Done" });
-  return { boardId, pipelineId: pipeline.id, todoId: todo.id, doneId: done.id };
+  const stages = await ctx.repos.stages.listByPipeline(pipeline.id);
+  const byName = (name: string) => stages.find((s) => s.name === name)!.id;
+  return {
+    boardId,
+    pipelineId: pipeline.id,
+    todoId: byName("To do"),
+    progressId: byName("In progress"),
+    doneId: byName("Done"),
+  };
+}
+
+/** Removes the default stages so a test can build its own layout from an empty pipeline. */
+export function clearStages(ctx: TestContext, pipelineId: string): void {
+  for (const [id, stage] of ctx.store.stages) if (stage.pipelineId === pipelineId) ctx.store.stages.delete(id);
 }
