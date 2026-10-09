@@ -1,5 +1,5 @@
 import { NotFoundError } from "@/domain/errors";
-import type { Pipeline } from "@/domain/entities/pipeline";
+import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 import type { BoardAction } from "@/domain/policy/board-policy";
 import type { Actor } from "./actor";
 import { requireBoardAccess } from "./authorize";
@@ -19,4 +19,11 @@ export async function loadPipeline(
   if (!pipeline) throw new NotFoundError();
   await requireBoardAccess(repos.members, actor, pipeline.boardId, action);
   return pipeline;
+}
+
+export async function loadStage(repos: Repos, actor: Actor, stageId: string, action: BoardAction): Promise<Stage> {
+  const stage = await repos.stages.findById(stageId);
+  if (!stage) throw new NotFoundError();
+  await requireBoardAccess(repos.members, actor, stage.boardId, action);
+  return stage;
 }
