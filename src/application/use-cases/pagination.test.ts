@@ -28,11 +28,13 @@ describe("paginated lists (default 50, max 200)", () => {
   });
 
   it("listMyBoards orders by creation time before id", async () => {
+    // "early" gets the smaller id but the LATER creation time: only a createdAt-first order yields late, early.
     const early = await makeCreateBoard(ctx)(OWNER, { name: "early" });
-    ctx.clock.set(new Date("2027-01-01T00:00:00Z"));
-    await makeCreateBoard(ctx)(OWNER, { name: "late" });
-    await ctx.repos.boards.update({ ...early, createdAt: new Date("2026-12-31T00:00:00Z") });
-    expect(names(await makeListMyBoards(ctx)(OWNER))).toEqual(["early", "late"]);
+    const late = await makeCreateBoard(ctx)(OWNER, { name: "late" });
+    expect(early.id < late.id).toBe(true);
+    await ctx.repos.boards.update({ ...early, createdAt: new Date("2027-06-01T00:00:00Z") });
+    await ctx.repos.boards.update({ ...late, createdAt: new Date("2027-01-01T00:00:00Z") });
+    expect(names(await makeListMyBoards(ctx)(OWNER))).toEqual(["late", "early"]);
   });
 
   it("listMembers pages by user id", async () => {

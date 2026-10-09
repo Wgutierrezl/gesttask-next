@@ -108,6 +108,14 @@ const SELF_SCOPED: Record<string, SelfScoped> = {
 };
 
 const snapshot = (ctx: TestContext) => JSON.stringify(Object.values(ctx.store).map((table) => [...table]));
+/** Every row that belongs to a world (board, members, pipeline, stages, tasks), to prove the other world stays untouched. */
+const worldOf = (ctx: TestContext, ids: Ids) => ({
+  board: ctx.store.boards.get(ids.boardId),
+  members: [...ctx.store.members.values()].filter((m) => m.boardId === ids.boardId),
+  pipelines: [...ctx.store.pipelines.values()].filter((p) => p.boardId === ids.boardId),
+  stages: [...ctx.store.stages.values()].filter((s) => s.boardId === ids.boardId),
+  tasks: [...ctx.store.tasks.values()].filter((t) => t.boardId === ids.boardId),
+});
 const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
 const CASES = Object.entries(RESOURCES);
 
@@ -151,8 +159,13 @@ describe("cross-board isolation matrix (REQ-ISO-01)", () => {
   });
 
   describe.each(CASES)("%s", (_file, { action, uses, run }) => {
-    it("succeeds for the rival owner on the rival's own ids (positive control)", async () => {
+    it("succeeds for the rival owner on the rival's own ids and really changes state, or leaves it alone when read-only (positive control)", async () => {
+      const before = snapshot(ctx);
+      const aWorld = JSON.stringify(worldOf(ctx, a));
       await expect(run(ctx, RIVAL, b)).resolves.not.toThrow();
+      if (action === "board:view") expect(snapshot(ctx)).toBe(before);
+      else expect(snapshot(ctx)).not.toBe(before);
+      expect(JSON.stringify(worldOf(ctx, a))).toBe(aWorld);
     });
 
     it.each([["rival owner", RIVAL], ["rival member", RIVAL_MEMBER], ["stranger", STRANGER]])(
