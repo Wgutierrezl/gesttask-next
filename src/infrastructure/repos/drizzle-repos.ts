@@ -2,8 +2,10 @@ import type { Repos } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
 import { createBoardRepo } from "./drizzle-board.repo";
 import { createMemberRepo } from "./drizzle-member.repo";
+import { createPipelineRepo } from "./drizzle-pipeline.repo";
+import { createStageRepo } from "./drizzle-stage.repo";
 
-/** Pipelines, stages and tasks arrive in the next stacked branches; touching them fails loudly. */
+/** Tasks arrive in the next stacked branch; touching them fails loudly. */
 function notYet(name: string): never {
   throw new Error(`${name} repository is not implemented yet`);
 }
@@ -18,8 +20,8 @@ export function createDrizzleRepos(db: Database, lock: boolean): Repos {
   return {
     boards: createBoardRepo(db, lock),
     members: createMemberRepo(db, lock),
-    pipelines: pending("pipeline"),
-    stages: pending("stage"),
+    pipelines: createPipelineRepo(db, lock),
+    stages: createStageRepo(db, lock),
     tasks: pending("task"),
   };
 }

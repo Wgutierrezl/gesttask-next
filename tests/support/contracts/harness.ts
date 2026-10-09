@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Repos, UnitOfWork } from "@/application/ports/repositories";
 import type { Board } from "@/domain/entities/board";
+import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 
 /** What a repository contract needs from an implementation (in-memory fakes or Drizzle adapters). */
 export interface RepoHarness {
@@ -19,3 +20,20 @@ export const at = (offsetSeconds: number): Date => new Date(T0.getTime() + offse
 export const makeBoard = (extra: Partial<Board> = {}): Board => ({
   id: uuid(), name: "Board", description: "", status: "active", createdAt: T0, ...extra,
 });
+
+export const makePipeline = (boardId: string, extra: Partial<Pipeline> = {}): Pipeline => ({
+  id: uuid(), boardId, name: "Pipeline", description: "", ...extra,
+});
+
+export const makeStage = (pipeline: Pipeline, extra: Partial<Stage> = {}): Stage => ({
+  id: uuid(), pipelineId: pipeline.id, boardId: pipeline.boardId, name: `Stage ${uuid()}`, isDone: false, position: "a0", ...extra,
+});
+
+/** A board with one pipeline: the smallest parent chain the child repositories need (FKs are real). */
+export async function seedPipeline(h: RepoHarness): Promise<{ board: Board; pipeline: Pipeline }> {
+  const board = makeBoard();
+  const pipeline = makePipeline(board.id);
+  await h.repos.boards.insert(board);
+  await h.repos.pipelines.insert(pipeline);
+  return { board, pipeline };
+}
