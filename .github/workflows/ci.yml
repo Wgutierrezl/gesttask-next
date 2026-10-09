@@ -35,7 +35,6 @@ jobs:
   # Job B: unit tests; coverage thresholds (90% domain + application) break the build.
   unit:
     name: Unit tests and coverage
-    needs: static
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +49,6 @@ jobs:
   # Job C: integration and contract tests against real Postgres and an S3-compatible server.
   integration:
     name: Integration and contract tests
-    needs: unit
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -66,7 +64,8 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
-      # MinIO images are no longer published; RustFS is the S3-compatible stand-in.
+      # RustFS is the S3-compatible stand-in. The image's default entrypoint serves /data on
+      # RUSTFS_ADDRESS, identical to docker-compose.yml (which adds only a volume and console).
       s3:
         image: rustfs/rustfs:1.0.1
         env:
@@ -95,7 +94,10 @@ jobs:
       - name: Create the S3 bucket
         run: |
           for i in $(seq 1 30); do
-            if aws --endpoint-url "$S3_ENDPOINT" s3api create-bucket --bucket "$S3_BUCKET"; then exit 0; fi
+            if aws --endpoint-url "$S3_ENDPOINT" s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null \
+               || aws --endpoint-url "$S3_ENDPOINT" s3api create-bucket --bucket "$S3_BUCKET"; then
+              echo "bucket $S3_BUCKET ready"; exit 0
+            fi
             sleep 2
           done
           echo "bucket creation failed" >&2
@@ -103,10 +105,10 @@ jobs:
       - run: pnpm test:integration
       - run: pnpm test:contract
 
-  # Job D: production build; Playwright e2e is added in slice 9.
+  # Job D: production build (waits only for the cheap checks; Playwright e2e is added in slice 9).
   build:
-    name: Build and e2e
-    needs: integration
+    name: Build
+    needs: [static, unit]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -117,5 +119,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: End-to-end tests
-        run: echo "Playwright e2e is wired in slice 9 (PR 9b)."
