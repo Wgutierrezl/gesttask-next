@@ -13,3 +13,4 @@ next-env.d.ts
 playwright-report/
 test-results/
 .local-storage/
+depcruise-graph.dot
