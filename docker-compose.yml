@@ -1,4 +1,4 @@
-# Local-first stack: Postgres + MinIO (S3 compatible). No cloud accounts needed.
+# Local-first stack: Postgres + S3-compatible storage (RustFS). No cloud accounts needed.
 name: gesttask
 
 services:
