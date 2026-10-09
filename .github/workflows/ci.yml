@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  # Job A: static checks (no services needed).
+  static:
+    name: Lint, typecheck, boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm depcruise
+
+  # Job B: unit tests; coverage thresholds (90% domain + application) break the build.
+  unit:
+    name: Unit tests and coverage
+    needs: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:coverage
+
+  # Job C: integration and contract tests against real Postgres and an S3-compatible server.
+  integration:
+    name: Integration and contract tests
+    needs: unit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: gesttask
+          POSTGRES_PASSWORD: gesttask
+          POSTGRES_DB: gesttask
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U gesttask -d gesttask"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      # MinIO images are no longer published; RustFS is the S3-compatible stand-in.
+      s3:
+        image: rustfs/rustfs:1.0.1
+        env:
+          RUSTFS_ACCESS_KEY: gesttask
+          RUSTFS_SECRET_KEY: gesttask-secret
+          RUSTFS_ADDRESS: ":9000"
+        ports:
+          - 9000:9000
+    env:
+      DB_DRIVER: pg
+      DATABASE_URL: postgres://gesttask:gesttask@localhost:5433/gesttask
+      STORAGE_DRIVER: s3
+      S3_BUCKET: gesttask
+      S3_ENDPOINT: http://localhost:9000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: gesttask
+      AWS_SECRET_ACCESS_KEY: gesttask-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Create the S3 bucket
+        run: |
+          for i in $(seq 1 30); do
+            if aws --endpoint-url "$S3_ENDPOINT" s3api create-bucket --bucket "$S3_BUCKET"; then exit 0; fi
+            sleep 2
+          done
+          echo "bucket creation failed" >&2
+          exit 1
+      - run: pnpm test:integration
+      - run: pnpm test:contract
+
+  # Job D: production build; Playwright e2e is added in slice 9.
+  build:
+    name: Build and e2e
+    needs: integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: End-to-end tests
+        run: echo "Playwright e2e is wired in slice 9 (PR 9b)."
