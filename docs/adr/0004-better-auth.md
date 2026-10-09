@@ -23,9 +23,10 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
 
 ## Decisions taken while implementing slice 3
 
-- Foreign keys to `user`: memberships cascade, `tasks.assignee_id` is set to null, `comments.author_id` and
-  `attachments.uploader_id` RESTRICT, so deleting a user can never silently drop comments or orphan storage
-  objects; they go away only through the board delete (where slice 6 queues the objects).
+- Foreign keys to `user`: memberships cascade, `tasks.assignee_id`, `comments.author_id` and
+  `attachments.uploader_id` are set to null (migration 0005 relaxed the last two from RESTRICT). Deleting a user
+  or purging a guest therefore never blocks and never drops comments; the UI will show "Deleted user". Storage
+  objects are still released only through the board delete (slice 6 queues them).
 - A guest is an anonymous user that owns a sandbox cloned from the demo board under a deterministic id, so
   provisioning is idempotent and race-free. Quotas: 3 boards and 200 tasks (soft under concurrency).
 - Signing in or up from a guest session moves the sandbox to the account (`transferGuestData`).

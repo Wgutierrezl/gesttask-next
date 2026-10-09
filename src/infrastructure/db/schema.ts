@@ -184,7 +184,8 @@ export const comments = pgTable(
     id: uuid("id").primaryKey(),
     taskId: uuid("task_id").notNull(),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-    authorId: text("author_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+    // Nullable: deleting a user (or purging a guest) keeps the comment; the UI shows "Deleted user".
+    authorId: text("author_id").references(() => user.id, { onDelete: "set null" }),
     body: text("body").notNull(),
     createdAt: timestamptz("created_at").notNull(),
   },
@@ -194,7 +195,7 @@ export const comments = pgTable(
       .onDelete("cascade"),
     index("comments_task_created_idx").on(t.taskId, t.createdAt),
     index("comments_board_id_idx").on(t.boardId),
-    index("comments_author_idx").on(t.authorId), // serves the ON DELETE RESTRICT check of a user
+    index("comments_author_idx").on(t.authorId), // serves the ON DELETE SET NULL of a user
   ],
 );
 
@@ -204,7 +205,7 @@ export const attachments = pgTable(
     id: uuid("id").primaryKey(),
     commentId: uuid("comment_id"),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-    uploaderId: text("uploader_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+    uploaderId: text("uploader_id").references(() => user.id, { onDelete: "set null" }),
     storageKey: text("storage_key").notNull().unique(),
     fileName: text("file_name").notNull(),
     contentType: text("content_type").notNull(),

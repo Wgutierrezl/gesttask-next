@@ -58,25 +58,27 @@ describe("foreign keys to the auth user table", () => {
     });
   });
 
-  it("deleting a user removes their memberships and unassigns their tasks, but never silently drops comments", async () => {
+  it("deleting a user removes their memberships and unassigns their tasks", async () => {
     const { board, task } = await tree(["owner", "worker"]);
     await db.insert(t.boardMembers).values([
       { boardId: board.id, userId: "owner", role: "owner" }, { boardId: board.id, userId: "worker", role: "member" },
     ]);
     await db.update(t.tasks).set({ assigneeId: "worker" }).where(eq(t.tasks.id, task.id));
-    await db.insert(t.comments).values({ id: id(), taskId: task.id, boardId: board.id, authorId: "owner", body: "keep", createdAt: NOW });
-
     await db.delete(t.user).where(eq(t.user.id, "worker"));
-    const rows = await db.select().from(t.boardMembers);
-    expect(rows.map((r) => r.userId)).toEqual(["owner"]);
+    expect((await db.select().from(t.boardMembers)).map((r) => r.userId)).toEqual(["owner"]);
     expect((await db.select().from(t.tasks))[0]?.assigneeId).toBeNull();
+  });
 
-    // Comments (and the storage objects behind their attachments) must be removed through the board delete,
-    // where slice 6 enqueues the objects for deletion; a bare user delete refuses instead of cascading.
-    expect(await violation(db.delete(t.user).where(eq(t.user.id, "owner")))).toMatchObject({ code: "23503" });
-    await db.delete(t.boards).where(eq(t.boards.id, board.id));
-    await db.delete(t.user).where(eq(t.user.id, "owner"));
-    expect(await db.select().from(t.user)).toEqual([]);
+  it("keeps comments and attachments when their author is deleted, with the author set to null (migration 0005)", async () => {
+    const { board, task } = await tree(["owner", "author"]);
+    const comment = { id: id(), taskId: task.id, boardId: board.id, authorId: "author", body: "keep", createdAt: NOW };
+    await db.insert(t.comments).values(comment);
+    await db.insert(t.attachments).values({
+      id: id(), commentId: comment.id, boardId: board.id, uploaderId: "author", storageKey: "k1", fileName: "f", contentType: "x/y", size: 1, createdAt: NOW,
+    });
+    await db.delete(t.user).where(eq(t.user.id, "author"));
+    expect((await db.select().from(t.comments)).map((c) => [c.body, c.authorId])).toEqual([["keep", null]]);
+    expect((await db.select().from(t.attachments)).map((x) => [x.storageKey, x.uploaderId])).toEqual([["k1", null]]);
   });
 
   it("deleting a user cascades to their sessions and accounts", async () => {
