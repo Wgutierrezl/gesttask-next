@@ -16,7 +16,13 @@ describe("authorization guards are present everywhere", () => {
   it("calls requirePageActor in every page and data loader under (app)", () => {
     const guarded = walk(join(APP, "(app)")).filter((file) => /(^|\/)(page|loader|loaders)\.tsx?$|\.loader\.tsx?$/.test(file));
     expect(guarded.map(rel)).toEqual(
-      expect.arrayContaining(["(app)/boards/page.tsx", "(app)/boards/[boardId]/page.tsx", "(app)/boards/[boardId]/settings/page.tsx"]),
+      expect.arrayContaining([
+        "(app)/boards/page.tsx",
+        "(app)/boards/[boardId]/page.tsx",
+        "(app)/boards/[boardId]/settings/page.tsx",
+        "(app)/boards/[boardId]/pipelines/[pipelineId]/page.tsx",
+        "(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page.tsx",
+      ]),
     );
     for (const file of guarded) expect(readFileSync(file, "utf8"), rel(file)).toMatch(/\brequire(Page)?Actor\(/);
   });
@@ -49,9 +55,21 @@ describe("authorization guards are present everywhere", () => {
     }
   });
 
+  it("keeps raw positions out of the Kanban components: moves are always relative to another task", () => {
+    const kanban = walk(join(process.cwd(), "src/components/kanban")).filter((f) => /\.tsx?$/.test(f));
+    expect(kanban.length).toBeGreaterThan(15);
+    const clients = kanban.filter((f) => readFileSync(f, "utf8").trimStart().startsWith('"use client"'));
+    expect(clients.length).toBeGreaterThan(8);
+    for (const file of kanban) {
+      const source = readFileSync(file, "utf8");
+      // Moves are expressed as "after this task"; a position string must never be built or sent by the browser.
+      expect(source, `${file} handles a raw position`).not.toMatch(/\bposition\s*[:=]|generateKeyBetween|fractional/i);
+    }
+  });
+
   it("guards every non-public Server Action: it reaches data only through the container's session-bound use cases", () => {
     const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file) && !PUBLIC_ACTION_FILES.includes(rel(file)));
-    expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts"]));
+    expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts", "_actions/stages.ts", "_actions/tasks.ts"]));
     for (const file of actions) {
       const source = readFileSync(file, "utf8");
       expect(source, rel(file)).toMatch(/\b(withActor|requireActor|requirePageActor)\b|\.useCases\./);
@@ -77,7 +95,7 @@ describe("authorization guards are present everywhere", () => {
         expect(use[1], `${rel(file)}: ${use[0]}`).toMatch(/^\.(useCases|logger|session\.getActor)$|^\.useCases/);
       }
     }
-    expect(exported).toBeGreaterThanOrEqual(8);
+    expect(exported).toBeGreaterThanOrEqual(19);
   });
 
   it("guards every non-public Server Action file with the 'use server' directive", () => {
