@@ -98,6 +98,26 @@ describe("authorization guards are present everywhere", () => {
     expect(exported).toBeGreaterThanOrEqual(23);
   });
 
+  it("serves attachments only through the guarded use case, and never logs the signed URL", () => {
+    const route = readFileSync(join(APP, "api/attachments/[attachmentId]/download/route.ts"), "utf8");
+    expect(route).toMatch(/getContainer\(\)\.useCases\.getAttachmentUrl\(/);
+    expect(route).not.toMatch(/\bmake[A-Z]\w+\(|infrastructure\/(?!container)/);
+    // The only log call receives the error (redacted by the logger), never the data that carries the URL.
+    for (const call of route.matchAll(/logger\.\w+\(([^)]*)\)/g)) expect(call[1], "logs the download data").not.toMatch(/\burl\b|result\.data|Location/i);
+    const storage = readFileSync(join(APP, "api/dev-storage/route.ts"), "utf8");
+    expect(storage).not.toMatch(/logger/);
+  });
+
+  it("keeps the comment components free of storage secrets and server code", () => {
+    const comments = walk(join(process.cwd(), "src/components/comments")).filter((f) => /\.tsx?$/.test(f));
+    expect(comments.length).toBeGreaterThanOrEqual(10);
+    for (const file of comments) {
+      const source = readFileSync(file, "utf8");
+      // The browser gets tickets and hrefs through the server, never credentials or raw storage keys.
+      expect(source, file).not.toMatch(/BLOB_READ_WRITE_TOKEN|AWS_SECRET|process\.env|storageKey|dangerouslySetInnerHTML/);
+    }
+  });
+
   it("guards every non-public Server Action file with the 'use server' directive", () => {
     const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file));
     for (const file of actions) expect(readFileSync(file, "utf8").trimStart(), rel(file)).toMatch(/^"use server";/);

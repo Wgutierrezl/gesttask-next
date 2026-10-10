@@ -104,7 +104,8 @@ export class LocalStorage implements StoragePort {
   }
 
   private path(key: string, extension: "bin" | "json"): string {
-    return join(this.options.rootDir, `${createHash("sha256").update(key).digest("hex")}.${extension}`);
+    // The root is configuration, not request data: tell the bundler not to trace the whole project from this join.
+    return join(/*turbopackIgnore: true*/ this.options.rootDir, `${createHash("sha256").update(key).digest("hex")}.${extension}`);
   }
 
   private sign(grant: Grant): string {
