@@ -30,6 +30,20 @@ export const memberProfileResponse = z.strictObject({
   email: z.string().nullable(),
 });
 
+export const pipelineResponse = z.strictObject({ id, boardId: id, name: z.string(), description: z.string() });
+
+export const pipelineWithRoleResponse = z.strictObject({ pipeline: pipelineResponse, role });
+
+export const stageResponse = z.strictObject({
+  id,
+  pipelineId: id,
+  boardId: id,
+  name: z.string(),
+  isDone: z.boolean(),
+  /** Fractional index inside the pipeline: orders stages, never built by clients (use afterStageId). */
+  position: z.string(),
+});
+
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
   error: z.strictObject({
