@@ -13,28 +13,41 @@ export async function addMemberAction(_previous: MutationState, form: FormData):
   });
 }
 
-/** Whether the form targets the signed-in user: used only to choose where to land afterwards, never to authorize. */
-async function targetsSelf(userId: string): Promise<boolean> {
-  return (await getContainer().session.getActor())?.userId === userId;
+/** The signed-in user's id; resolved inside the mutation so a failing lookup is reported as state, never thrown raw. */
+async function currentUserId(): Promise<string | undefined> {
+  return (await getContainer().session.getActor())?.userId;
 }
 
 export async function changeMemberRoleAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   const boardId = text(form, "boardId");
   const userId = text(form, "userId");
-  const self = await targetsSelf(userId);
-  return runMutation(() => getContainer().useCases.changeMemberRole({ boardId, userId, role: text(form, "role") }), {
-    revalidate: memberPaths(boardId),
-    // Settings are owner-only: someone who just changed their own role lands on the board page instead of a 404.
-    redirectTo: self ? () => `/boards/${boardId}` : undefined,
-  });
+  return runMutation(
+    async () => {
+      const self = (await currentUserId()) === userId;
+      const member = await getContainer().useCases.changeMemberRole({ boardId, userId, role: text(form, "role") });
+      return { self, role: member.role };
+    },
+    {
+      revalidate: memberPaths(boardId),
+      // Settings are owner-only: someone who just stopped being an owner lands on the board page instead of a 404.
+      redirectTo: ({ self, role }) => (self && role !== "owner" ? `/boards/${boardId}` : null),
+    },
+  );
 }
 
 export async function removeMemberAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   const boardId = text(form, "boardId");
   const userId = text(form, "userId");
-  const self = await targetsSelf(userId);
-  return runMutation(() => getContainer().useCases.removeMember({ boardId, userId }), {
-    revalidate: [...memberPaths(boardId), "/boards"],
-    redirectTo: self ? () => "/boards" : undefined,
-  });
+  return runMutation(
+    async () => {
+      const self = (await currentUserId()) === userId;
+      await getContainer().useCases.removeMember({ boardId, userId });
+      return { self };
+    },
+    {
+      revalidate: [...memberPaths(boardId), "/boards"],
+      // Leaving the board: its pages are gone for this user.
+      redirectTo: ({ self }) => (self ? "/boards" : null),
+    },
+  );
 }

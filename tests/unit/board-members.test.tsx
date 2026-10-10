@@ -96,11 +96,25 @@ describe("changeMemberRoleAction", () => {
     useCases.changeMemberRole.mockResolvedValue({ boardId: BOARD_ID, userId: "m", role: "guest" });
     expect(await actions.changeMemberRoleAction(undefined, form({ boardId: BOARD_ID, userId: "m", role: "guest" }))).toEqual({ ok: true, data: null });
     expect(useCases.changeMemberRole).toHaveBeenCalledWith({ boardId: BOARD_ID, userId: "m", role: "guest" });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(revalidatePath.mock.calls.map(([p]) => p).sort()).toEqual([`/boards/${BOARD_ID}`, `/boards/${BOARD_ID}/settings`].sort());
   });
 
-  it("goes to the board page when an owner changes their own role, since settings may no longer be theirs", async () => {
-    useCases.changeMemberRole.mockResolvedValue({});
+  it("goes to the board page when an owner demotes themselves, since settings are no longer theirs", async () => {
+    useCases.changeMemberRole.mockResolvedValue({ boardId: BOARD_ID, userId: "u", role: "member" });
     await expect(actions.changeMemberRoleAction(undefined, form({ boardId: BOARD_ID, userId: "u", role: "member" }))).rejects.toMatchObject({ digest: expect.stringContaining(`/boards/${BOARD_ID};`) });
+  });
+
+  it("stays on the settings page when the owner keeps their own owner role (no-op)", async () => {
+    useCases.changeMemberRole.mockResolvedValue({ boardId: BOARD_ID, userId: "u", role: "owner" });
+    expect(await actions.changeMemberRoleAction(undefined, form({ boardId: BOARD_ID, userId: "u", role: "owner" }))).toEqual({ ok: true, data: null });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("reports a session lookup failure as state instead of throwing", async () => {
+    getActor.mockRejectedValue(new Error("db down"));
+    expect(await actions.changeMemberRoleAction(undefined, form({ boardId: BOARD_ID, userId: "u", role: "member" }))).toMatchObject({ ok: false, code: "INTERNAL" });
+    expect(useCases.changeMemberRole).not.toHaveBeenCalled();
   });
 
   it("surfaces the last-owner guard as a plain message", async () => {
@@ -115,6 +129,14 @@ describe("removeMemberAction", () => {
     useCases.removeMember.mockResolvedValue(undefined);
     expect(await actions.removeMemberAction(undefined, form({ boardId: BOARD_ID, userId: "m" }))).toEqual({ ok: true, data: null });
     expect(useCases.removeMember).toHaveBeenCalledWith({ boardId: BOARD_ID, userId: "m" });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(revalidatePath.mock.calls.map(([p]) => p).sort()).toEqual([`/boards/${BOARD_ID}`, `/boards/${BOARD_ID}/settings`, "/boards"].sort());
+  });
+
+  it("reports a session lookup failure as state instead of throwing", async () => {
+    getActor.mockRejectedValue(new Error("db down"));
+    expect(await actions.removeMemberAction(undefined, form({ boardId: BOARD_ID, userId: "u" }))).toMatchObject({ ok: false, code: "INTERNAL" });
+    expect(useCases.removeMember).not.toHaveBeenCalled();
   });
 
   it("returns to the board list after the owner removes themselves", async () => {

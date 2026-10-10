@@ -13,8 +13,8 @@ export function text(form: FormData, name: string): string {
 interface Options<T> {
   /** Cached pages to refresh after success. */
   revalidate?: string[];
-  /** Where to go after success; the redirect happens outside the error handling so it is never swallowed. */
-  redirectTo?: (data: T) => string;
+  /** Where to go after success, or null to stay; the redirect happens outside the error handling so it is never swallowed. */
+  redirectTo?: (data: T) => string | null;
 }
 
 /** Runs a use case for a Server Action: typed failures come back as state, a lost session goes to login. */
@@ -25,6 +25,7 @@ export async function runMutation<T>(work: () => Promise<T>, options: Options<T>
     return result;
   }
   for (const path of options.revalidate ?? []) revalidatePath(path);
-  if (options.redirectTo) redirect(options.redirectTo(result.data));
+  const destination = options.redirectTo?.(result.data);
+  if (destination) redirect(destination);
   return { ok: true, data: null };
 }
