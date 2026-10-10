@@ -230,6 +230,22 @@ describe("attachments", () => {
       expect(ctx.store.comments.size).toBe(1);
     });
 
+    it.each([
+      ["text/plain", "text/plain; charset=utf-8"],
+      ["image/png", "IMAGE/PNG"],
+      ["application/pdf", "  application/pdf ;x=y"],
+    ])("compares the media type only: a %s upload the storage reports as %j is accepted", async (declared, reported) => {
+      const row = await uploaded(OWNER, { contentType: declared, actual: { contentType: reported } });
+      await expect(comment(OWNER, { attachmentIds: [row.id] })).resolves.toMatchObject({ taskId });
+      expect(ctx.store.attachments.get(row.id)?.status).toBe("confirmed");
+    });
+
+    it.each([["image/svg+xml"], ["text/plain; image/png"], ["image/png-x"], [""]])("still refuses a PNG upload the storage reports as %j", async (reported) => {
+      const row = await uploaded(OWNER, { contentType: "image/png", actual: { contentType: reported } });
+      await expect(comment(OWNER, { attachmentIds: [row.id] })).rejects.toBeInstanceOf(ValidationError);
+      expect(ctx.store.attachments.get(row.id)?.status).toBe("pending");
+    });
+
     it("treats a repeated id in one request as a single attachment", async () => {
       const row = await uploaded(OWNER);
       await comment(OWNER, { attachmentIds: [row.id, row.id] });

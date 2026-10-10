@@ -23,12 +23,15 @@ export function assertLinkable(found: Attachment[], ids: readonly string[], acto
 const expired = () => new ValidationError("Invalid input", { attachmentIds: ["A file took too long to attach. Upload it again."] });
 const notUploaded = () => new ValidationError("Invalid input", { attachmentIds: ["A file did not finish uploading. Try attaching it again."] });
 
+/** The media type without parameters, lower-cased: storages may report `text/plain; charset=utf-8` for a `text/plain` ticket. */
+const mediaType = (contentType: string): string => (contentType.split(";")[0] ?? "").trim().toLowerCase();
+
 /** Asks the storage what really arrived (REQ-CMT-02): it must exist, fit the limit and the ticket, and have the declared type. */
 export async function verifyUploads(storage: StoragePort, rows: Attachment[]): Promise<Map<string, number>> {
   const sizes = new Map<string, number>();
   for (const row of rows) {
     const object = await storage.head(row.storageKey);
-    if (!object || object.size < 1 || object.size > Math.min(row.size, MAX_ATTACHMENT_BYTES) || object.contentType !== row.contentType) throw notUploaded();
+    if (!object || object.size < 1 || object.size > Math.min(row.size, MAX_ATTACHMENT_BYTES) || mediaType(object.contentType) !== mediaType(row.contentType)) throw notUploaded();
     sizes.set(row.id, object.size);
   }
   return sizes;
