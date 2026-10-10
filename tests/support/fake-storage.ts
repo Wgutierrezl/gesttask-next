@@ -8,6 +8,8 @@ export class FakeStorage implements StoragePort {
   readonly signed: { key: string; ttlSeconds: number }[] = [];
   readonly deleted: string[][] = [];
   failing = false;
+  /** Keys whose deletion fails while the rest of a batch would succeed. */
+  readonly poisoned = new Set<string>();
 
   private check(): void {
     if (this.failing) throw new StorageError();
@@ -37,6 +39,7 @@ export class FakeStorage implements StoragePort {
 
   async delete(keys: string[]): Promise<void> {
     this.check();
+    if (keys.some((key) => this.poisoned.has(key))) throw new StorageError();
     this.deleted.push(keys);
     for (const key of keys) this.objects.delete(key);
   }

@@ -29,6 +29,20 @@ describe("buildContainer", () => {
     await container.close();
   }, 30_000);
 
+  it("builds the storage driver and the background jobs from the environment", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const container = buildContainer(valid);
+    expect(typeof container.devStorageHandler).toBe("function"); // STORAGE_DRIVER=local
+    expect(Object.keys(container.maintenance).sort()).toEqual(["drainStorageDeletions", "purgeExpiredGuests"]);
+    expect(Object.keys(container.useCases)).toEqual(expect.arrayContaining(["createComment", "requestUpload", "getAttachmentUrl", "deleteComment"]));
+    await container.close();
+    const s3 = buildContainer({
+      ...valid, STORAGE_DRIVER: "s3", S3_BUCKET: "b", AWS_REGION: "us-east-1", AWS_ACCESS_KEY_ID: "id", AWS_SECRET_ACCESS_KEY: "secret",
+    });
+    expect(s3.devStorageHandler).toBeNull();
+    await s3.close();
+  }, 30_000);
+
   it("does not expose credential or guest flows on the HTTP handler", async () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);
