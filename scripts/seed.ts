@@ -1,5 +1,6 @@
 import { createDb } from "../src/infrastructure/db/client";
 import { DrizzleUnitOfWork } from "../src/infrastructure/repos/drizzle-unit-of-work";
+import { ensureDemoUsers } from "../src/infrastructure/seed/demo-users";
 import { DEMO_BOARD_ID, DEMO_OWNER_ID, seedDemoBoard } from "../src/infrastructure/seed/seed-demo-board";
 import { randomUUID } from "node:crypto";
 
@@ -12,6 +13,7 @@ if (!url) {
 const driver = process.env.DB_DRIVER === "neon" ? "neon" : "pg";
 const { db, close } = createDb({ driver, url });
 try {
+  await ensureDemoUsers(db);
   const result = await seedDemoBoard(
     { uow: new DrizzleUnitOfWork(db), ids: { next: randomUUID }, clock: { now: () => new Date() } },
     { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID },

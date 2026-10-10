@@ -8,12 +8,6 @@ import { BOARD_STATUSES } from "@/domain/value-objects/board-status";
 import { PRIORITIES } from "@/domain/value-objects/priority";
 import { TASK_STATUSES } from "@/domain/value-objects/task-status";
 
-/**
- * User references are plain `text` ids WITHOUT foreign keys for now: Better Auth (slice 3) owns the
- * `user` table and its ids are text. Slice 3 adds the FK constraints in a migration (assignee_id gets
- * ON DELETE SET NULL, the rest CASCADE or RESTRICT as decided there).
- */
-
 /** Bytewise ordering: fractional position keys must sort identically in SQL and in the domain. */
 const positionText = customType<{ data: string }>({ dataType: () => 'text COLLATE "C"' });
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -23,6 +17,73 @@ export const boardStatus = pgEnum("board_status", BOARD_STATUSES);
 export const priority = pgEnum("priority", PRIORITIES);
 export const taskStatus = pgEnum("task_status", TASK_STATUSES);
 export const attachmentStatus = pgEnum("attachment_status", ["pending", "confirmed"]);
+
+/**
+ * Better Auth tables (ids are text). Shape mirrors `@better-auth/cli generate` for the anonymous plugin
+ * (see docs/adr/0004-better-auth.md) with timestamptz columns; a test compares it with the library.
+ *
+ * Every user reference below is a real foreign key. Deleting a user removes their sessions, accounts and
+ * memberships and unassigns their tasks, but is REFUSED while they still author comments or uploads:
+ * those cascade only through the board delete, where the storage objects are queued for removal.
+ */
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+  updatedAt: timestamptz("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  isAnonymous: boolean("is_anonymous").default(false),
+});
+
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamptz("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().$onUpdate(() => new Date()),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  },
+  (t) => [index("session_user_id_idx").on(t.userId)],
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamptz("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamptz("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().$onUpdate(() => new Date()),
+  },
+  (t) => [index("account_user_id_idx").on(t.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamptz("expires_at").notNull(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
 
 export const boards = pgTable(
   "boards",
@@ -40,7 +101,7 @@ export const boardMembers = pgTable(
   "board_members",
   {
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
     role: boardRole("role").notNull(),
   },
   (t) => [
@@ -98,7 +159,7 @@ export const tasks = pgTable(
     priority: priority("priority").notNull(),
     status: taskStatus("status").notNull().default("active"),
     dueDate: date("due_date", { mode: "string" }),
-    assigneeId: text("assignee_id"),
+    assigneeId: text("assignee_id").references(() => user.id, { onDelete: "set null" }),
     completedAt: timestamptz("completed_at"),
     position: positionText("position").notNull(),
     createdAt: timestamptz("created_at").notNull(),
@@ -113,6 +174,7 @@ export const tasks = pgTable(
     index("tasks_stage_position_idx").on(t.stageId, t.position, t.id),
     index("tasks_pipeline_idx").on(t.pipelineId),
     index("tasks_board_assignee_idx").on(t.boardId, t.assigneeId),
+    index("tasks_assignee_idx").on(t.assigneeId), // serves the ON DELETE SET NULL of a user
   ],
 );
 
@@ -122,7 +184,7 @@ export const comments = pgTable(
     id: uuid("id").primaryKey(),
     taskId: uuid("task_id").notNull(),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-    authorId: text("author_id").notNull(),
+    authorId: text("author_id").notNull().references(() => user.id, { onDelete: "restrict" }),
     body: text("body").notNull(),
     createdAt: timestamptz("created_at").notNull(),
   },
@@ -132,6 +194,7 @@ export const comments = pgTable(
       .onDelete("cascade"),
     index("comments_task_created_idx").on(t.taskId, t.createdAt),
     index("comments_board_id_idx").on(t.boardId),
+    index("comments_author_idx").on(t.authorId), // serves the ON DELETE RESTRICT check of a user
   ],
 );
 
@@ -141,7 +204,7 @@ export const attachments = pgTable(
     id: uuid("id").primaryKey(),
     commentId: uuid("comment_id"),
     boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
-    uploaderId: text("uploader_id").notNull(),
+    uploaderId: text("uploader_id").notNull().references(() => user.id, { onDelete: "restrict" }),
     storageKey: text("storage_key").notNull().unique(),
     fileName: text("file_name").notNull(),
     contentType: text("content_type").notNull(),
@@ -155,6 +218,7 @@ export const attachments = pgTable(
       .onDelete("cascade"),
     index("attachments_comment_idx").on(t.commentId),
     index("attachments_board_id_idx").on(t.boardId),
+    index("attachments_uploader_idx").on(t.uploaderId),
     index("attachments_status_created_idx").on(t.status, t.createdAt),
   ],
 );
