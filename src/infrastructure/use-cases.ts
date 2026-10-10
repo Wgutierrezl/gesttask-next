@@ -14,6 +14,7 @@ import { makeListMyMemberships } from "@/application/use-cases/members/list-my-m
 import { makeRemoveMember } from "@/application/use-cases/members/remove-member";
 import { makeCreatePipeline } from "@/application/use-cases/pipelines/create-pipeline";
 import { makeDeletePipeline } from "@/application/use-cases/pipelines/delete-pipeline";
+import { makeGetPipeline } from "@/application/use-cases/pipelines/get-pipeline";
 import { makeListPipelines } from "@/application/use-cases/pipelines/list-pipelines";
 import { makeUpdatePipeline } from "@/application/use-cases/pipelines/update-pipeline";
 import { makeCreateStage } from "@/application/use-cases/stages/create-stage";
@@ -50,6 +51,7 @@ export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limite
     removeMember: makeRemoveMember(deps),
     createPipeline: makeCreatePipeline(deps),
     deletePipeline: makeDeletePipeline(deps),
+    getPipeline: makeGetPipeline(deps),
     listPipelines: makeListPipelines(deps),
     updatePipeline: makeUpdatePipeline(deps),
     createStage: makeCreateStage(deps),
