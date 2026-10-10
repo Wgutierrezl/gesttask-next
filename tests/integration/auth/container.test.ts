@@ -1,9 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sql } from "drizzle-orm";
-import { ConflictError, RateLimitError, UnauthenticatedError } from "@/domain/errors";
+import { randomUUID } from "node:crypto";
+import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, UnauthenticatedError } from "@/domain/errors";
 import { buildContainer } from "@/infrastructure/container";
 import { sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import { connectTestDb, resetDb, testDatabaseUrl } from "../support/db";
+import { authFixture, cookieHeader } from "../support/auth";
+import { drizzleDeps } from "../support/tx";
+import { SeededGuestSandbox } from "@/infrastructure/auth/guest-sandbox";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
@@ -72,5 +76,69 @@ describe("container auth flows on Postgres", () => {
     const { rows } = await handle.db.execute<{ key: string }>(sql`SELECT key FROM rate_limits`);
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((r) => !r.key.includes("198.51.100.77"))).toBe(true);
+  });
+});
+
+describe("container use cases on Postgres (real sessions)", () => {
+  const { auth } = authFixture(handle);
+  const browser = (headers: Headers) => void (request.headers = headers);
+
+  async function guest() {
+    const response = await auth.api.signInAnonymous({ returnHeaders: true });
+    const user = { userId: response.response!.user.id, isGuest: true };
+    const deps = drizzleDeps(handle);
+    await new SeededGuestSandbox(handle.db, { uow: deps.uow, ids: { next: randomUUID }, clock: deps.clock }).provision(user);
+    return { headers: cookieHeader(response.headers), boardId: sandboxBoardId(user.userId) };
+  }
+
+  async function account(email: string) {
+    const response = await auth.api.signUpEmail({ body: { email, password: "correct horse battery", name: email.split("@")[0]! }, returnHeaders: true });
+    return { headers: cookieHeader(response.headers), userId: response.response.user.id };
+  }
+
+  it("shows a guest their own sandbox, with member names but no emails for demo accounts", async () => {
+    const a = await guest();
+    browser(a.headers);
+    const boards = await container.useCases.listMyBoards({});
+    expect(boards.map((b) => b.id)).toEqual([a.boardId]);
+    expect((await container.useCases.getBoard({ boardId: a.boardId })).role).toBe("owner");
+    const members = await container.useCases.listMemberProfiles({ boardId: a.boardId });
+    expect(members.length).toBeGreaterThanOrEqual(2);
+    expect(members.every((m) => m.name.length > 0 && m.email === null)).toBe(true);
+  });
+
+  it("answers NotFound to another browser on every board use case and leaves the board intact (REQ-ISO)", async () => {
+    const [a, b] = [await guest(), await guest()];
+    browser(b.headers);
+    const attempts = [
+      () => container.useCases.getBoard({ boardId: a.boardId }),
+      () => container.useCases.listMemberProfiles({ boardId: a.boardId }),
+      () => container.useCases.listPipelines({ boardId: a.boardId }),
+      () => container.useCases.updateBoard({ boardId: a.boardId, name: "pwned" }),
+      () => container.useCases.deleteBoard({ boardId: a.boardId }),
+      () => container.useCases.addMemberByEmail({ boardId: a.boardId, email: "x@example.com", role: "member" }),
+    ];
+    for (const attempt of attempts) expect(await attempt().catch((e) => e)).toBeInstanceOf(NotFoundError);
+    browser(a.headers);
+    expect((await container.useCases.getBoard({ boardId: a.boardId })).board.name).not.toBe("pwned");
+  });
+
+  it("rejects a request without a session on protected use cases", async () => {
+    browser(new Headers());
+    await expect(container.useCases.listMyBoards({})).rejects.toBeInstanceOf(UnauthenticatedError);
+  });
+
+  it("lets a registered owner invite an account by email, but never a demo session", async () => {
+    const owner = await account("owner@example.com");
+    const invitee = await account("invitee@example.com");
+    browser(owner.headers);
+    const board = await container.useCases.createBoard({ name: "Team" });
+    const added = await container.useCases.addMemberByEmail({ boardId: board.id, email: "Invitee@Example.com", role: "member" });
+    expect(added).toEqual({ boardId: board.id, userId: invitee.userId, role: "member" });
+    expect(await container.useCases.addMemberByEmail({ boardId: board.id, email: "Invitee@Example.com", role: "member" }).catch((e) => e)).toBeInstanceOf(ConflictError);
+
+    const g = await guest();
+    browser(g.headers);
+    expect(await container.useCases.addMemberByEmail({ boardId: g.boardId, email: "owner@example.com", role: "member" }).catch((e) => e)).toBeInstanceOf(ForbiddenError);
   });
 });
