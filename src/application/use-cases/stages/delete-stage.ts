@@ -5,6 +5,7 @@ import type { AppDeps } from "../../deps";
 import { placeAtEnd } from "../../placement";
 import { loadStage } from "../../resources";
 import { parseInput } from "../../schemas/parse";
+import { enqueueAttachmentCleanup } from "../../storage-cleanup";
 import { deleteStageSchema } from "../../schemas/stage";
 
 /**
@@ -50,6 +51,8 @@ export function makeDeleteStage(deps: AppDeps) {
           column = [...column.map((t) => rebalanced.get(t.id) ?? t), moved];
         }
       }
+      // The stage is empty by now (its tasks moved), but the cascade is what deletes rows: queue whatever it would take.
+      await enqueueAttachmentCleanup(tx, { stageId });
       await tx.stages.delete(stageId);
     });
   };
