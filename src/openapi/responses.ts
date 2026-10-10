@@ -67,6 +67,49 @@ export const taskResponse = z.strictObject({
   overdue: z.boolean(),
 });
 
+/** What `createComment` and `editComment` return: the stored comment. */
+export const commentResponse = z.strictObject({
+  id,
+  taskId: id,
+  boardId: id,
+  /** Null once the author's account is gone. */
+  authorId: z.string().nullable(),
+  body: z.string(),
+  createdAt: dateTime,
+});
+
+export const attachmentMetadataResponse = z.strictObject({ id, fileName: z.string(), contentType: z.string(), size: z.number().int() });
+
+export const commentViewResponse = z.strictObject({
+  id,
+  taskId: id,
+  authorId: z.string().nullable(),
+  /** "Deleted user" once the account is gone. */
+  authorName: z.string(),
+  body: z.string(),
+  createdAt: dateTime,
+  attachments: z.array(attachmentMetadataResponse),
+  /** Whether you may edit or delete it. */
+  canManage: z.boolean(),
+});
+
+/** How to send the file, by storage driver: S3 presigned POST, Vercel Blob client token, or the local dev PUT. */
+export const uploadTicketResponse = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("s3-post"), url: z.url(), fields: z.record(z.string(), z.string()) }),
+  z.strictObject({ kind: z.literal("blob-token"), clientToken: z.string(), pathname: z.string() }),
+  z.strictObject({ kind: z.literal("local-put"), url: z.url() }),
+]);
+
+export const uploadRequestResponse = z.strictObject({ attachmentId: id, ticket: uploadTicketResponse });
+
+export const attachmentDownloadResponse = z.strictObject({
+  /** Signed and expiring: a credential. */
+  url: z.url(),
+  fileName: z.string(),
+  contentType: z.string(),
+  expiresInSeconds: z.number().int(),
+});
+
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
   error: z.strictObject({
