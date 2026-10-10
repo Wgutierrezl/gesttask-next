@@ -1,10 +1,12 @@
 import type { AppDeps } from "@/application/deps";
-import type { RateLimiter, UserDirectory } from "@/application/ports/services";
+import type { RateLimiter, StoragePort, UserDirectory } from "@/application/ports/services";
 import { makeCreateBoard } from "@/application/use-cases/boards/create-board";
 import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
 import { makeGetBoard } from "@/application/use-cases/boards/get-board";
 import { makeListMyBoards } from "@/application/use-cases/boards/list-my-boards";
 import { makeUpdateBoard } from "@/application/use-cases/boards/update-board";
+import { makeGetAttachmentUrl } from "@/application/use-cases/attachments/get-attachment-url";
+import { makeRequestUpload } from "@/application/use-cases/attachments/request-upload";
 import { makeCreateComment } from "@/application/use-cases/comments/create-comment";
 import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
 import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
@@ -39,7 +41,7 @@ import { makeUpdateTask } from "@/application/use-cases/tasks/update-task";
  * Every use case that needs a signed-in caller, unwrapped. The container wraps the whole registry with
  * `guardAll`, so adapters can only reach the guarded versions. A test keeps this list equal to the files on disk.
  */
-export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limiter: RateLimiter; clientKey: () => Promise<string> }) {
+export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limiter: RateLimiter; clientKey: () => Promise<string>; storage: StoragePort }) {
   return {
     createBoard: makeCreateBoard(deps),
     deleteBoard: makeDeleteBoard(deps),
@@ -71,9 +73,11 @@ export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limite
     moveTask: makeMoveTask(deps),
     reorderTask: makeReorderTask(deps),
     updateTask: makeUpdateTask(deps),
-    createComment: makeCreateComment(deps),
+    createComment: makeCreateComment(deps, ext),
     deleteComment: makeDeleteComment(deps),
     editComment: makeEditComment(deps),
     listComments: makeListComments(deps, ext.users),
+    requestUpload: makeRequestUpload(deps, ext),
+    getAttachmentUrl: makeGetAttachmentUrl(deps, ext),
   };
 }

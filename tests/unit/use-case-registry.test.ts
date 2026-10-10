@@ -6,6 +6,7 @@ import { guardAll } from "@/application/require-actor";
 import { buildUseCases } from "@/infrastructure/use-cases";
 import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
 import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
+import { FakeStorage } from "@tests/support/fake-storage";
 import { createTestContext } from "@tests/support/app-context";
 import { STRANGER } from "@tests/support/fixtures";
 
@@ -16,7 +17,7 @@ const protectedFiles = (readdirSync(root, { recursive: true }) as string[])
 
 describe("use-case registry (composition root)", () => {
   const ctx = createTestContext();
-  const registry = buildUseCases(ctx, { users: new InMemoryUserDirectory(), limiter: new InMemoryRateLimiter(ctx.clock), clientKey: async () => "c" });
+  const registry = buildUseCases(ctx, { users: new InMemoryUserDirectory(), limiter: new InMemoryRateLimiter(ctx.clock), clientKey: async () => "c", storage: new FakeStorage() });
 
   it("registers every non-public use case on disk under its camelCase name, and nothing else", () => {
     expect(Object.keys(registry).sort()).toEqual(protectedFiles.map(camel).sort());

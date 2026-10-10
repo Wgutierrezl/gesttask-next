@@ -21,6 +21,7 @@ import { getEnv } from "./config/env";
 import { createDb } from "./db/client";
 import { createLogger, type Logger } from "./logging/logger";
 import { PgRateLimiter } from "./ratelimit/pg-rate-limiter";
+import { createStorage } from "./storage/factory";
 import { createDrizzleRepos } from "./repos/drizzle-repos";
 import { DrizzleUnitOfWork } from "./repos/drizzle-unit-of-work";
 import { buildUseCases } from "./use-cases";
@@ -42,6 +43,8 @@ export interface Container {
   session: SessionPort;
   auth: AuthFacade;
   useCases: GuardedUseCases;
+  /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
+  devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
   authHandler: (request: Request) => Promise<Response>;
   close(): Promise<void>;
@@ -69,9 +72,14 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
   const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
+  const { storage, local } = createStorage(env, clock);
+
   const useCases = guardUseCases(
     session,
-    buildUseCases({ uow, repos: createDrizzleRepos(db, false), clock, ids }, { users: new DrizzleUserDirectory(db), limiter, clientKey: async () => (await caller()).clientKey }),
+    buildUseCases(
+      { uow, repos: createDrizzleRepos(db, false), clock, ids },
+      { users: new DrizzleUserDirectory(db), limiter, clientKey: async () => (await caller()).clientKey, storage },
+    ),
   );
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });
@@ -87,6 +95,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signUp: async (input) => signUp(await caller(), input),
       signOut: () => signOut(),
     },
+    devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),
     close,
   };

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import type { Attachment } from "@/domain/entities/comment";
 import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
+import { FakeStorage } from "@tests/support/fake-storage";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, STRANGER, actor, seedKanban } from "@tests/support/fixtures";
 import { makeCreateTask } from "../tasks/create-task";
@@ -20,7 +21,7 @@ describe("comments", () => {
   let ctx: TestContext;
   let k: Awaited<ReturnType<typeof seedKanban>>;
   let taskId: string;
-  const create = (who = OWNER, input: object = {}) => makeCreateComment(ctx)(who, { taskId, body: "Looks good", ...input });
+  const create = (who = OWNER, input: object = {}) => makeCreateComment(ctx, { storage: new FakeStorage() })(who, { taskId, body: "Looks good", ...input });
   const list = (who = OWNER, input: object = {}) => makeListComments(ctx, directory)(who, { taskId, ...input });
 
   beforeEach(async () => {
@@ -51,7 +52,7 @@ describe("comments", () => {
 
     it("answers NotFound to a stranger and for a task that does not exist, creating nothing", async () => {
       await expect(create(STRANGER)).rejects.toBeInstanceOf(NotFoundError);
-      await expect(makeCreateComment(ctx)(OWNER, { taskId: "00000000-0000-4000-8000-0000000fffff", body: "x" })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(makeCreateComment(ctx, { storage: new FakeStorage() })(OWNER, { taskId: "00000000-0000-4000-8000-0000000fffff", body: "x" })).rejects.toBeInstanceOf(NotFoundError);
       expect(ctx.store.comments.size).toBe(0);
     });
   });
