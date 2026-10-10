@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
+import { recordTxCalls } from "@tests/support/race";
 import { GUEST, MEMBER, OWNER, STRANGER, seedKanban } from "@tests/support/fixtures";
 import { makeCreateTask } from "./create-task";
 import { makeDeleteTask } from "./delete-task";
@@ -148,6 +149,38 @@ describe("tasks CRUD", () => {
       await expect(makeListTasksByPipeline(ctx)(OWNER, { pipelineId: k.pipelineId, limit: 201 })).rejects.toBeInstanceOf(
         ValidationError,
       );
+    });
+  });
+
+  describe("lock order (members, pipelines, stages, tasks)", () => {
+    const before = (calls: string[], first: string, second: string) => {
+      expect(calls).toContain(first);
+      expect(calls.indexOf(first)).toBeLessThan(calls.indexOf(second));
+    };
+
+    it("createTask locks the pipeline's stage list before the stage's tasks, never a lone stage", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeCreateTask(spy.ctx)(OWNER, { stageId: k.todoId, title: "ordered" });
+      before(spy.calls, "stages.listByPipeline", "tasks.listByStage");
+      expect(spy.calls).not.toContain("stages.findById");
+    });
+
+    it("createTask checks the assignee's membership before the pipeline", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeCreateTask(spy.ctx)(OWNER, { stageId: k.todoId, title: "assigned", assigneeId: MEMBER.userId });
+      before(spy.calls, "members.find", "stages.listByPipeline");
+    });
+
+    it("updateTask checks the assignee's membership before it locks the task", async () => {
+      const task = await create();
+      const spy = recordTxCalls(ctx);
+      await makeUpdateTask(spy.ctx)(OWNER, { taskId: task.id, assigneeId: MEMBER.userId });
+      before(spy.calls, "members.find", "tasks.findById");
+    });
+
+    it("createTask answers NotFound when the stage vanished before the transaction", async () => {
+      const racing = { ...ctx, uow: { run: <T,>(work: Parameters<typeof ctx.uow.run<T>>[0]) => { ctx.store.stages.delete(k.todoId); return ctx.uow.run(work); } } };
+      await expect(makeCreateTask(racing)(OWNER, { stageId: k.todoId, title: "late" })).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 });

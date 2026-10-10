@@ -1,7 +1,7 @@
 import { and, asc, count, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import type { AttachmentRepo, AttachmentScope } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
-import { attachments, comments, tasks } from "../db/schema";
+import { attachments, comments, pipelines, tasks } from "../db/schema";
 import { exec } from "./drizzle-errors";
 
 const columns = {
@@ -69,7 +69,12 @@ export function createAttachmentRepo(db: Database, lock: boolean): AttachmentRep
     },
     keysUnder: async (scope) => {
       if ("boardId" in scope) {
-        if (lock) await exec(db.select({ id: tasks.id }).from(tasks).where(eq(tasks.boardId, scope.boardId)).orderBy(asc(tasks.id)).for("update"));
+        if (lock) {
+          // Top-down like everyone else (pipelines, stages, tasks): a writer inside a pipeline holds the pipeline row
+          // before its tasks, so locking the tasks first would cross it and deadlock.
+          await exec(db.select({ id: pipelines.id }).from(pipelines).where(eq(pipelines.boardId, scope.boardId)).orderBy(asc(pipelines.id)).for("update"));
+          await exec(db.select({ id: tasks.id }).from(tasks).where(eq(tasks.boardId, scope.boardId)).orderBy(asc(tasks.id)).for("update"));
+        }
         return keys(eq(attachments.boardId, scope.boardId));
       }
       if ("commentId" in scope) return keys(eq(attachments.commentId, scope.commentId));
