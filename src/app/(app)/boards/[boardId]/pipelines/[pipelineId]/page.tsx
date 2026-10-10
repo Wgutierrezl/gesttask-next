@@ -56,7 +56,7 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
       ) : null}
       <div className="flex gap-4 overflow-x-auto pb-2">
         {columns.map((column) => (
-          <KanbanColumn key={column.stage.id} column={column} nameOf={(userId) => names.get(userId) ?? null} />
+          <KanbanColumn key={column.stage.id} column={column} nameOf={(userId) => names.get(userId) ?? null} taskHref={(taskId) => `/boards/${boardId}/pipelines/${pipelineId}/tasks/${taskId}`} />
         ))}
       </div>
       {data.role === "owner" ? (

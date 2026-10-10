@@ -2,7 +2,7 @@ import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
 /** A stage and its tasks. `nameOf` resolves an assignee id to a display name (null when unknown). */
-export function KanbanColumn({ column, nameOf }: { column: ColumnView; nameOf: (userId: string) => string | null }) {
+export function KanbanColumn({ column, nameOf, taskHref }: { column: ColumnView; nameOf: (userId: string) => string | null; taskHref?: (taskId: string) => string }) {
   const { stage, tasks } = column;
   const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
   return (
@@ -18,7 +18,7 @@ export function KanbanColumn({ column, nameOf }: { column: ColumnView; nameOf: (
       <ul className="flex flex-col gap-2">
         {tasks.map((task) => (
           <li key={task.id}>
-            <TaskCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} />
+            <TaskCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} href={taskHref?.(task.id)} />
           </li>
         ))}
       </ul>

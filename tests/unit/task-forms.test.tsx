@@ -7,6 +7,8 @@ const actions = vi.hoisted(() => ({ createTaskAction: vi.fn(), updateTaskAction:
 vi.mock("@/app/_actions/tasks", () => actions);
 
 const { CreateTaskForm } = await import("@/components/kanban/create-task-form");
+const { EditTaskForm } = await import("@/components/kanban/edit-task-form");
+const { DeleteTaskForm } = await import("@/components/kanban/delete-task-form");
 
 const fields = (form: FormData) => Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
 const STAGES = [{ id: "s1", name: "To do" }, { id: "s2", name: "Done" }];
@@ -68,5 +70,53 @@ describe("CreateTaskForm", () => {
     render(<CreateTaskForm stages={[]} members={MEMBERS} />);
     expect(screen.getByText(/add a stage first/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add task" })).toBeNull();
+  });
+});
+
+describe("EditTaskForm", () => {
+  const TASK = { id: "t1", title: "Ship", description: "Soon", priority: "high" as const, dueDate: "2026-12-01", assigneeId: "u2" };
+
+  it("starts from the task's current values and submits the task id with the edits", async () => {
+    const user = userEvent.setup();
+    render(<EditTaskForm task={TASK} members={MEMBERS} />);
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Ship");
+    expect((screen.getByLabelText("Priority") as HTMLSelectElement).value).toBe("high");
+    expect((screen.getByLabelText("Due date") as HTMLInputElement).value).toBe("2026-12-01");
+    expect((screen.getByLabelText("Assignee") as HTMLSelectElement).value).toBe("u2");
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Ship it");
+    await user.clear(screen.getByLabelText("Due date"));
+    await user.selectOptions(screen.getByLabelText("Assignee"), "");
+    await user.click(screen.getByRole("button", { name: "Save task" }));
+    await waitFor(() => expect(actions.updateTaskAction).toHaveBeenCalled());
+    expect(fields(actions.updateTaskAction.mock.calls[0]![1])).toEqual({ taskId: "t1", title: "Ship it", description: "Soon", priority: "high", dueDate: "", assigneeId: "" });
+  });
+
+  it("keeps a former assignee out of the options instead of silently reassigning", () => {
+    render(<EditTaskForm task={{ ...TASK, assigneeId: "gone" }} members={MEMBERS} />);
+    expect((screen.getByLabelText("Assignee") as HTMLSelectElement).value).toBe("");
+  });
+});
+
+describe("DeleteTaskForm", () => {
+  it("needs the confirmation box and sends the ids it will return to", async () => {
+    const user = userEvent.setup();
+    render(<DeleteTaskForm taskId="t1" boardId="b1" pipelineId="p1" />);
+    const box = screen.getByLabelText(/delete this task/i) as HTMLInputElement;
+    expect(box.required).toBe(true);
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Delete task" }));
+    await waitFor(() => expect(actions.deleteTaskAction).toHaveBeenCalled());
+    expect(fields(actions.deleteTaskAction.mock.calls[0]![1])).toEqual({ taskId: "t1", boardId: "b1", pipelineId: "p1", confirm: "yes" });
+  });
+
+  it("shows the server's confirmation error next to the box", async () => {
+    actions.deleteTaskAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] } });
+    const user = userEvent.setup();
+    render(<DeleteTaskForm taskId="t1" boardId="b1" pipelineId="p1" />);
+    const box = screen.getByLabelText(/delete this task/i) as HTMLInputElement;
+    box.required = false;
+    await user.click(screen.getByRole("button", { name: "Delete task" }));
+    expect(await screen.findByText("Confirm that you want to delete this task")).toBeTruthy();
   });
 });

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SeededGuestSandbox, sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import * as schema from "@/infrastructure/db/schema";
@@ -42,6 +43,8 @@ const pipelines = await import("@/app/_actions/pipelines");
 const stages = await import("@/app/_actions/stages");
 const tasks = await import("@/app/_actions/tasks");
 const { getContainer } = await import("@/infrastructure/container");
+const { default: PipelinePage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
+const { default: TaskPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
 
 const handle = connectTestDb();
 const { auth } = authFixture(handle);
@@ -283,5 +286,46 @@ describe("task actions on Postgres", () => {
       redirected(tasks.deleteTaskAction(undefined, form({ taskId: a.todoId, confirm: "yes" }))),
     ]);
     for (const digest of digests) expect(digest).toContain("/login");
+  });
+});
+
+describe("Kanban pages on Postgres", () => {
+  const html = (node: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(node);
+  const notFound = (promise: Promise<unknown>) => expect(promise).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+
+  it("renders the pipeline and a task to their owner, and 404 to everyone else, even through a mismatched URL", async () => {
+    const a = await owner("alice@example.com");
+    await tasks.createTaskAction(undefined, form({ stageId: a.doneId, title: "Finished thing", description: "", priority: "medium", dueDate: "", assigneeId: "" }));
+    const [task] = await taskRows(a.pipelineId);
+    const p = (boardId: string, pipelineId: string) => Promise.resolve({ boardId, pipelineId });
+    const t = (boardId: string, pipelineId: string, taskId: string) => Promise.resolve({ boardId, pipelineId, taskId });
+
+    const board = html(await PipelinePage({ params: p(a.boardId, a.pipelineId) }));
+    expect(board).toContain("Finished thing");
+    expect(board).toContain("Done stage");
+    expect(board).toContain("Completed ");
+    expect(html(await TaskPage({ params: t(a.boardId, a.pipelineId, task!.id) }))).toContain("Finished thing");
+
+    const b = await owner("bob@example.com");
+    as(b.headers);
+    await notFound(PipelinePage({ params: p(a.boardId, a.pipelineId) }));
+    await notFound(PipelinePage({ params: p(b.boardId, a.pipelineId) }));
+    await notFound(TaskPage({ params: t(a.boardId, a.pipelineId, task!.id) }));
+    await notFound(TaskPage({ params: t(b.boardId, b.pipelineId, task!.id) }));
+    await notFound(TaskPage({ params: t(b.boardId, a.pipelineId, task!.id) }));
+    await notFound(PipelinePage({ params: p("not-a-uuid", "nope") }));
+
+    as(new Headers());
+    await expect(PipelinePage({ params: p(a.boardId, a.pipelineId) })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
+  });
+
+  it("shows a demo user their seeded pipeline with tasks and lets them add one", async () => {
+    const g = await guest();
+    as(g.headers);
+    const [pipeline] = await handle.db.select().from(schema.pipelines).where(eq(schema.pipelines.boardId, g.boardId));
+    const page = html(await PipelinePage({ params: Promise.resolve({ boardId: g.boardId, pipelineId: pipeline!.id }) }));
+    expect(page).toContain("Add a task");
+    expect(page).toContain("Manage stages");
+    expect((await taskRows(pipeline!.id)).length).toBeGreaterThan(0);
   });
 });
