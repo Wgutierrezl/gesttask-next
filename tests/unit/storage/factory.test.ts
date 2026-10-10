@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { parseEnv } from "@/infrastructure/config/env";
 import { createStorage } from "@/infrastructure/storage/factory";
@@ -39,5 +40,17 @@ describe("createStorage (REQ-STO-01)", () => {
     const built = createStorage(parseEnv({ ...base, STORAGE_DRIVER: "blob", BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_x" }), clock);
     expect(built.storage).toBeInstanceOf(BlobStorage);
     expect(built.local).toBeNull();
+  });
+
+  it("signs local URLs with a subkey derived from the auth secret, never with the secret itself", async () => {
+    const { storage } = createStorage(parseEnv({ ...base, STORAGE_DRIVER: "local" }), clock);
+    const url = await storage.getDownloadUrl("boards/b/missing", 60);
+    const verifier = (secret: string) =>
+      new LocalStorage({ rootDir: ".local-storage-factory-test", secret, baseUrl: "http://localhost:3000", clock });
+    const derived = createHmac("sha256", base.BETTER_AUTH_SECRET).update("gesttask:storage-url:v1").digest("hex");
+    expect((await verifier(derived).handle(new Request(url))).status).toBe(404); // signature accepted, object missing
+    expect((await verifier(base.BETTER_AUTH_SECRET).handle(new Request(url))).status).toBe(403);
+    const other = createStorage(parseEnv({ ...base, BETTER_AUTH_SECRET: "another-secret-with-at-least-32-chars!!", STORAGE_DRIVER: "local" }), clock);
+    expect((await verifier(derived).handle(new Request(await other.storage.getDownloadUrl("boards/b/missing", 60)))).status).toBe(403);
   });
 });

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { Clock, StoragePort } from "@/application/ports/services";
 import type { Env } from "../config/env";
 import { BlobStorage } from "./blob.adapter";
@@ -11,6 +12,9 @@ export interface BuiltStorage {
 }
 
 const DEFAULT_ORIGIN = "http://localhost:3000";
+
+/** Key separation: the URL signing key is derived from the auth secret, so a leaked URL signature says nothing about it. */
+const storageUrlKey = (authSecret: string): string => createHmac("sha256", authSecret).update("gesttask:storage-url:v1").digest("hex");
 
 /** The single place where STORAGE_DRIVER selects an adapter (REQ-STO-01); env validation already guaranteed its credentials. */
 export function createStorage(env: Env, clock: Clock): BuiltStorage {
@@ -28,7 +32,7 @@ export function createStorage(env: Env, clock: Clock): BuiltStorage {
     case "blob":
       return { storage: new BlobStorage({ token: env.BLOB_READ_WRITE_TOKEN, clock }), local: null };
     case "local": {
-      const local = new LocalStorage({ rootDir: ".local-storage", secret: env.BETTER_AUTH_SECRET, baseUrl: env.BETTER_AUTH_URL ?? DEFAULT_ORIGIN, clock });
+      const local = new LocalStorage({ rootDir: ".local-storage", secret: storageUrlKey(env.BETTER_AUTH_SECRET), baseUrl: env.BETTER_AUTH_URL ?? DEFAULT_ORIGIN, clock });
       return { storage: local, local };
     }
   }
