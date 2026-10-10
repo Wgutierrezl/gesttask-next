@@ -1,0 +1,127 @@
+import { describe, expect, it } from "vitest";
+import { ConflictError, RateLimitError, UnauthenticatedError, ValidationError } from "@/domain/errors";
+import type { Actor } from "@/application/actor";
+import type { AuthPort, GuestSandbox, SessionPort } from "@/application/ports/services";
+import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
+import { makeSignInEmail } from "./sign-in-email";
+import { makeSignInGuest } from "./sign-in-guest";
+import { makeSignOut } from "./sign-out";
+import { makeSignUp } from "./sign-up";
+import { requireActor, withActor } from "../../require-actor";
+
+const CALLER = { clientKey: "ip-1" };
+const clock = { now: () => new Date("2026-10-09T12:00:00Z") };
+
+function setup(current: Actor | null = null) {
+  const calls: string[] = [];
+  let session = current;
+  const auth: AuthPort = {
+    async signInGuest() { calls.push("guest"); session = { userId: `guest-${calls.length}`, isGuest: true }; return session; },
+    async signInWithEmail() { calls.push("email"); return { userId: "u1", isGuest: false }; },
+    async signUp() { calls.push("signup"); return { userId: "u2", isGuest: false }; },
+    async signOut() { calls.push("signout"); session = null; },
+  };
+  const sessionPort: SessionPort = { getActor: async () => session };
+  const sandbox: GuestSandbox & { provisioned: string[] } = {
+    provisioned: [],
+    async provision(actor) { this.provisioned.push(actor.userId); },
+  };
+  const limiter = new InMemoryRateLimiter(clock);
+  return { calls, auth, session: sessionPort, sandbox, limiter, deps: { auth, session: sessionPort, sandbox, limiter } };
+}
+
+describe("signInGuest", () => {
+  it("creates a guest and provisions its sandbox", async () => {
+    const s = setup();
+    const actor = await makeSignInGuest(s.deps)(CALLER);
+    expect(actor).toEqual({ userId: "guest-1", isGuest: true });
+    expect(s.sandbox.provisioned).toEqual(["guest-1"]);
+  });
+
+  it("reuses the existing guest session instead of creating another user", async () => {
+    const s = setup({ userId: "guest-0", isGuest: true });
+    const actor = await makeSignInGuest(s.deps)(CALLER);
+    expect(actor.userId).toBe("guest-0");
+    expect(s.calls).toEqual([]);
+    expect(s.sandbox.provisioned).toEqual(["guest-0"]); // idempotent: heals a failed first provisioning
+  });
+
+  it("refuses a signed-in real user", async () => {
+    const s = setup({ userId: "u1", isGuest: false });
+    await expect(makeSignInGuest(s.deps)(CALLER)).rejects.toBeInstanceOf(ConflictError);
+    expect(s.calls).toEqual([]);
+  });
+
+  it("allows 5 guest logins per client per hour and answers the 6th with 429 before creating any user", async () => {
+    const s = setup();
+    const signIn = makeSignInGuest(s.deps);
+    for (let i = 0; i < 5; i++) {
+      s.sandbox.provisioned.length = 0;
+      await signIn(CALLER);
+      await s.auth.signOut(); // a fresh browser each time
+    }
+    s.calls.length = 0;
+    const failure = await signIn(CALLER).catch((e) => e);
+    expect(failure).toBeInstanceOf(RateLimitError);
+    expect(failure.retryAfterSeconds).toBe(3600);
+    expect(s.calls).toEqual([]);
+    await expect(makeSignInGuest(s.deps)({ clientKey: "ip-2" })).resolves.toBeDefined();
+  });
+});
+
+describe("signInEmail", () => {
+  it("validates input, then signs in", async () => {
+    const s = setup();
+    const signIn = makeSignInEmail(s.deps);
+    await expect(signIn(CALLER, { email: "nope", password: "x" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(signIn(CALLER, { email: " Ada@Example.com ", password: "password1" })).resolves.toEqual({ userId: "u1", isGuest: false });
+  });
+
+  it("limits attempts to 10 per 15 minutes per client and email, counting wrong ones too", async () => {
+    const s = setup();
+    const signIn = makeSignInEmail(s.deps);
+    for (let i = 0; i < 10; i++) await signIn(CALLER, { email: "a@b.co", password: "pw" });
+    await expect(signIn(CALLER, { email: "A@b.co", password: "pw" })).rejects.toMatchObject({ retryAfterSeconds: 900 });
+    await expect(signIn(CALLER, { email: "other@b.co", password: "pw" })).resolves.toBeDefined();
+    expect(s.calls.length).toBe(11);
+  });
+});
+
+describe("signUp", () => {
+  it("validates the password length and name", async () => {
+    const s = setup();
+    const signUp = makeSignUp(s.deps);
+    const error = await signUp(CALLER, { email: "a@b.co", password: "short", name: "" }).catch((e) => e);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(Object.keys(error.fieldErrors).sort()).toEqual(["name", "password"]);
+    await expect(signUp(CALLER, { email: "a@b.co", password: "long-enough", name: "Ada" })).resolves.toEqual({ userId: "u2", isGuest: false });
+  });
+
+  it("limits registrations to 10 per hour per client", async () => {
+    const s = setup();
+    const signUp = makeSignUp(s.deps);
+    for (let i = 0; i < 10; i++) await signUp(CALLER, { email: `u${i}@b.co`, password: "long-enough", name: "A" });
+    await expect(signUp(CALLER, { email: "x@b.co", password: "long-enough", name: "A" })).rejects.toBeInstanceOf(RateLimitError);
+  });
+});
+
+describe("signOut and requireActor", () => {
+  it("signs out through the port", async () => {
+    const s = setup({ userId: "u1", isGuest: false });
+    await makeSignOut(s.deps)();
+    expect(await s.session.getActor()).toBeNull();
+  });
+
+  it("requireActor throws Unauthenticated without a session and returns the actor with one", async () => {
+    await expect(requireActor(setup().session)).rejects.toBeInstanceOf(UnauthenticatedError);
+    await expect(requireActor(setup({ userId: "u1", isGuest: false }).session)).resolves.toEqual({ userId: "u1", isGuest: false });
+  });
+
+  it("withActor runs the use case as the session actor, or fails before running it", async () => {
+    const run = async (actor: Actor, input: unknown) => ({ actor, input });
+    expect(await withActor(setup({ userId: "u1", isGuest: false }).session, run)("in")).toEqual({ actor: { userId: "u1", isGuest: false }, input: "in" });
+    let ran = false;
+    await expect(withActor(setup().session, async () => void (ran = true))("in")).rejects.toBeInstanceOf(UnauthenticatedError);
+    expect(ran).toBe(false);
+  });
+});

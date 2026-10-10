@@ -20,6 +20,11 @@ export interface AuthPort {
   signOut(): Promise<void>;
 }
 
+/** Gives a guest its own copy of the demo board. Idempotent: provisioning twice leaves one sandbox. */
+export interface GuestSandbox {
+  provision(guest: Actor): Promise<void>;
+}
+
 export interface RateLimitDecision {
   allowed: boolean;
   retryAfterSeconds: number;
