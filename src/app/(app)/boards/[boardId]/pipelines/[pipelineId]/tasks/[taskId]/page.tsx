@@ -5,6 +5,7 @@ import { loadPage } from "@/app/_shared/load-page";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { DeleteTaskForm } from "@/components/kanban/delete-task-form";
 import { MoveTaskForm } from "@/components/kanban/move-task-form";
+import { LocalTime } from "@/components/kanban/local-time";
 import { EditTaskForm } from "@/components/kanban/edit-task-form";
 import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
 import { getContainer } from "@/infrastructure/container";
@@ -67,7 +68,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
         {task.completedAt ? (
           <>
             <dt className="font-medium">Completed</dt>
-            <dd>{`Completed ${formatDate(task.completedAt.toISOString())}`}</dd>
+            <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
           </>
         ) : null}
         <dt className="font-medium">Created</dt>

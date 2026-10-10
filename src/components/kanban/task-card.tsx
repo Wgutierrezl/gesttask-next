@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { assigneeLabel, formatDate, PRIORITY_LABELS } from "./format";
+import { LocalTime } from "./local-time";
 import type { TaskCardView } from "./types";
 
 const PRIORITY_STYLES = { low: "bg-gray-100 text-gray-800", medium: "bg-blue-100 text-blue-900", high: "bg-red-100 text-red-900" } as const;
@@ -15,7 +16,7 @@ export function TaskCard({ task, assigneeName, href, controls }: { task: TaskCar
         {task.dueDate ? <span>Due {formatDate(task.dueDate)}</span> : null}
         {task.overdue ? <span className="rounded bg-red-700 px-2 py-0.5 text-white">Overdue</span> : null}
       </p>
-      {task.completedAt ? <p className="mt-1 text-xs text-green-800">Completed {formatDate(task.completedAt)}</p> : null}
+      {task.completedAt ? <p className="mt-1 text-xs text-green-800"><LocalTime iso={task.completedAt} label="Completed" /></p> : null}
       <p className="mt-1 text-xs text-gray-600">{assigneeLabel(task.assigneeId, assigneeName)}</p>
       {controls ? <div className="mt-2 flex flex-wrap items-start gap-2">{controls}</div> : null}
     </article>
