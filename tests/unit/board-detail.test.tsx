@@ -60,8 +60,8 @@ describe("components", () => {
   });
 
   it("PipelineList shows pipelines or an empty message", () => {
-    expect(renderToStaticMarkup(<PipelineList pipelines={[{ id: "p1", name: "Sprint", description: "Two weeks" }]} />)).toContain("Two weeks");
-    expect(renderToStaticMarkup(<PipelineList pipelines={[]} />)).toContain("No pipelines yet");
+    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: "p1", name: "Sprint", description: "Two weeks" }]} />)).toContain("Two weeks");
+    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[]} />)).toContain("No pipelines yet");
   });
 
   it("CreatePipelineForm has labelled fields", () => {

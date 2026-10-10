@@ -40,7 +40,7 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
       <BoardHeader board={board} role={role} />
       <section aria-labelledby="pipelines-heading">
         <h2 id="pipelines-heading" className="mb-3 text-lg font-medium">Pipelines</h2>
-        <PipelineList pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />
+        <PipelineList boardId={board.id} pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />
         <Pager page={pipelinesPage} hasNext={pipelines.hasNext} {...pipelinesLink} />
       </section>
       {role === "owner" ? (
