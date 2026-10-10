@@ -1,7 +1,8 @@
 import type { Operation } from "../operation";
 import { boardOperations } from "./boards";
+import { memberOperations } from "./members";
 
-export const OPERATIONS: readonly Operation[] = [...boardOperations];
+export const OPERATIONS: readonly Operation[] = [...boardOperations, ...memberOperations];
 
 const byId = new Map(OPERATIONS.map((operation) => [operation.id, operation]));
 

@@ -20,6 +20,16 @@ export const boardResponse = z.strictObject({
 
 export const boardWithRoleResponse = z.strictObject({ board: boardResponse, role });
 
+export const memberResponse = z.strictObject({ boardId: id, userId: z.string(), role });
+
+export const memberProfileResponse = z.strictObject({
+  userId: z.string(),
+  role,
+  name: z.string(),
+  /** Only for callers who may manage members; null for everyone else. */
+  email: z.string().nullable(),
+});
+
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
   error: z.strictObject({
