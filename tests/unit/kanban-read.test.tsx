@@ -98,7 +98,7 @@ describe("TaskCard and KanbanColumn", () => {
 
   it("shows when a task was completed and says Unassigned without an assignee", () => {
     const html = renderToStaticMarkup(<TaskCard task={card({ completedAt: new Date("2026-10-09T10:00:00Z") })} assigneeName={null} />);
-    expect(html).toContain("Completed Oct 9, 2026");
+    expect(html).toContain("Completed Oct 9, 2026, 10:00 AM UTC");
     expect(html).toContain("Unassigned");
     expect(html).not.toContain("Overdue");
   });
@@ -122,7 +122,7 @@ describe("PipelinePage", () => {
     expect(html).toContain("To do");
     expect(html).toContain("Done stage");
     expect(html).toContain("Olivia");
-    expect(html).toContain("Completed Oct 9, 2026");
+    expect(html).toContain("Completed Oct 9, 2026, 10:00 AM UTC");
     expect(html).toContain(`href="/boards/${BOARD_ID}"`);
     expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}/tasks/t1"`);
     expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200, offset: 0 });

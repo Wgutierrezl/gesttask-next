@@ -12,3 +12,11 @@ export function assigneeLabel(assigneeId: string | null, name: string | null): s
   if (assigneeId === null) return "Unassigned";
   return name ?? "Former member";
 }
+
+/**
+ * "Oct 9, 2026, 10:00 AM UTC": an instant with its zone spelled out. Without a zone it is UTC, so the server (which
+ * does not know the viewer's zone) and the first browser render agree; the browser then passes its own.
+ */
+export function formatInstant(value: string, timeZone = "UTC"): string {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone, timeZoneName: "short" }).format(new Date(value));
+}
