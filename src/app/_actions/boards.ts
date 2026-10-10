@@ -36,5 +36,5 @@ export async function deleteBoardAction(_previous: MutationState, form: FormData
   if (text(form, "confirm") !== "yes") {
     return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this board"] } };
   }
-  return runMutation(() => getContainer().useCases.deleteBoard({ boardId }), { revalidate: ["/boards"], redirectTo: () => "/boards" });
+  return runMutation(() => getContainer().useCases.deleteBoard({ boardId }), { revalidate: ["/boards"], cleanupStorage: true, redirectTo: () => "/boards" });
 }

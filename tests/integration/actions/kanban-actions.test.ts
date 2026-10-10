@@ -12,6 +12,9 @@ const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidatePath }));
+/** Work a Server Action defers with `after()`: collected here so a test can run it like the framework would. */
+const deferred = vi.hoisted(() => [] as (() => Promise<void>)[]);
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: (work: () => Promise<void>) => void deferred.push(work) }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${to};307;` });
@@ -89,6 +92,7 @@ beforeEach(async () => {
   await resetDb(handle);
   as(new Headers());
   revalidatePath.mockClear();
+  deferred.length = 0;
 });
 afterAll(async () => {
   await getContainer().close();

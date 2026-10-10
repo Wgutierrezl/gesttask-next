@@ -11,6 +11,8 @@ const notFound = vi.fn(() => {
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath }));
+const scheduleStorageCleanup = vi.fn();
+vi.mock("@/app/_shared/storage-cleanup", () => ({ scheduleStorageCleanup }));
 vi.mock("@/app/_actions/members", () => ({ addMemberAction: async () => undefined, changeMemberRoleAction: async () => undefined, removeMemberAction: async () => undefined }));
 vi.mock("@/app/_actions/boards", () => ({ createBoardAction: async () => undefined, updateBoardAction: async () => undefined, setBoardStatusAction: async () => undefined, deleteBoardAction: async () => undefined }));
 
@@ -129,6 +131,7 @@ describe("deleteBoardAction", () => {
     await expect(actions.deleteBoardAction(undefined, form({ boardId: BOARD_ID, confirm: "yes" }))).rejects.toMatchObject({ digest: expect.stringContaining("/boards;") });
     expect(useCases.deleteBoard).toHaveBeenCalledWith({ boardId: BOARD_ID });
     expect(revalidatePath).toHaveBeenCalledWith("/boards");
+    expect(scheduleStorageCleanup).toHaveBeenCalledOnce(); // the board's attachment objects are removed after the response
   });
 
   it("sends a signed-out caller to login and reports foreign boards as not found", async () => {

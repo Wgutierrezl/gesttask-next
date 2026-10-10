@@ -69,7 +69,7 @@ describe("authorization guards are present everywhere", () => {
 
   it("guards every non-public Server Action: it reaches data only through the container's session-bound use cases", () => {
     const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file) && !PUBLIC_ACTION_FILES.includes(rel(file)));
-    expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts", "_actions/stages.ts", "_actions/tasks.ts"]));
+    expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts", "_actions/stages.ts", "_actions/tasks.ts", "_actions/comments.ts", "_actions/uploads.ts"]));
     for (const file of actions) {
       const source = readFileSync(file, "utf8");
       expect(source, rel(file)).toMatch(/\b(withActor|requireActor|requirePageActor)\b|\.useCases\./);
@@ -88,14 +88,14 @@ describe("authorization guards are present everywhere", () => {
       for (const body of bodies) {
         exported += 1;
         expect(body, `${rel(file)}: ${body.slice(0, 40)}`).toMatch(/\bgetContainer\(\)\.useCases\./);
-        expect(body, `${rel(file)}: ${body.slice(0, 40)}`).toMatch(/\brunMutation\(/);
+        expect(body, `${rel(file)}: ${body.slice(0, 40)}`).toMatch(/\brunMutation(Data)?\(/);
       }
       // Actions may touch only the guarded use cases, the logger and the current user's id: never repos, auth or db.
       for (const use of source.matchAll(/getContainer\(\)(\.\w+(?:\.\w+)?)?/g)) {
         expect(use[1], `${rel(file)}: ${use[0]}`).toMatch(/^\.(useCases|logger|session\.getActor)$|^\.useCases/);
       }
     }
-    expect(exported).toBeGreaterThanOrEqual(19);
+    expect(exported).toBeGreaterThanOrEqual(23);
   });
 
   it("guards every non-public Server Action file with the 'use server' directive", () => {

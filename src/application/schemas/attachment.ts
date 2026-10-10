@@ -10,3 +10,11 @@ export const requestUploadSchema = z.object({
 });
 
 export const attachmentIdSchema = z.object({ attachmentId: idSchema });
+
+/** What a browser sends before an upload: raw facts about the file. The schema above is the authority on what is accepted. */
+export interface RequestUploadInput {
+  taskId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
