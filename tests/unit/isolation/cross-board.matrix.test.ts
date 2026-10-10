@@ -32,7 +32,7 @@ import type { Actor } from "@/application/actor";
 import { can, type BoardAction } from "@/domain/policy/board-policy";
 import { ForbiddenError, NotFoundError, UnauthenticatedError, ValidationError } from "@/domain/errors";
 import type { SessionPort } from "@/application/ports/services";
-import { withActor } from "@/application/require-actor";
+import { guardAll, withActor } from "@/application/require-actor";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, RIVAL_MEMBER, STRANGER, seedKanban } from "@tests/support/fixtures";
 
@@ -235,6 +235,23 @@ describe("cross-board isolation matrix (REQ-ISO-01)", () => {
       });
     },
   );
+
+  it("wraps every non-public use case so that none runs without an actor (runtime check on the wrapped registry)", async () => {
+    const registry = Object.fromEntries([
+      ...CASES.map(([file, c]) => [file, (actor: Actor) => c.run(ctx, actor, a)] as const),
+      ...Object.entries(SELF_SCOPED).map(([file, c]) => [file, (actor: Actor) => c.run(ctx, actor, c.input)] as const),
+    ]);
+    const guarded = guardAll(sessionOf(null), registry);
+    const before = snapshot(ctx);
+    expect(Object.keys(guarded).sort()).toEqual([...Object.keys(RESOURCES), ...Object.keys(SELF_SCOPED)].sort());
+    for (const [file, call] of Object.entries(guarded)) {
+      const error = await failure(call(undefined));
+      expect(error, file).toBeInstanceOf(UnauthenticatedError);
+    }
+    expect(snapshot(ctx)).toBe(before);
+    const signedIn = guardAll(sessionOf(STRANGER), registry);
+    expect(await failure(signedIn[Object.keys(RESOURCES)[0]!]!(undefined))).toBeInstanceOf(NotFoundError);
+  });
 
   it("treats a signed-in stranger the same as in the direct matrix: NotFound on every resource use case", async () => {
     for (const [, { run }] of CASES) {

@@ -53,7 +53,9 @@ describe("REQ-ISO through real sessions", () => {
     const task = (await handle.db.select().from(schema.tasks).where(eq(schema.tasks.boardId, a.boardId)))[0]!;
     const foreign = await withActor(b.session, makeGetTask(deps))({ taskId: task.id }).catch((e) => e);
     const missing = await withActor(b.session, makeGetTask(deps))({ taskId: randomUUID() }).catch((e) => e);
-    expect(missing).toEqual(foreign);
+    expect(foreign).toBeInstanceOf(NotFoundError);
+    expect(missing).toBeInstanceOf(NotFoundError);
+    expect((missing as Error).message).toBe((foreign as Error).message);
   });
 
   it("rejects a request without a session before any use case runs", async () => {
@@ -62,5 +64,28 @@ describe("REQ-ISO through real sessions", () => {
     const guarded = withActor(a.anonymous, async () => void (ran = true));
     await expect(guarded(undefined)).rejects.toBeInstanceOf(UnauthenticatedError);
     expect(ran).toBe(false);
+  });
+
+  it("treats garbage, expired and foreign-secret cookies as no session", async () => {
+    const { auth } = authFixture(handle);
+    const real = (await auth.api.signInAnonymous({ returnHeaders: true })).headers;
+    const token = cookieHeader(real).get("cookie")!;
+    expect(await sessionFor(auth, new Headers({ cookie: token })).getActor()).not.toBeNull();
+
+    // Garbage and an unsigned token.
+    for (const cookie of ["better-auth.session_token=garbage", "better-auth.session_token=" + token.split("=")[1]!.split(".")[0]!, "other=1"]) {
+      expect(await sessionFor(auth, new Headers({ cookie })).getActor(), cookie).toBeNull();
+    }
+
+    // The same cookie signed with another secret.
+    const other = authFixture(handle, { secret: "another-secret-0123456789abcdefghij" }).auth;
+    const foreign = cookieHeader((await other.api.signInAnonymous({ returnHeaders: true })).headers);
+    expect(await sessionFor(auth, foreign).getActor()).toBeNull();
+
+    // Expired in the database.
+    await handle.db.update(schema.session).set({ expiresAt: new Date(Date.now() - 1000) });
+    expect(await sessionFor(auth, new Headers({ cookie: token })).getActor()).toBeNull();
+    const guarded = withActor(sessionFor(auth, new Headers({ cookie: token })), makeListMyBoards(deps));
+    await expect(guarded(undefined)).rejects.toBeInstanceOf(UnauthenticatedError);
   });
 });

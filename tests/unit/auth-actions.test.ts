@@ -16,6 +16,20 @@ function form(entries: Record<string, string>): FormData {
   return data;
 }
 
+describe("redirect after runAction", () => {
+  it("lets the framework redirect escape untouched: not converted to a failure, not logged as unexpected", async () => {
+    const digest = "NEXT_REDIRECT;replace;/boards;307;";
+    redirect.mockImplementationOnce(() => {
+      throw Object.assign(new Error("NEXT_REDIRECT"), { digest });
+    });
+    auth.signInGuest.mockResolvedValue({ userId: "g", isGuest: true });
+    const error = await actions.signInGuestAction().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as { digest: string }).digest).toBe(digest);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+});
+
 const actions = await import("@/app/_actions/auth");
 
 beforeEach(() => vi.clearAllMocks());

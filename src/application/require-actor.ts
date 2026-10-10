@@ -13,3 +13,10 @@ export async function requireActor(session: SessionPort): Promise<Actor> {
 export function withActor<I, O>(session: SessionPort, useCase: (actor: Actor, input: I) => Promise<O>) {
   return async (input: I): Promise<O> => useCase(await requireActor(session), input);
 }
+
+/** Binds a whole registry of use cases to the session; the composition root exposes only the wrapped functions. */
+export function guardAll<T extends Record<string, (actor: Actor, input: never) => Promise<unknown>>>(session: SessionPort, useCases: T) {
+  return Object.fromEntries(
+    Object.entries(useCases).map(([name, useCase]) => [name, withActor(session, useCase as (actor: Actor, input: unknown) => Promise<unknown>)]),
+  ) as { [K in keyof T]: (input: Parameters<T[K]>[1]) => ReturnType<T[K]> };
+}
