@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { MemberRepo } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
 import { boardMembers } from "../db/schema";
@@ -28,6 +28,16 @@ export function createMemberRepo(db: Database, lock: boolean): MemberRepo {
       ),
     listByUser: (userId) =>
       exec(db.select(columns).from(boardMembers).where(eq(boardMembers.userId, userId)).orderBy(asc(boardMembers.boardId))),
+    listByUserInBoards: async (userId, boardIds) =>
+      boardIds.length === 0
+        ? []
+        : exec(
+            db
+              .select(columns)
+              .from(boardMembers)
+              .where(and(eq(boardMembers.userId, userId), inArray(boardMembers.boardId, [...boardIds])))
+              .orderBy(asc(boardMembers.boardId)),
+          ),
     lockUserQuota: async (userId) => {
       if (!lock) throw new Error("lockUserQuota needs a transaction: an advisory xact lock outside one is released immediately");
       await exec(db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`));

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
-import { GUEST, MEMBER, OWNER, STRANGER, actor, seedBoard, seedKanban } from "@tests/support/fixtures";
+import { GUEST, MEMBER, OWNER, RIVAL, STRANGER, actor, seedBoard, seedKanban } from "@tests/support/fixtures";
 import { makeCreateStage } from "../stages/create-stage";
 import { makeCreatePipeline } from "../pipelines/create-pipeline";
 import { makeCreateTask } from "../tasks/create-task";
@@ -131,5 +131,16 @@ describe("members", () => {
     expect(mine).toEqual([{ boardId, userId: "member", role: "member" }]);
     expect(makeListMyMemberships(ctx).length).toBe(1);
     expect(await makeListMyMemberships(ctx)(STRANGER)).toEqual([]);
+  });
+
+  it("can narrow the memberships to the boards on screen, and never reveals anyone else's", async () => {
+    const other = (await seedBoard(ctx, RIVAL)).boardId;
+    const mine = (ids: string[]) => makeListMyMemberships(ctx)(actor("member"), { boardIds: ids });
+    expect(await mine([boardId])).toEqual([{ boardId, userId: "member", role: "member" }]);
+    expect(await mine([boardId, other])).toHaveLength(2);
+    expect(await makeListMyMemberships(ctx)(OWNER, { boardIds: [boardId, other] })).toEqual([{ boardId, userId: "owner", role: "owner" }]);
+    expect(await mine([])).toEqual([]);
+    await expect(mine(["nope"])).rejects.toBeInstanceOf(ValidationError);
+    await expect(mine(Array.from({ length: 201 }, () => boardId))).rejects.toBeInstanceOf(ValidationError);
   });
 });
