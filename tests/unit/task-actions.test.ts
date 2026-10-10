@@ -75,16 +75,18 @@ describe("deleteTaskAction", () => {
     expect(useCases.deleteTask).not.toHaveBeenCalled();
   });
 
-  it("deletes, refreshes both pages and returns to the Kanban", async () => {
-    const digest = await actions.deleteTaskAction(undefined, form({ ...entries, confirm: "yes" })).then(() => "", (e: { digest: string }) => e.digest);
+  it("deletes, refreshes both pages and returns to the Kanban the task lived in", async () => {
+    useCases.deleteTask.mockResolvedValue({ boardId: ID(1), pipelineId: ID(2) });
+    const digest = await actions.deleteTaskAction(undefined, form({ taskId: ID(4), confirm: "yes" })).then(() => "", (e: { digest: string }) => e.digest);
     expect(useCases.deleteTask).toHaveBeenCalledWith({ taskId: ID(4) });
     expect(refreshed()).toEqual([PIPELINE_PAGE, TASK_PAGE]);
     expect(digest).toContain(`/boards/${ID(1)}/pipelines/${ID(2)}`);
   });
 
-  it("does not follow a tampered return address out of the app", async () => {
-    const digest = await actions.deleteTaskAction(undefined, form({ ...entries, boardId: "//evil.example", confirm: "yes" })).then(() => "", (e: { digest: string }) => e.digest);
-    expect(digest).toContain("/boards;");
+  it("ignores ids sent by the client: the landing page comes from the deleted task", async () => {
+    useCases.deleteTask.mockResolvedValue({ boardId: ID(1), pipelineId: ID(2) });
+    const digest = await actions.deleteTaskAction(undefined, form({ ...entries, boardId: "//evil.example", pipelineId: "x", confirm: "yes" })).then(() => "", (e: { digest: string }) => e.digest);
+    expect(digest).toContain(`/boards/${ID(1)}/pipelines/${ID(2)};`);
   });
 });
 
@@ -115,26 +117,17 @@ describe("reorderTaskAction", () => {
 });
 
 describe("moveTaskToEndAction (the form without drag and drop)", () => {
-  const row = (id: string, stageId: string) => ({ id, stageId });
-
-  it("puts the task after the last task of the chosen stage, skipping the task itself", async () => {
-    useCases.getTask.mockResolvedValue({ id: ID(4), pipelineId: ID(2) });
-    useCases.listTasksByPipeline.mockResolvedValue([row(ID(6), ID(3)), row(ID(7), ID(3)), row(ID(4), ID(3)), row(ID(8), ID(9))]);
-    await actions.moveTaskToEndAction(undefined, form({ taskId: ID(4), toStageId: ID(3) }));
-    expect(useCases.moveTask).toHaveBeenCalledWith({ taskId: ID(4), toStageId: ID(3), afterTaskId: ID(7) });
+  it("asks the use case for the end of the stage and reads no anchor itself", async () => {
+    expect(await actions.moveTaskToEndAction(undefined, form({ taskId: ID(4), toStageId: ID(3) }))).toEqual({ ok: true, data: null });
+    expect(useCases.moveTask).toHaveBeenCalledWith({ taskId: ID(4), toStageId: ID(3), toEnd: true });
+    expect(useCases.getTask).not.toHaveBeenCalled();
+    expect(useCases.listTasksByPipeline).not.toHaveBeenCalled();
     expect(refreshed()).toEqual([PIPELINE_PAGE, TASK_PAGE]);
   });
 
-  it("puts it at the top of an empty stage", async () => {
-    useCases.getTask.mockResolvedValue({ id: ID(4), pipelineId: ID(2) });
-    useCases.listTasksByPipeline.mockResolvedValue([row(ID(4), ID(9))]);
-    await actions.moveTaskToEndAction(undefined, form({ taskId: ID(4), toStageId: ID(3) }));
-    expect(useCases.moveTask).toHaveBeenCalledWith({ taskId: ID(4), toStageId: ID(3), afterTaskId: null });
-  });
-
-  it("answers NotFound as state for a foreign task and never tries to move it", async () => {
-    useCases.getTask.mockRejectedValue(new NotFoundError());
+  it("answers NotFound as state for a foreign task", async () => {
+    useCases.moveTask.mockRejectedValue(new NotFoundError());
     expect(await actions.moveTaskToEndAction(undefined, form({ taskId: ID(4), toStageId: ID(3) }))).toMatchObject({ ok: false, code: "NOT_FOUND" });
-    expect(useCases.moveTask).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

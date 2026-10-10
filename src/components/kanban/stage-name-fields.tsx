@@ -7,16 +7,16 @@ interface StageNameFieldsProps {
   /** Keeps ids unique when several stage forms share a page. */
   idPrefix: string;
   defaultName?: string;
-  /** A stage that already is the done stage has nothing to suggest. */
-  isDone: boolean;
+  /** Only the create form offers the done flag; renaming leaves it to the stage's own toggle. */
+  offerDone: boolean;
   label?: string;
   errors?: string[];
 }
 
 /** The stage name input plus, when the name looks like a done stage, an unticked box offering to flag it. */
-export function StageNameFields({ idPrefix, defaultName = "", isDone, label = "Name", errors }: StageNameFieldsProps) {
+export function StageNameFields({ idPrefix, defaultName = "", offerDone, label = "Name", errors }: StageNameFieldsProps) {
   const [name, setName] = useState(defaultName);
-  const suggest = !isDone && suggestsDone(name);
+  const suggest = offerDone && suggestsDone(name);
   const inputId = `${idPrefix}-name`;
   const errorId = `${idPrefix}-name-error`;
   return (

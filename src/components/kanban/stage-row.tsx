@@ -45,7 +45,7 @@ export function StageRow({ stage, afterWhenLeft, afterWhenRight, others }: Stage
       <MutationForm action={renameStageAction} hidden={{ stageId: stage.id }} inlineFields={["name"]} className="flex flex-wrap items-end gap-2">
         {(failure) => (
           <>
-            <StageNameFields idPrefix={`rename-${stage.id}`} label={`Rename ${stage.name}`} defaultName={stage.name} isDone={stage.isDone} errors={failure?.fieldErrors?.name} />
+            <StageNameFields idPrefix={`rename-${stage.id}`} label={`Rename ${stage.name}`} defaultName={stage.name} offerDone={false} errors={failure?.fieldErrors?.name} />
             <SubmitButton variant="secondary" ariaLabel={`Save name of ${stage.name}`}>Save</SubmitButton>
           </>
         )}

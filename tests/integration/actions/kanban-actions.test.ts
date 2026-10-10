@@ -326,6 +326,20 @@ describe("task move actions on Postgres", () => {
     expect(await order(a.pipelineId, a.progressId)).toEqual(["two", "one"]);
   });
 
+  it("moves to the end of a stage holding more tasks than a page of the board loads", { timeout: 30_000 }, async () => {
+    const a = await withTasks("alice@example.com");
+    await handle.db.insert(schema.tasks).values(
+      Array.from({ length: 1005 }, (_v, i) => ({
+        id: randomUUID(), boardId: a.boardId, pipelineId: a.pipelineId, stageId: a.progressId, title: `Filler ${i}`, priority: "low" as const,
+        position: `m${String(i).padStart(5, "0")}`, createdAt: new Date(),
+      })),
+    );
+    expect(await tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.progressId }))).toEqual({ ok: true, data: null });
+    const column = (await taskRows(a.pipelineId)).filter((t) => t.stageId === a.progressId).sort((x, y) => (x.position < y.position ? -1 : 1));
+    expect(column).toHaveLength(1006);
+    expect(column.at(-1)!.id).toBe(a.one);
+  });
+
   it("reports a stale move as state and changes nothing", async () => {
     const a = await withTasks("alice@example.com");
     await tasks.deleteTaskAction(undefined, form({ taskId: a.two, confirm: "yes", boardId: a.boardId, pipelineId: a.pipelineId })).catch(() => undefined);

@@ -1,19 +1,11 @@
 import { NotFoundError } from "@/domain/errors";
 import type { Stage } from "@/domain/entities/pipeline";
-import { resolveCompletedAt } from "@/domain/entities/task";
 import type { Actor } from "../../actor";
 import type { AppDeps } from "../../deps";
-import type { Repos } from "../../ports/repositories";
 import { loadStage } from "../../resources";
 import { parseInput } from "../../schemas/parse";
 import { setStageDoneSchema } from "../../schemas/stage";
-
-async function recomputeCompletion(tx: Repos, stageId: string, inDoneStage: boolean, now: Date): Promise<void> {
-  for (const task of await tx.tasks.listByStage(stageId)) {
-    const completedAt = resolveCompletedAt(task.completedAt, inDoneStage, now);
-    if (completedAt?.getTime() !== task.completedAt?.getTime()) await tx.tasks.update({ ...task, completedAt });
-  }
-}
+import { recomputeCompletion } from "./_completion";
 
 /**
  * Flags (or unflags) the stage whose tasks count as completed (REQ-TSK-05). Flagging a stage clears

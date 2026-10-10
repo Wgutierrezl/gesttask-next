@@ -36,6 +36,23 @@ describe("stages", () => {
     expect((await addStage("Todo")).isDone).toBe(false);
   });
 
+  it("creates a stage flagged done in one step, moving the flag and reopening the previous done stage's tasks", async () => {
+    const done = await addStage("Done");
+    await makeSetStageDone(ctx)(OWNER, { stageId: done.id, isDone: true });
+    await ctx.repos.tasks.insert(buildTask({ id: "00000000-0000-4000-8000-0000000000a1", stageId: done.id, pipelineId, boardId, completedAt: new Date("2026-01-01T00:00:00Z") }));
+    const review = await makeCreateStage(ctx)(OWNER, { pipelineId, name: "Review", isDone: true });
+    expect(review.isDone).toBe(true);
+    expect([...ctx.store.stages.values()].filter((s) => s.isDone).map((s) => s.name)).toEqual(["Review"]);
+    expect(ctx.store.tasks.get("00000000-0000-4000-8000-0000000000a1")?.completedAt).toBeNull();
+    expect(await names()).toEqual(["Done", "Review"]);
+    expect((await addStage("Later")).isDone).toBe(false);
+    expect([...ctx.store.stages.values()].filter((s) => s.isDone)).toHaveLength(1);
+  });
+
+  it("does not flag anything for isDone false", async () => {
+    expect((await makeCreateStage(ctx)(OWNER, { pipelineId, name: "Doing", isDone: false })).isDone).toBe(false);
+  });
+
   it("keeps stage names unique within a pipeline, ignoring case (REQ-PIP-01)", async () => {
     await addStage("Todo");
     await expect(addStage("todo")).rejects.toBeInstanceOf(ConflictError);

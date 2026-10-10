@@ -20,19 +20,21 @@ const form = (entries: Record<string, string>) => Object.entries(entries).reduce
 beforeEach(() => {
   vi.clearAllMocks();
   useCases.createStage.mockResolvedValue({ id: STAGE });
+  useCases.renameStage.mockResolvedValue({ id: STAGE });
 });
 
 describe("createStageAction", () => {
   it("creates the stage and refreshes every Kanban page", async () => {
     expect(await actions.createStageAction(undefined, form({ pipelineId: PIPELINE, name: "Review" }))).toEqual({ ok: true, data: null });
-    expect(useCases.createStage).toHaveBeenCalledWith({ pipelineId: PIPELINE, name: "Review" });
+    expect(useCases.createStage).toHaveBeenCalledWith({ pipelineId: PIPELINE, name: "Review", isDone: false });
     expect(useCases.setStageDone).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith(PAGE, "page");
   });
 
-  it("flags the new stage as done only when the box was ticked, never on its own", async () => {
+  it("flags the new stage as done in the same call, only when the box was ticked", async () => {
     await actions.createStageAction(undefined, form({ pipelineId: PIPELINE, name: "Done", markDone: "yes" }));
-    expect(useCases.setStageDone).toHaveBeenCalledWith({ stageId: STAGE, isDone: true });
+    expect(useCases.createStage).toHaveBeenCalledWith({ pipelineId: PIPELINE, name: "Done", isDone: true });
+    expect(useCases.setStageDone).not.toHaveBeenCalled();
   });
 
   it("returns field errors and does not refresh anything on failure", async () => {
@@ -43,18 +45,11 @@ describe("createStageAction", () => {
 });
 
 describe("renameStageAction", () => {
-  it("renames, optionally flags done, and refreshes", async () => {
-    useCases.renameStage.mockResolvedValue({ id: STAGE });
+  it("only renames: the done flag has its own control, so a stray field never changes it", async () => {
     await actions.renameStageAction(undefined, form({ stageId: STAGE, name: "Completed", markDone: "yes" }));
     expect(useCases.renameStage).toHaveBeenCalledWith({ stageId: STAGE, name: "Completed" });
-    expect(useCases.setStageDone).toHaveBeenCalledWith({ stageId: STAGE, isDone: true });
-    expect(revalidatePath).toHaveBeenCalledWith(PAGE, "page");
-  });
-
-  it("does not touch the done flag without the box", async () => {
-    useCases.renameStage.mockResolvedValue({ id: STAGE });
-    await actions.renameStageAction(undefined, form({ stageId: STAGE, name: "QA" }));
     expect(useCases.setStageDone).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith(PAGE, "page");
   });
 });
 

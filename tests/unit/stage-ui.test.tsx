@@ -39,7 +39,7 @@ describe("suggestsDone", () => {
 describe("StageNameFields", () => {
   it("offers the done flag, unticked, only while the name looks like a done stage", async () => {
     const user = userEvent.setup();
-    render(<StageNameFields idPrefix="x" isDone={false} />);
+    render(<StageNameFields idPrefix="x" offerDone />);
     const input = screen.getByLabelText("Name");
     expect(screen.queryByLabelText(/mark as the done stage/i)).toBeNull();
     await user.type(input, "Completada");
@@ -50,8 +50,8 @@ describe("StageNameFields", () => {
     expect(screen.queryByLabelText(/mark as the done stage/i)).toBeNull();
   });
 
-  it("does not suggest the flag for a stage that already has it", () => {
-    render(<StageNameFields idPrefix="x" isDone defaultName="Done" />);
+  it("does not offer the flag when renaming", () => {
+    render(<StageNameFields idPrefix="x" offerDone={false} defaultName="Done" />);
     expect(screen.queryByLabelText(/mark as the done stage/i)).toBeNull();
   });
 });
@@ -113,16 +113,16 @@ describe("StageManager", () => {
     expect(fields(actions.setStageDoneAction.mock.calls[1]![1])).toEqual({ stageId: "s3", isDone: "false" });
   });
 
-  it("renames a stage and passes the done flag when the visitor accepts the suggestion", async () => {
+  it("renames a stage without offering the done flag, which has its own toggle", async () => {
     const user = userEvent.setup();
     render(<StageManager pipelineId="p1" stages={STAGES} />);
     const input = screen.getByLabelText("Rename In progress");
     await user.clear(input);
     await user.type(input, "Hecho");
-    await user.click(screen.getByLabelText(/mark as the done stage/i));
+    expect(screen.queryByLabelText(/mark as the done stage/i)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Save name of In progress" }));
     await waitFor(() => expect(actions.renameStageAction).toHaveBeenCalled());
-    expect(fields(actions.renameStageAction.mock.calls[0]![1])).toEqual({ stageId: "s2", name: "Hecho", markDone: "yes" });
+    expect(fields(actions.renameStageAction.mock.calls[0]![1])).toEqual({ stageId: "s2", name: "Hecho" });
   });
 
   it("deletes a stage into a chosen destination, requiring one when the stage has tasks", async () => {
