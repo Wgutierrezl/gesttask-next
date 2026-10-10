@@ -18,7 +18,7 @@ vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: {
 const { buildColumns } = await import("@/components/kanban/columns");
 const { TaskCard } = await import("@/components/kanban/task-card");
 const { KanbanColumn } = await import("@/components/kanban/kanban-column");
-const { loadTasks, toStageView, toTaskCardView } = await import("@/app/_shared/kanban-data");
+const { loadCapped, toStageView, toTaskCardView } = await import("@/app/_shared/kanban-data");
 const { default: PipelinePage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
 const { PipelineList } = await import("@/components/boards/pipeline-list");
 
@@ -62,25 +62,25 @@ describe("toTaskCardView", () => {
   });
 });
 
-describe("loadTasks", () => {
+describe("loadCapped", () => {
   const rows = (n: number, from = 0) => Array.from({ length: n }, (_v, i) => from + i);
 
   it("reads pages of 200 until one comes back short", async () => {
     const list = vi.fn(async ({ limit, offset }: { limit: number; offset: number }) => rows(Math.min(limit, 450 - offset), offset));
-    const { tasks, truncated } = await loadTasks(list);
-    expect(tasks).toHaveLength(450);
+    const { items, truncated } = await loadCapped(list);
+    expect(items).toHaveLength(450);
     expect(truncated).toBe(false);
     expect(list.mock.calls.map(([page]) => page)).toEqual([{ limit: 200, offset: 0 }, { limit: 200, offset: 200 }, { limit: 200, offset: 400 }]);
   });
 
   it("stops at the cap and says so only when more tasks exist", async () => {
     const endless = vi.fn(async ({ limit, offset }: { limit: number; offset: number }) => rows(limit, offset));
-    const capped = await loadTasks(endless, 400);
-    expect(capped.tasks).toHaveLength(400);
+    const capped = await loadCapped(endless, 400);
+    expect(capped.items).toHaveLength(400);
     expect(capped.truncated).toBe(true);
-    const exact = await loadTasks(async ({ limit, offset }) => rows(Math.max(0, Math.min(limit, 400 - offset)), offset), 400);
+    const exact = await loadCapped(async ({ limit, offset }) => rows(Math.max(0, Math.min(limit, 400 - offset)), offset), 400);
     expect(exact).toMatchObject({ truncated: false });
-    expect(exact.tasks).toHaveLength(400);
+    expect(exact.items).toHaveLength(400);
   });
 });
 
@@ -125,7 +125,7 @@ describe("PipelinePage", () => {
     expect(html).toContain("Completed Oct 9, 2026");
     expect(html).toContain(`href="/boards/${BOARD_ID}"`);
     expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}/tasks/t1"`);
-    expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200 });
+    expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200, offset: 0 });
   });
 
   it("offers stage management to owners only, with each stage's task count", async () => {
@@ -173,6 +173,43 @@ describe("PipelinePage", () => {
     );
     const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
     expect(html).toContain("Showing the first 1000 tasks");
+  });
+});
+
+describe("PipelinePage beyond the load caps", () => {
+  const stages = (n: number) => Array.from({ length: n }, (_v, i) => stage(`s${i}`, `Stage ${i}`));
+  const pageOf = <T,>(all: T[]) => async ({ limit, offset }: { limit: number; offset: number }) => all.slice(offset, offset + limit);
+
+  it("names assignees through a lookup by id, so a member beyond the first 200 is not a Former member", async () => {
+    useCases.listTasksByPipeline.mockResolvedValue([task("t1", "s1", { assigneeId: "far" }), task("t2", "s1", { assigneeId: "far" }), task("t3", "s1", { assigneeId: "gone" })]);
+    useCases.listMemberProfiles.mockImplementation(async (input: { userIds?: string[] }) =>
+      input.userIds ? [{ userId: "far", role: "member", name: "Far Away", email: null }] : [{ userId: "u", role: "owner", name: "Olivia", email: null }],
+    );
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).toContain("Far Away");
+    expect(html).toContain("Former member");
+    expect(useCases.listMemberProfiles).toHaveBeenCalledWith({ boardId: BOARD_ID, userIds: ["far", "gone"] });
+  });
+
+  it("does not look anyone up when no task has an assignee", async () => {
+    await PipelinePage({ params: params() });
+    expect(useCases.listMemberProfiles.mock.calls.every(([input]) => !("userIds" in input))).toBe(true);
+  });
+
+  it("says when there are more than 200 stages", async () => {
+    useCases.listStages.mockImplementation(pageOf(stages(201)));
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Showing the first 200 stages");
+  });
+
+  it("says when there are more than 200 members to pick as assignee", async () => {
+    useCases.listMemberProfiles.mockImplementation(pageOf(Array.from({ length: 201 }, (_v, i) => ({ userId: `m${i}`, role: "member", name: `M${i}`, email: null }))));
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Showing the first 200 members");
+  });
+
+  it("keeps the stage delete destination required when only part of the tasks is shown", async () => {
+    useCases.listTasksByPipeline.mockImplementation(async ({ limit, offset }: { limit: number; offset: number }) => Array.from({ length: limit }, (_v, i) => task(`t${offset + i}`, "s2")));
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).not.toContain("No tasks to move");
   });
 });
 

@@ -1,8 +1,11 @@
 import { CreateStageForm } from "./create-stage-form";
 import { StageRow, type ManagedStage } from "./stage-row";
 
-/** Owner-only panel: add, rename, reorder, flag as done, delete. Works on the ordered stage list the page already loaded. */
-export function StageManager({ pipelineId, stages }: { pipelineId: string; stages: ManagedStage[] }) {
+/**
+ * Owner-only panel: add, rename, reorder, flag as done, delete. Works on the ordered stage list the page already loaded.
+ * `truncated` means not every task is shown, so task counts are lower bounds and no stage is assumed empty.
+ */
+export function StageManager({ pipelineId, stages, truncated = false }: { pipelineId: string; stages: ManagedStage[]; truncated?: boolean }) {
   return (
     <details className="rounded border border-gray-200 p-3">
       <summary className="cursor-pointer text-sm font-medium">Manage stages</summary>
@@ -15,6 +18,7 @@ export function StageManager({ pipelineId, stages }: { pipelineId: string; stage
               afterWhenLeft={i === 0 ? null : (stages[i - 2]?.id ?? "")}
               afterWhenRight={i === stages.length - 1 ? null : stages[i + 1]!.id}
               others={stages.filter((other) => other.id !== stage.id)}
+              mayHaveHiddenTasks={truncated}
             />
           ))}
         </ul>
