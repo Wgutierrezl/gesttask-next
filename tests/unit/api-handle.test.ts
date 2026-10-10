@@ -8,6 +8,7 @@ const session = vi.hoisted(() => ({ getActor: vi.fn() }));
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api, session }) }));
 
 const { handle } = await import("@/app/api/v1/_lib/handle");
+const { MAX_OFFSET } = await import("@/openapi/page-query");
 
 const BOARD = "5b0e0a53-3a9a-4c53-8d57-58b1d7b0b001";
 const call = (id: string, init: { method?: string; url?: string; headers?: Record<string, string>; body?: unknown; params?: Record<string, string> } = {}) => {
@@ -66,24 +67,48 @@ describe("handle: the thin adapter between a route and a use case", () => {
   });
 
   describe("lists", () => {
-    it("wraps a page as { items, nextCursor } and hands the next cursor out only when the page is full", async () => {
-      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]);
+    it("asks for one row more than the page to know whether a next page exists, and trims it", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
       const full = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json();
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 2, offset: 0 });
-      expect(full.items).toHaveLength(2);
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 3, offset: 0 });
+      expect(full.items).toEqual([{ id: "a" }, { id: "b" }]);
       expect(typeof full.nextCursor).toBe("string");
-      const next = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${full.nextCursor}` })).json();
-      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 2, offset: 2 });
-      expect(next.nextCursor).not.toBe(full.nextCursor);
       useCases.listMyBoards.mockResolvedValue([{ id: "c" }]);
+      const last = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${full.nextCursor}` })).json();
+      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 3, offset: 2 });
+      expect(last).toEqual({ items: [{ id: "c" }], nextCursor: null });
+    });
+
+    it("never invents an empty trailing page: an exactly full last page has no cursor", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]);
       expect((await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json()).nextCursor).toBeNull();
+    });
+
+    it("at the largest page size the use case cannot be asked for one more, so a full page keeps its cursor", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue(Array.from({ length: 200 }, (_, i) => ({ id: String(i) })));
+      const page = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 200, offset: 0 });
+      expect(page.items).toHaveLength(200);
+      expect(typeof page.nextCursor).toBe("string");
+    });
+
+    it("stops handing out cursors at the offset cap, and refuses one beyond it", async () => {
+      const at = (offset: number) => Buffer.from(String(offset)).toString("base64url");
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
+      const reachable = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${at(MAX_OFFSET - 2)}` })).json();
+      expect(typeof reachable.nextCursor).toBe("string");
+      const edge = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${at(MAX_OFFSET - 1)}` })).json();
+      expect(edge.nextCursor).toBeNull(); // the next page would start past the cap
+      const beyond = await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?cursor=${at(MAX_OFFSET + 1)}` });
+      expect(beyond.status).toBe(422);
+      expect((await beyond.json()).error.details.cursor[0]).toMatch(/too far|beyond/i);
     });
 
     it("defaults the page size, rejects bad limits and cursors, and returns an empty page as []", async () => {
       useCases.listMyBoards = vi.fn().mockResolvedValue([]);
       const empty = await call("listMyBoards");
       expect(await empty.json()).toEqual({ items: [], nextCursor: null });
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 50, offset: 0 });
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 51, offset: 0 });
       expect((await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=201" })).status).toBe(422);
       const forged = await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?cursor=not*a*cursor" });
       expect(forged.status).toBe(422);
