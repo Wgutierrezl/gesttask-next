@@ -5,7 +5,7 @@ import { loadTasks, toStageView, toTaskCardView } from "@/app/_shared/kanban-dat
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { buildColumns } from "@/components/kanban/columns";
 import { CreateTaskForm } from "@/components/kanban/create-task-form";
-import { KanbanColumn } from "@/components/kanban/kanban-column";
+import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { StageManager } from "@/components/kanban/stage-manager";
 import { getContainer } from "@/infrastructure/container";
 
@@ -54,11 +54,7 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
           </div>
         </details>
       ) : null}
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {columns.map((column) => (
-          <KanbanColumn key={column.stage.id} column={column} nameOf={(userId) => names.get(userId) ?? null} taskHref={(taskId) => `/boards/${boardId}/pipelines/${pipelineId}/tasks/${taskId}`} />
-        ))}
-      </div>
+      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} />
       {data.role === "owner" ? (
         <StageManager pipelineId={pipelineId} stages={columns.map(({ stage, tasks }) => ({ ...stage, taskCount: tasks.length }))} />
       ) : null}
