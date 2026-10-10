@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { BOARD_ROLES } from "@/domain/value-objects/board-role";
 import { BOARD_STATUSES } from "@/domain/value-objects/board-status";
+import { PRIORITIES } from "@/domain/value-objects/priority";
+import { TASK_STATUSES } from "@/domain/value-objects/task-status";
 
 /**
  * What the API answers, as strict schemas: an unlisted field fails the contract tests, so a column added to an entity
@@ -42,6 +44,27 @@ export const stageResponse = z.strictObject({
   isDone: z.boolean(),
   /** Fractional index inside the pipeline: orders stages, never built by clients (use afterStageId). */
   position: z.string(),
+});
+
+export const taskResponse = z.strictObject({
+  id,
+  boardId: id,
+  pipelineId: id,
+  stageId: id,
+  title: z.string(),
+  description: z.string(),
+  priority: z.enum(PRIORITIES),
+  status: z.enum(TASK_STATUSES),
+  /** A calendar date (YYYY-MM-DD); may be in the past. */
+  dueDate: z.iso.date().nullable(),
+  assigneeId: z.string().nullable(),
+  /** Set when the task enters the done stage, cleared when it leaves. */
+  completedAt: dateTime.nullable(),
+  /** Fractional index inside the stage: orders cards, never built by clients (use afterTaskId or toEnd). */
+  position: z.string(),
+  createdAt: dateTime,
+  /** Derived at read time: past due and not completed. */
+  overdue: z.boolean(),
 });
 
 /** The uniform error envelope (REQ-API-03). */
