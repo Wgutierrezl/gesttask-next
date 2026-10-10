@@ -17,7 +17,9 @@ export interface Page {
  *   `AppDeps.repos` (outside a transaction) are plain snapshots meant for authorization and listing.
  * - GLOBAL LOCK ORDER (deadlock freedom). Use cases lock in this order and never go back:
  *   boards, members (owner rows first, then the target member), pipelines, stages, tasks, then comments and
- *   attachments (a delete locks the tasks below it, in this order, before reading attachment keys). Within one
+ *   attachments (a delete locks the tasks below it, in this order, before reading attachment keys). A writer that
+ *   inserts a child of the board (comment, pending upload) takes a KEY SHARE on the board for its foreign key, so it
+ *   locks the board row BEFORE its task, or it would deadlock with a board delete. Within one
  *   type, rows are locked by primary key, and a use case that needs both a list and one of its rows
  *   locks the LIST first and picks the target from it (never row, then list). Use cases that touch
  *   several task columns lock the columns in stage-id order.

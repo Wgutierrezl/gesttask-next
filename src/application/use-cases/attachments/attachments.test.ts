@@ -4,6 +4,7 @@ import type { Attachment } from "@/domain/entities/comment";
 import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
 import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
 import { FakeStorage } from "@tests/support/fake-storage";
+import { recordTxCalls } from "@tests/support/race";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, STRANGER, seedKanban } from "@tests/support/fixtures";
 import { makeCreateTask } from "../tasks/create-task";
@@ -278,6 +279,35 @@ describe("attachments", () => {
       const row = await confirmed();
       storage.failing = true;
       await expect(url(OWNER, row.id)).rejects.toBeInstanceOf(StorageError);
+    });
+  });
+  describe("global lock order: the board row before the task row (a child insert takes KEY SHARE on its board)", () => {
+    const order = (calls: string[]) => ({ board: calls.indexOf("boards.findById"), task: calls.indexOf("tasks.findById") });
+
+    it("requestUpload locks the board before the task", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeRequestUpload(spy.ctx, { storage, limiter: new InMemoryRateLimiter(ctx.clock) })(OWNER, { taskId, fileName: "a.png", contentType: "image/png", size: 10 });
+      const { board, task } = order(spy.calls);
+      expect(board).toBeGreaterThanOrEqual(0);
+      expect(board).toBeLessThan(task);
+    });
+
+    it("createComment locks the board before the task, with and without files", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeCreateComment(spy.ctx, { storage })(OWNER, { taskId, body: "text only" });
+      const { board, task } = order(spy.calls);
+      expect(board).toBeGreaterThanOrEqual(0);
+      expect(board).toBeLessThan(task);
+      const file = await uploaded();
+      const withFile = recordTxCalls(ctx);
+      await makeCreateComment(withFile.ctx, { storage })(OWNER, { taskId, body: "with file", attachmentIds: [file.id] });
+      expect(order(withFile.calls).board).toBeGreaterThanOrEqual(0);
+      expect(order(withFile.calls).board).toBeLessThan(order(withFile.calls).task);
+    });
+
+    it("answers NotFound when the board is gone by the time the transaction starts", async () => {
+      const racing = { ...ctx, uow: { run: <T,>(work: Parameters<typeof ctx.uow.run<T>>[0]) => { ctx.store.boards.delete(k.boardId); return ctx.uow.run(work); } } };
+      await expect(makeCreateComment(racing, { storage })(OWNER, { taskId, body: "late" })).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 });

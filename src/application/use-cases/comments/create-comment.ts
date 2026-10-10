@@ -24,6 +24,9 @@ export function makeCreateComment(deps: AppDeps, ext: { storage: StoragePort }) 
       : new Map<string, number>();
     const now = deps.clock.now();
     return deps.uow.run(async (tx) => {
+      // Global lock order: board, then task. The comment insert takes KEY SHARE on the board, so locking the task first
+      // would deadlock with a board delete (which holds the board and waits for its tasks). A task never changes board.
+      if (!(await tx.boards.findById(task.boardId))) throw new NotFoundError();
       const current = await tx.tasks.findById(taskId);
       if (!current) throw new NotFoundError();
       const uploads = assertLinkable(await tx.attachments.findManyByIds(attachmentIds), attachmentIds, actor, current.boardId);
