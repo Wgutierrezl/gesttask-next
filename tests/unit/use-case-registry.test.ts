@@ -16,7 +16,7 @@ const protectedFiles = (readdirSync(root, { recursive: true }) as string[])
 
 describe("use-case registry (composition root)", () => {
   const ctx = createTestContext();
-  const registry = buildUseCases(ctx, { users: new InMemoryUserDirectory(), limiter: new InMemoryRateLimiter(ctx.clock) });
+  const registry = buildUseCases(ctx, { users: new InMemoryUserDirectory(), limiter: new InMemoryRateLimiter(ctx.clock), clientKey: async () => "c" });
 
   it("registers every non-public use case on disk under its camelCase name, and nothing else", () => {
     expect(Object.keys(registry).sort()).toEqual(protectedFiles.map(camel).sort());
