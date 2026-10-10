@@ -10,8 +10,18 @@ export function text(form: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
+/** A string field that may be left empty, as `undefined` (an empty id would fail validation). */
+export function optionalText(form: FormData, name: string): string | undefined {
+  return text(form, name) || undefined;
+}
+
+/** A checkbox rendered with `value="yes"`. */
+export function checked(form: FormData, name: string): boolean {
+  return text(form, name) === "yes";
+}
+
 interface Options<T> {
-  /** Cached pages to refresh after success. */
+  /** Cached pages to refresh after success; a route pattern such as `/boards/[boardId]` refreshes every page of that route. */
   revalidate?: string[];
   /** Where to go after success, or null to stay; the redirect happens outside the error handling so it is never swallowed. */
   redirectTo?: (data: T) => string | null;
@@ -24,7 +34,10 @@ export async function runMutation<T>(work: () => Promise<T>, options: Options<T>
     if (result.code === "UNAUTHENTICATED") redirect("/login");
     return result;
   }
-  for (const path of options.revalidate ?? []) revalidatePath(path);
+  for (const path of options.revalidate ?? []) {
+    if (path.includes("[")) revalidatePath(path, "page");
+    else revalidatePath(path);
+  }
   const destination = options.redirectTo?.(result.data);
   if (destination) redirect(destination);
   return { ok: true, data: null };

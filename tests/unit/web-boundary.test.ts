@@ -14,7 +14,7 @@ const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ logger }) }));
 
 const { loadPage } = await import("@/app/_shared/load-page");
-const { runMutation, text } = await import("@/app/_shared/run-mutation");
+const { runMutation, text, optionalText, checked } = await import("@/app/_shared/run-mutation");
 const { failureOf } = await import("@/app/_shared/mutation-state");
 
 beforeEach(() => vi.clearAllMocks());
@@ -41,6 +41,20 @@ describe("loadPage", () => {
 });
 
 describe("runMutation", () => {
+  it("revalidates a route pattern as a page type, so every instance of the dynamic route is refreshed", async () => {
+    await runMutation(async () => "ok", { revalidate: ["/boards/[boardId]/pipelines/[pipelineId]", "/boards"] });
+    expect(revalidatePath.mock.calls).toEqual([["/boards/[boardId]/pipelines/[pipelineId]", "page"], ["/boards"]]);
+  });
+
+  it("reads optional and checkbox form fields", () => {
+    const form = new FormData();
+    form.set("a", "x");
+    form.set("b", "");
+    form.set("c", "yes");
+    expect([optionalText(form, "a"), optionalText(form, "b"), optionalText(form, "missing")]).toEqual(["x", undefined, undefined]);
+    expect([checked(form, "c"), checked(form, "a"), checked(form, "missing")]).toEqual([true, false, false]);
+  });
+
   it("revalidates the listed paths and reports success", async () => {
     await expect(runMutation(async () => "ok", { revalidate: ["/boards", "/boards/1"] })).resolves.toEqual({ ok: true, data: null });
     expect(revalidatePath.mock.calls.map(([path]) => path)).toEqual(["/boards", "/boards/1"]);
