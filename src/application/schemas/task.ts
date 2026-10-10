@@ -34,10 +34,10 @@ export const listTasksByPipelineSchema = paginationSchema.extend({ pipelineId: i
  * `afterTaskId: null` means "at the top"; `toEnd: true` means "after the last task", resolved on the server
  * inside the transaction. Exactly one of the two is given. Clients never send raw positions.
  */
-export const moveTaskSchema = z
-  .object({ taskId: idSchema, toStageId: idSchema, afterTaskId: idSchema.nullable().optional(), toEnd: z.boolean().optional() })
-  .refine((input) => (input.toEnd ? input.afterTaskId === undefined : input.afterTaskId !== undefined), {
-    message: "Give either afterTaskId or toEnd",
-    path: ["afterTaskId"],
-  });
+/** The fields of a move before the "exactly one anchor" rule; REST documents the body from this shape. */
+export const moveTaskFields = z.object({ taskId: idSchema, toStageId: idSchema, afterTaskId: idSchema.nullable().optional(), toEnd: z.boolean().optional() });
+export const moveTaskSchema = moveTaskFields.refine((input) => (input.toEnd ? input.afterTaskId === undefined : input.afterTaskId !== undefined), {
+  message: "Give either afterTaskId or toEnd",
+  path: ["afterTaskId"],
+});
 export const reorderTaskSchema = z.object({ taskId: idSchema, afterTaskId: idSchema.nullable() });
