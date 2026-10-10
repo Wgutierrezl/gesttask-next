@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { GuestBanner } from "@/components/boards/guest-banner";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 
@@ -11,12 +13,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto max-w-5xl p-6">
       <header className="mb-6 flex items-center justify-between">
-        <span className="font-semibold">GestTask</span>
+        <Link href="/boards" className="font-semibold">GestTask</Link>
         <div className="flex items-center gap-4">
-          {actor.isGuest ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs">Demo session</span> : null}
           <SignOutButton />
         </div>
       </header>
+      {actor.isGuest ? <GuestBanner /> : null}
       {children}
     </div>
   );
