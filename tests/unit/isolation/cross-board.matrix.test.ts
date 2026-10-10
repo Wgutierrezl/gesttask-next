@@ -30,7 +30,9 @@ import { makeReorderTask } from "@/application/use-cases/tasks/reorder-task";
 import { makeUpdateTask } from "@/application/use-cases/tasks/update-task";
 import type { Actor } from "@/application/actor";
 import { can, type BoardAction } from "@/domain/policy/board-policy";
-import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
+import { ForbiddenError, NotFoundError, UnauthenticatedError, ValidationError } from "@/domain/errors";
+import type { SessionPort } from "@/application/ports/services";
+import { withActor } from "@/application/require-actor";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, RIVAL_MEMBER, STRANGER, seedKanban } from "@tests/support/fixtures";
 
@@ -126,6 +128,9 @@ const PUBLIC_USE_CASES = ["auth/sign-in-email.ts", "auth/sign-in-guest.ts", "aut
 
 const CASES = Object.entries(RESOURCES);
 
+/** A session as the web layer sees it: whoever is signed in, or nobody. */
+const sessionOf = (actor: Actor | null): SessionPort => ({ getActor: async () => actor });
+
 async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promise<Ids> {
   const k = await seedKanban(ctx, owner);
   const add = (stageId: string, title: string) => makeCreateTask(ctx)(owner, { stageId, title: `${label}-${title}` });
@@ -211,6 +216,32 @@ describe("cross-board isolation matrix (REQ-ISO-01)", () => {
         expect(snapshot(ctx)).toBe(before);
       },
     );
+  });
+
+  // REQ-AUTH-04 / task 3.6: the same use cases, reached the way adapters reach them (through the session).
+  describe.each([...CASES.map(([file, c]) => [file, (d: AppDeps, a: Actor, i: Ids) => c.run(d, a, i)] as const), ...Object.entries(SELF_SCOPED).map(([file, c]) => [file, (d: AppDeps, a: Actor) => c.run(d, a, c.input)] as const)])(
+    "%s behind the session",
+    (_file, run) => {
+      it("answers Unauthenticated without a session, before touching any data", async () => {
+        const before = snapshot(ctx);
+        expect(await failure(withActor(sessionOf(null), (actor: Actor) => run(ctx, actor, a))(undefined))).toBeInstanceOf(UnauthenticatedError);
+        expect(snapshot(ctx)).toBe(before);
+      });
+
+      it("takes the actor from the session, never from the input", async () => {
+        const seen: Actor[] = [];
+        await withActor(sessionOf(STRANGER), async (actor: Actor) => void seen.push(actor))(undefined);
+        expect(seen).toEqual([STRANGER]);
+      });
+    },
+  );
+
+  it("treats a signed-in stranger the same as in the direct matrix: NotFound on every resource use case", async () => {
+    for (const [, { run }] of CASES) {
+      const before = snapshot(ctx);
+      expect(await failure(withActor(sessionOf(STRANGER), (actor: Actor) => run(ctx, actor, a))(undefined))).toBeInstanceOf(NotFoundError);
+      expect(snapshot(ctx)).toBe(before);
+    }
   });
 
   describe.each(Object.entries(SELF_SCOPED))("%s (self-scoped)", (_file, { input, run }) => {
