@@ -34,6 +34,23 @@ formed a cycle with it (`40P01`, retried by the unit of work but a wasted second
 `createComment` and `requestUpload` lock the board row before the task. The cost is that comments and upload requests
 on one board queue behind each other for the length of their transaction, which is negligible at this scale.
 
+### Task writers (slice 7 review)
+
+The same question was raised for `createTask`: it locks the stage and then inserts a task. Evidence, with the unit of
+work at `maxAttempts: 1` (`tests/integration/concurrency/lock-order-structure.test.ts`):
+
+- Against `deleteBoard` there is NO cycle. `tasks` has no foreign key to `boards` (only composite keys to its pipeline
+  and its stage), so the insert never needs the board row; that test passed before any change.
+- The insert does take `KEY SHARE` on the pipeline and the stage, and that exposed real cycles with the other parents:
+  `deletePipeline` and `deleteStage` hold the pipeline and wait for tasks that `createTask` holds; `deleteBoard` locked
+  all tasks before the pipelines, crossing a `moveTask` that holds the pipeline and waits for tasks; `updateTask` locked
+  the task and then the assignee's membership while `removeMember` locks the membership and then clears assignments.
+  Each reproduced as `40P01`.
+- Fixes, all toward the one order (boards, members, pipelines, stages, tasks): `createTask` checks the assignee, then
+  locks the pipeline's stage list and picks its stage from it (as `moveTask` already did); `updateTask` checks the
+  assignee before the task; `keysUnder({ boardId })` locks the pipelines before the tasks. Cost: creating tasks in one
+  pipeline queues like moves already did.
+
 ## Abandoned uploads
 
 A pending upload that never becomes part of a comment would sit in the table and in the storage forever. After
