@@ -59,6 +59,11 @@ describe("parseEnv", () => {
     expect(parseEnv({ ...localBase, DB_DRIVER: "neon" }).DB_DRIVER).toBe("neon");
   });
 
+  it("refuses the local storage driver on Vercel, where the filesystem is ephemeral", () => {
+    expect(errorOf({ ...localBase, VERCEL: "1" }).message).toContain("STORAGE_DRIVER");
+    expect(parseEnv({ ...s3Base, VERCEL: "1" }).STORAGE_DRIVER).toBe("s3");
+  });
+
   it("fails when STORAGE_DRIVER is missing", () => {
     expect(errorOf(without(localBase, "STORAGE_DRIVER")).message).toContain("STORAGE_DRIVER");
   });

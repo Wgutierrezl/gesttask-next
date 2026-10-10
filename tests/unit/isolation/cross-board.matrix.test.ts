@@ -7,6 +7,8 @@ import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
 import { makeGetBoard } from "@/application/use-cases/boards/get-board";
 import { makeListMyBoards } from "@/application/use-cases/boards/list-my-boards";
 import { makeUpdateBoard } from "@/application/use-cases/boards/update-board";
+import { makeGetAttachmentUrl } from "@/application/use-cases/attachments/get-attachment-url";
+import { makeRequestUpload } from "@/application/use-cases/attachments/request-upload";
 import { makeCreateComment } from "@/application/use-cases/comments/create-comment";
 import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
 import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
@@ -43,6 +45,7 @@ import type { SessionPort } from "@/application/ports/services";
 import { guardAll, withActor } from "@/application/require-actor";
 import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
 import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
+import { FakeStorage } from "@tests/support/fake-storage";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, RIVAL_MEMBER, STRANGER, seedKanban } from "@tests/support/fixtures";
 
@@ -55,6 +58,7 @@ interface Ids {
   anchorTodoId: string;
   anchorDoneId: string;
   commentId: string;
+  attachmentId: string;
 }
 type IdKey = keyof Ids;
 type Run = (deps: AppDeps, actor: Actor, ids: Ids) => Promise<unknown>;
@@ -69,6 +73,7 @@ const GHOSTS: Ids = {
   anchorTodoId: ghost(6),
   anchorDoneId: ghost(7),
   commentId: ghost(8),
+  attachmentId: ghost(9),
 };
 const ID_KEYS = Object.keys(GHOSTS) as IdKey[];
 
@@ -85,6 +90,7 @@ interface Case {
  * Self-scoped use cases (`SELF_SCOPED`) take no resource id and therefore cannot be aimed at
  * someone else's data; the suite proves their input carries no foreign id and their output leaks none.
  */
+const storage = new FakeStorage();
 const directory = new InMemoryUserDirectory([{ id: "carol", name: "Carol", email: "carol@example.com" }]);
 const RESOURCES: Record<string, Case> = {
   "boards/get-board.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeGetBoard(d)(a, { boardId: i.boardId }) },
@@ -113,8 +119,10 @@ const RESOURCES: Record<string, Case> = {
   "tasks/delete-task.ts": { action: "task:write", uses: ["taskId"], run: (d, a, i) => makeDeleteTask(d)(a, { taskId: i.taskId }) },
   "tasks/list-tasks-by-pipeline.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeListTasksByPipeline(d)(a, { pipelineId: i.pipelineId }) },
   "tasks/move-task.ts": { action: "task:write", uses: ["taskId", "doneId", "anchorDoneId"], run: (d, a, i) => makeMoveTask(d)(a, { taskId: i.taskId, toStageId: i.doneId, afterTaskId: i.anchorDoneId }) },
-  "comments/create-comment.ts": { action: "comment:create", uses: ["taskId"], run: (d, a, i) => makeCreateComment(d)(a, { taskId: i.taskId, body: "x" }) },
+  "comments/create-comment.ts": { action: "comment:create", uses: ["taskId"], run: (d, a, i) => makeCreateComment(d, { storage })(a, { taskId: i.taskId, body: "x" }) },
   "comments/list-comments.ts": { action: "board:view", uses: ["taskId"], run: (d, a, i) => makeListComments(d, directory)(a, { taskId: i.taskId }) },
+  "attachments/request-upload.ts": { action: "attachment:create", uses: ["taskId"], run: (d, a, i) => makeRequestUpload(d, { storage, limiter: new InMemoryRateLimiter(d.clock) })(a, { taskId: i.taskId, fileName: "a.png", contentType: "image/png", size: 10 }) },
+  "attachments/get-attachment-url.ts": { action: "board:view", uses: ["attachmentId"], run: (d, a, i) => makeGetAttachmentUrl(d, { storage })(a, { attachmentId: i.attachmentId }) },
   "comments/edit-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeEditComment(d)(a, { commentId: i.commentId, body: "x" }) },
   "comments/delete-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeDeleteComment(d)(a, { commentId: i.commentId }) },
   "tasks/reorder-task.ts": { action: "task:write", uses: ["taskId", "anchorTodoId"], run: (d, a, i) => makeReorderTask(d)(a, { taskId: i.taskId, afterTaskId: i.anchorTodoId }) },
@@ -158,7 +166,10 @@ async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promis
   const k = await seedKanban(ctx, owner);
   const add = (stageId: string, title: string) => makeCreateTask(ctx)(owner, { stageId, title: `${label}-${title}` });
   const [task, anchorTodo, anchorDone] = [await add(k.todoId, "secret"), await add(k.todoId, "anchor"), await add(k.doneId, "anchor")];
-  const comment = await makeCreateComment(ctx)(owner, { taskId: task.id, body: `${label}-comment` });
+  const comment = await makeCreateComment(ctx, { storage })(owner, { taskId: task.id, body: `${label}-comment` });
+  const upload = await makeRequestUpload(ctx, { storage, limiter: new InMemoryRateLimiter(ctx.clock) })(owner, { taskId: task.id, fileName: `${label}.png`, contentType: "image/png", size: 10 });
+  storage.upload(ctx.store.attachments.get(upload.attachmentId)!.storageKey, 10, "image/png");
+  await makeCreateComment(ctx, { storage })(owner, { taskId: task.id, body: `${label}-with-file`, attachmentIds: [upload.attachmentId] });
   return {
     boardId: k.boardId,
     pipelineId: k.pipelineId,
@@ -168,6 +179,7 @@ async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promis
     anchorTodoId: anchorTodo.id,
     anchorDoneId: anchorDone.id,
     commentId: comment.id,
+    attachmentId: upload.attachmentId,
   };
 }
 

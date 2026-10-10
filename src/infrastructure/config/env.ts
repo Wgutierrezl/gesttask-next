@@ -55,7 +55,13 @@ const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
   }),
 ]);
 
-const envSchema = z.intersection(z.intersection(dbSchema, authSchema), storageSchema);
+const envSchema = z
+  .intersection(z.intersection(dbSchema, authSchema), storageSchema)
+  // Vercel functions have a read-only, per-instance filesystem: uploads written there would vanish.
+  .refine((env) => !(env.STORAGE_DRIVER === "local" && env.VERCEL), {
+    path: ["STORAGE_DRIVER"],
+    message: "local storage is not available on Vercel",
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
