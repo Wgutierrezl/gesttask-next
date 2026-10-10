@@ -42,6 +42,15 @@ module.exports = {
       },
     },
     {
+      name: "openapi-declares-over-application-only",
+      comment:
+        "src/openapi declares the REST contract (operations and response schemas) over application schemas and domain " +
+        "enums; it never reaches infrastructure, the web layer or React.",
+      severity: "error",
+      from: { path: "^src/openapi/" },
+      to: { path: "^src/(infrastructure|app|components)/" },
+    },
+    {
       name: "infrastructure-does-not-depend-on-app",
       severity: "error",
       from: { path: "^src/infrastructure/" },
