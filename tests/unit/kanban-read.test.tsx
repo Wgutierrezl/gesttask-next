@@ -8,7 +8,7 @@ const redirect = vi.fn((to: string) => {
 const notFound = vi.fn(() => {
   throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
 });
-vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next/navigation", () => ({ redirect, notFound, useRouter: () => ({ refresh: vi.fn() }) }));
 
 const getActor = vi.fn();
 const useCases = { getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn() };

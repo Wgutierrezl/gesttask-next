@@ -1,21 +1,24 @@
 import type { ColumnView, TaskCardView } from "./types";
 
-/** What the server needs to place a task: the stage, and the task it goes after (null = top). Clients never send positions. */
+/**
+ * What the server needs to place a task: the stage, and the task it goes after (null = top), or `toEnd` to let
+ * the server resolve the last place itself. Clients never send positions.
+ */
 export interface MoveRequest {
   taskId: string;
   toStageId: string;
   afterTaskId: string | null;
+  toEnd?: true;
 }
 
 /** Droppable ids of whole columns are prefixed so they can never collide with a task id. */
 export const COLUMN_PREFIX = "column:";
 export const columnId = (stageId: string) => `${COLUMN_PREFIX}${stageId}`;
 
-const today = (now: Date) => now.toISOString().slice(0, 10);
-
 /**
  * The board as it will look once `move` succeeds, mirroring the server rules (completed in the done stage,
- * reopened anywhere else, overdue derived). Returns the SAME array when the move cannot apply, so a stale
+ * reopened anywhere else). `overdue` is left as the server last said: it depends on the server's date, so it
+ * is only corrected by the refresh that follows. Returns the SAME array when the move cannot apply, so a stale
  * or invalid request never invents a state the server would reject. Never mutates its input.
  */
 export function applyMove(columns: ColumnView[], move: MoveRequest, now: Date = new Date()): ColumnView[] {
@@ -24,14 +27,12 @@ export function applyMove(columns: ColumnView[], move: MoveRequest, now: Date = 
   const task = source?.tasks.find((candidate) => candidate.id === move.taskId);
   if (!source || !target || !task || move.afterTaskId === move.taskId) return columns;
   const rest = target.tasks.filter((candidate) => candidate.id !== task.id);
-  const index = move.afterTaskId === null ? 0 : rest.findIndex((candidate) => candidate.id === move.afterTaskId) + 1;
-  if (move.afterTaskId !== null && index === 0) return columns;
-  const completedAt = target.stage.isDone ? (task.completedAt ?? now.toISOString()) : null;
+  const index = move.toEnd ? rest.length : move.afterTaskId === null ? 0 : rest.findIndex((candidate) => candidate.id === move.afterTaskId) + 1;
+  if (!move.toEnd && move.afterTaskId !== null && index === 0) return columns;
   const moved: TaskCardView = {
     ...task,
     stageId: target.stage.id,
-    completedAt,
-    overdue: task.dueDate !== null && completedAt === null && task.dueDate < today(now),
+    completedAt: target.stage.isDone ? (task.completedAt ?? now.toISOString()) : null,
   };
   return columns.map((column) => {
     if (column.stage.id === target.stage.id) return { ...column, tasks: [...rest.slice(0, index), moved, ...rest.slice(index)] };
@@ -94,7 +95,7 @@ export function neighborMoves(columns: ColumnView[], taskId: string): NeighborMo
       .map((other) => ({
         stageId: other.stage.id,
         name: other.stage.name,
-        request: { taskId, toStageId: other.stage.id, afterTaskId: other.tasks.at(-1)?.id ?? null },
+        request: { taskId, toStageId: other.stage.id, afterTaskId: null, toEnd: true },
       })),
   };
 }

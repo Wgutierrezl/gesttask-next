@@ -2,7 +2,9 @@
 
 import { closestCorners, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { moveTaskAction } from "@/app/_actions/tasks";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { describeFailure } from "@/components/auth/form-error";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
@@ -17,9 +19,9 @@ async function sendMove(request: MoveRequest): Promise<SendResult> {
   const form = new FormData();
   form.set("taskId", request.taskId);
   form.set("toStageId", request.toStageId);
-  form.set("afterTaskId", request.afterTaskId ?? "");
+  if (!request.toEnd) form.set("afterTaskId", request.afterTaskId ?? "");
   try {
-    const result = await moveTaskAction(undefined, form);
+    const result = await (request.toEnd ? moveTaskToEndAction : moveTaskAction)(undefined, form);
     if (result?.ok) return { ok: true };
     return { ok: false, message: (result && describeFailure(result)) || FAILED };
   } catch {
@@ -41,7 +43,31 @@ interface KanbanBoardProps {
  * optimistic path that rolls back and explains when the server refuses. Viewers get the same columns read-only.
  */
 export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardProps) {
-  const { columns: shown, move, error } = useOptimisticMove(columns, sendMove);
+  const router = useRouter();
+  const [announcement, setAnnouncement] = useState("");
+  const handles = useRef(new Map<string, HTMLElement>());
+  const registerHandle = useCallback((taskId: string, element: HTMLElement | null) => {
+    if (element) handles.current.set(taskId, element);
+    else handles.current.delete(taskId);
+  }, []);
+  const refocus = useRef<string | null>(null);
+  const onSettled = (request: MoveRequest, result: SendResult) => {
+    const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    const stage = columns.find((column) => column.stage.id === request.toStageId)?.stage.name ?? "";
+    setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
+  };
+  const { columns: shown, move: send, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
+  const move = (request: MoveRequest) => {
+    send(request);
+    refocus.current = request.taskId;
+    handles.current.get(request.taskId)?.focus();
+  };
+  // A moved card is a new element, and a rolled-back one is too: once the board has settled, focus returns to its handle.
+  useEffect(() => {
+    if (pending || refocus.current === null) return;
+    handles.current.get(refocus.current)?.focus();
+    refocus.current = null;
+  }, [pending, shown]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const nameOf = (userId: string) => names[userId] ?? null;
   const taskHref = (taskId: string) => `${taskBase}${taskId}`;
@@ -51,14 +77,17 @@ export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardP
   };
   return (
     <>
-      <div role="alert" aria-live="polite" className={error ? "rounded bg-red-50 px-3 py-2 text-sm text-red-800" : undefined}>
-        {error}
+      <div role="status" aria-label="Board updates" className={errors.length > 0 ? "rounded bg-red-50 px-3 py-2 text-sm text-red-800" : undefined}>
+        <span className="sr-only">{announcement}</span>
+        {errors.map((message, i) => (
+          <p key={i}>{message}</p>
+        ))}
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2">
         {canWrite ? (
           <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown) }} onDragEnd={onDragEnd}>
             {shown.map((column) => (
-              <DroppableColumn key={column.stage.id} column={column} columns={shown} nameOf={nameOf} taskHref={taskHref} onMove={move} />
+              <DroppableColumn key={column.stage.id} column={column} columns={shown} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
             ))}
           </DndContext>
         ) : (
