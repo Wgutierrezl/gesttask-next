@@ -38,8 +38,9 @@ runStorageContract("local filesystem", () => {
     },
     async fetchUrl(url) {
       const response = await local.storage.handle(new Request(url));
-      return { status: response.status, body: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") };
+      return { status: response.status, body: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type"), disposition: response.headers.get("content-disposition") };
     },
+    namesDownloads: true,
     broken: () => {
       // A storage root that sits below a regular file: every filesystem call fails with ENOTDIR.
       const file = join(local.root, "not-a-directory");
@@ -87,6 +88,15 @@ describe("LocalStorage", () => {
     const response = await storage.handle(new Request(ticket.url, { method: "PUT", headers: { "content-type": "text/plain" }, body, duplex: "half" } as RequestInit));
     expect(response.status).toBe(413);
     expect(pulled).toBeLessThan(10);
+  });
+
+  it("serves a download under the signed name and refuses a swapped one", async () => {
+    const { storage } = makeLocal();
+    await put(storage, (await localTicket(storage, "boards/b/named", 5)).url, "hello");
+    const url = await storage.getDownloadUrl("boards/b/named", 60, { fileName: "notes.txt" });
+    expect((await storage.handle(new Request(url))).headers.get("content-disposition")).toBe("attachment; filename*=UTF-8''notes.txt");
+    expect((await storage.handle(new Request(url.replace("notes.txt", "evil.html")))).status).toBe(403);
+    expect((await storage.handle(new Request(await storage.getDownloadUrl("boards/b/named", 60)))).headers.get("content-disposition")).toBe("attachment");
   });
 
   it("issues a PUT ticket pointing at the dev storage route", async () => {

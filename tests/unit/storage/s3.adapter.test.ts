@@ -57,6 +57,11 @@ describe("S3Storage", () => {
     expect(url.pathname).toBe("/b/boards/b/a1");
   });
 
+  it("names the download after the attachment, encoded", async () => {
+    const url = new URL(await new S3Storage(options).getDownloadUrl("boards/b/a1", 300, { fileName: "résumé.pdf" }));
+    expect(url.searchParams.get("response-content-disposition")).toBe("attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf");
+  });
+
   it("issues a POST ticket that pins the size range and the content type", async () => {
     const ticket = await new S3Storage(options).prepareUpload({ key: "boards/b/a1", contentType: "image/png", size: 1234 });
     if (ticket.kind !== "s3-post") throw new Error("s3-post ticket expected");

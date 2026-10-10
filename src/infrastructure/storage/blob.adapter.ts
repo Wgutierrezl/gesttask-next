@@ -90,6 +90,7 @@ export class BlobStorage implements StoragePort {
     });
   }
 
+  /** `fileName` is ignored: a presigned Blob GET honors only its expiry (PresignGetUrlOptions), so the stored disposition stands (ADR 0009). */
   getDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
     return guarded(async () => {
       const validUntil = this.validUntil(ttlSeconds);

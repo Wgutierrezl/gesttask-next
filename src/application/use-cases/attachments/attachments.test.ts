@@ -285,6 +285,7 @@ describe("attachments", () => {
         expect(await url(who, row.id)).toEqual({ url: `https://storage.test/get/${row.storageKey}?ttl=300`, fileName: "photo.png", contentType: "image/png", expiresInSeconds: 300 });
       }
       expect(storage.signed.every((s) => s.ttlSeconds <= 15 * 60)).toBe(true);
+      expect(storage.signed.every((s) => s.fileName === "photo.png")).toBe(true);
     });
 
     it("answers NotFound to strangers and rivals without signing anything, exactly like a missing id (REQ-ISO-08)", async () => {

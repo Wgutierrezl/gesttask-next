@@ -26,7 +26,7 @@ export function makeGetAttachmentUrl(deps: AppDeps, ext: { storage: StoragePort 
     if (!attachment) throw new NotFoundError();
     await requireBoardAccess(deps.repos.members, actor, attachment.boardId, "board:view");
     if (attachment.status !== "confirmed") throw new NotFoundError();
-    const url = await ext.storage.getDownloadUrl(attachment.storageKey, DOWNLOAD_TTL_SECONDS);
+    const url = await ext.storage.getDownloadUrl(attachment.storageKey, DOWNLOAD_TTL_SECONDS, { fileName: attachment.fileName });
     return { url, fileName: attachment.fileName, contentType: attachment.contentType, expiresInSeconds: DOWNLOAD_TTL_SECONDS };
   };
 }
