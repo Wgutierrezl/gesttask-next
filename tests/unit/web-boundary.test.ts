@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, ValidationError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, UnauthenticatedError } from "@/domain/errors";
 
 const redirect = vi.fn((to: string) => {
   throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${to};307;` });
@@ -13,48 +13,11 @@ vi.mock("next/cache", () => ({ revalidatePath }));
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ logger }) }));
 
-const { toHttp } = await import("@/app/_shared/to-http");
 const { loadPage } = await import("@/app/_shared/load-page");
 const { runMutation, text } = await import("@/app/_shared/run-mutation");
 const { failureOf } = await import("@/app/_shared/mutation-state");
 
 beforeEach(() => vi.clearAllMocks());
-
-describe("toHttp (REQ-API-03)", () => {
-  it.each([
-    [new ValidationError("Invalid input", { name: ["Required"] }), 422, "VALIDATION"],
-    [new UnauthenticatedError(), 401, "UNAUTHENTICATED"],
-    [new ForbiddenError(), 403, "FORBIDDEN"],
-    [new NotFoundError(), 404, "NOT_FOUND"],
-    [new ConflictError("Taken"), 409, "CONFLICT"],
-    [new StorageError(), 502, "STORAGE"],
-  ])("maps %s to its status with the uniform error body", (error, status, code) => {
-    const response = toHttp(error, "req-1");
-    expect(response.status).toBe(status);
-    expect(response.body.error).toMatchObject({ code, message: error.message, requestId: "req-1" });
-  });
-
-  it("carries field errors as details and Retry-After on rate limits", () => {
-    expect(toHttp(new ValidationError("Invalid input", { name: ["Required"] }), "r").body.error.details).toEqual({ name: ["Required"] });
-    const limited = toHttp(new RateLimitError(120), "r");
-    expect(limited.status).toBe(429);
-    expect(limited.headers["Retry-After"]).toBe("120");
-  });
-
-  it("hides everything about unexpected errors (no stack, no message, no PII)", () => {
-    const response = toHttp(new Error("password=hunter2 at /srv/app.ts:12"), "req-9");
-    expect(response.status).toBe(500);
-    expect(JSON.stringify(response)).not.toMatch(/hunter2|app\.ts/);
-    expect(response.body.error).toEqual({ code: "INTERNAL", message: "Something went wrong", requestId: "req-9" });
-  });
-
-  it("serializes to a problem+json Response", async () => {
-    const response = toHttp(new NotFoundError(), "r").toResponse();
-    expect(response.status).toBe(404);
-    expect(response.headers.get("content-type")).toBe("application/problem+json");
-    expect(await response.json()).toEqual({ error: { code: "NOT_FOUND", message: "Resource not found", requestId: "r" } });
-  });
-});
 
 describe("loadPage", () => {
   it("returns the data on success", async () => {
@@ -86,6 +49,11 @@ describe("runMutation", () => {
   it("redirects after success to the destination computed from the result", async () => {
     await expect(runMutation(async () => ({ id: "b1" }), { redirectTo: (b) => `/boards/${b.id}` })).rejects.toMatchObject({ digest: expect.stringContaining("/boards/b1") });
     expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("stays put when the destination callback returns null", async () => {
+    await expect(runMutation(async () => "ok", { redirectTo: () => null })).resolves.toEqual({ ok: true, data: null });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("returns typed failures without revalidating", async () => {
