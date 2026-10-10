@@ -45,6 +45,7 @@ export async function deleteTaskAction(_previous: MutationState, form: FormData)
   }
   return runMutation(() => getContainer().useCases.deleteTask({ taskId: text(form, "taskId") }), {
     ...pages,
+    cleanupStorage: true,
     redirectTo: ({ boardId, pipelineId }) => pipelinePath(boardId, pipelineId),
   });
 }

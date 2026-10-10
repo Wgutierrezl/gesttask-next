@@ -7,6 +7,8 @@ const redirect = vi.fn((to: string) => {
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("next/cache", () => ({ revalidatePath }));
+const scheduleStorageCleanup = vi.fn();
+vi.mock("@/app/_shared/storage-cleanup", () => ({ scheduleStorageCleanup }));
 const useCases = { createTask: vi.fn(), updateTask: vi.fn(), deleteTask: vi.fn(), moveTask: vi.fn(), reorderTask: vi.fn(), getTask: vi.fn(), listTasksByPipeline: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger: { error: vi.fn() } }) }));
 
@@ -81,6 +83,16 @@ describe("deleteTaskAction", () => {
     expect(useCases.deleteTask).toHaveBeenCalledWith({ taskId: ID(4) });
     expect(refreshed()).toEqual([PIPELINE_PAGE, TASK_PAGE]);
     expect(digest).toContain(`/boards/${ID(1)}/pipelines/${ID(2)}`);
+  });
+
+  it("queues the storage cleanup only when the delete really happened", async () => {
+    await actions.deleteTaskAction(undefined, form(entries));
+    useCases.deleteTask.mockRejectedValueOnce(new NotFoundError());
+    await actions.deleteTaskAction(undefined, form({ ...entries, confirm: "yes" }));
+    expect(scheduleStorageCleanup).not.toHaveBeenCalled();
+    useCases.deleteTask.mockResolvedValue({ boardId: ID(1), pipelineId: ID(2) });
+    await actions.deleteTaskAction(undefined, form({ ...entries, confirm: "yes" })).catch(() => undefined);
+    expect(scheduleStorageCleanup).toHaveBeenCalledOnce();
   });
 
   it("ignores ids sent by the client: the landing page comes from the deleted task", async () => {

@@ -12,6 +12,9 @@ const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidatePath }));
+/** Work a Server Action defers with `after()`: collected here so a test can run it like the framework would. */
+const deferred = vi.hoisted(() => [] as (() => Promise<void>)[]);
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: (work: () => Promise<void>) => void deferred.push(work) }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${to};307;` });
@@ -73,6 +76,7 @@ beforeEach(async () => {
   await resetDb(handle);
   as(new Headers());
   revalidatePath.mockClear();
+  deferred.length = 0;
 });
 afterAll(async () => {
   await getContainer().close();
@@ -109,6 +113,7 @@ describe("board actions on Postgres", () => {
     ]) expect(await attempt()).toMatchObject({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
     expect(await boardRow(a.boardId)).toMatchObject({ status: "active" });
     expect((await boardRow(a.boardId))?.name).not.toBe("pwned");
+    expect(deferred).toHaveLength(0); // a refused delete queued nothing, so there is nothing to clean up
 
     as(a.headers);
     expect(await boards.updateBoardAction(undefined, form({ boardId: a.boardId, name: "Renamed", description: "d" }))).toEqual({ ok: true, data: null });
@@ -116,6 +121,7 @@ describe("board actions on Postgres", () => {
     expect(await boardRow(a.boardId)).toMatchObject({ name: "Renamed", status: "inactive" });
     expect(await redirected(boards.deleteBoardAction(undefined, form({ boardId: a.boardId, confirm: "yes" })))).toContain("/boards;");
     expect(await boardRow(a.boardId)).toBeUndefined();
+    expect(deferred).toHaveLength(1); // the storage drain runs after the response
   });
 
   it("sends every action to the login page when there is no session", async () => {
