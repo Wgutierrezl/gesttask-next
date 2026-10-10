@@ -5,6 +5,10 @@ import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
 import { makeGetBoard } from "@/application/use-cases/boards/get-board";
 import { makeListMyBoards } from "@/application/use-cases/boards/list-my-boards";
 import { makeUpdateBoard } from "@/application/use-cases/boards/update-board";
+import { makeCreateComment } from "@/application/use-cases/comments/create-comment";
+import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
+import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
+import { makeListComments } from "@/application/use-cases/comments/list-comments";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeAddMemberByEmail } from "@/application/use-cases/members/add-member-by-email";
 import { makeChangeMemberRole } from "@/application/use-cases/members/change-member-role";
@@ -67,5 +71,9 @@ export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limite
     moveTask: makeMoveTask(deps),
     reorderTask: makeReorderTask(deps),
     updateTask: makeUpdateTask(deps),
+    createComment: makeCreateComment(deps),
+    deleteComment: makeDeleteComment(deps),
+    editComment: makeEditComment(deps),
+    listComments: makeListComments(deps, ext.users),
   };
 }
