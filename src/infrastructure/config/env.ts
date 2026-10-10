@@ -86,7 +86,8 @@ function describe(code: string): string {
 let cached: Env | undefined;
 
 /** Validates `process.env` once and fails fast at startup. */
-export function getEnv(): Env {
-  cached ??= parseEnv(process.env);
+export function getEnv(source: Record<string, string | undefined> = process.env): Env {
+  if (source !== process.env) return parseEnv(source);
+  cached ??= parseEnv(source);
   return cached;
 }
