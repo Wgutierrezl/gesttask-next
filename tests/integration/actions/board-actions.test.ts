@@ -10,7 +10,8 @@ import { drizzleDeps } from "../support/tx";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.hoisted(() => vi.fn());
+vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${to};307;` });
@@ -71,6 +72,7 @@ const roleOf = async (boardId: string, userId: string) =>
 beforeEach(async () => {
   await resetDb(handle);
   as(new Headers());
+  revalidatePath.mockClear();
 });
 afterAll(async () => {
   await getContainer().close();
@@ -189,6 +191,59 @@ describe("member and pipeline actions on Postgres", () => {
     await members.addMemberAction(undefined, form({ boardId: t.boardId, email: "invitee@example.com", role: "owner" }));
     expect(await redirected(members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId })))).toContain("/boards;");
     expect(await roleOf(t.boardId, t.owner.userId)).toBeUndefined();
+  });
+});
+
+describe("cross-board attempts by an owner of another board", () => {
+  async function twoBoards() {
+    const [alice, bob, carol] = [await account("alice@example.com"), await account("bob@example.com"), await account("carol@example.com")];
+    const create = async (who: { headers: Headers }, name: string) => {
+      as(who.headers);
+      return (await redirected(boards.createBoardAction(undefined, form({ name })))).split("/boards/")[1]!.split(";")[0]!;
+    };
+    const [boardA, boardB] = [await create(alice, "Alice board"), await create(bob, "Bob board")];
+    as(alice.headers);
+    await members.addMemberAction(undefined, form({ boardId: boardA, email: "carol@example.com", role: "member" }));
+    as(bob.headers);
+    return { alice, bob, carol, boardA, boardB };
+  }
+
+  it("cannot change or remove anyone on a board it does not belong to, nor aim a foreign userId at its own", async () => {
+    const t = await twoBoards();
+    revalidatePath.mockClear();
+    const attempts = [
+      () => members.changeMemberRoleAction(undefined, form({ boardId: t.boardA, userId: t.carol.userId, role: "owner" })),
+      () => members.removeMemberAction(undefined, form({ boardId: t.boardA, userId: t.alice.userId })),
+      () => members.addMemberAction(undefined, form({ boardId: t.boardA, email: "bob@example.com", role: "owner" })),
+      () => members.changeMemberRoleAction(undefined, form({ boardId: t.boardB, userId: t.carol.userId, role: "owner" })),
+      () => members.removeMemberAction(undefined, form({ boardId: t.boardB, userId: t.alice.userId })),
+      () => pipelines.createPipelineAction(undefined, form({ boardId: t.boardA, name: "Injected" })),
+    ];
+    for (const attempt of attempts) expect(await attempt()).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await roleOf(t.boardA, t.carol.userId)).toBe("member");
+    expect(await roleOf(t.boardA, t.alice.userId)).toBe("owner");
+    expect(await roleOf(t.boardA, t.bob.userId)).toBeUndefined();
+    expect(await roleOf(t.boardB, t.carol.userId)).toBeUndefined();
+    expect(await handle.db.select().from(schema.pipelines)).toHaveLength(0);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("refreshes exactly the pages each successful action changes", async () => {
+    const t = await twoBoards();
+    const { boardB: id } = t;
+    const refreshed = async (run: () => Promise<unknown>) => (revalidatePath.mockClear(), await run(), revalidatePath.mock.calls.map(([path]) => path).sort());
+    const pages = [`/boards/${id}`, `/boards/${id}/settings`];
+    expect(await refreshed(() => members.addMemberAction(undefined, form({ boardId: id, email: "carol@example.com", role: "member" })))).toEqual(pages.sort());
+    expect(await refreshed(() => members.changeMemberRoleAction(undefined, form({ boardId: id, userId: t.carol.userId, role: "guest" })))).toEqual(pages.sort());
+    expect(await refreshed(() => pipelines.createPipelineAction(undefined, form({ boardId: id, name: "Sprint" })))).toEqual([`/boards/${id}`]);
+    expect(await refreshed(() => members.removeMemberAction(undefined, form({ boardId: id, userId: t.carol.userId })))).toEqual([...pages, "/boards"].sort());
+  });
+
+  it("refuses demo-session owners the invitation lookup at the action level", async () => {
+    const g = await guest();
+    as(g.headers);
+    expect(await members.addMemberAction(undefined, form({ boardId: g.boardId, email: "someone@example.com", role: "member" }))).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 

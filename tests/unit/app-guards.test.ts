@@ -42,7 +42,9 @@ describe("authorization guards are present everywhere", () => {
       expect(readFileSync(file, "utf8"), `${file} binds a server action`).not.toMatch(/\.bind\(null/);
       const imports = [...readFileSync(file, "utf8").matchAll(/^import (?!type\b)[^;]*from "([^"]+)"/gm)].map((m) => m[1]!);
       for (const target of imports) {
-        expect(target, `${file} imports ${target}`).not.toMatch(/infrastructure|_shared\/(run-mutation|load-page|require-page-actor)/);
+        expect(target, `${file} imports ${target}`).not.toMatch(
+          /infrastructure|@\/application\/use-cases|^next\/headers$|^server-only$|_shared\/(run-mutation|load-page|require-page-actor)/,
+        );
       }
     }
   });
@@ -55,6 +57,27 @@ describe("authorization guards are present everywhere", () => {
       expect(source, rel(file)).toMatch(/\b(withActor|requireActor|requirePageActor)\b|\.useCases\./);
       expect(source, `${rel(file)} must not use a raw use-case factory`).not.toMatch(/\bmake[A-Z]\w+\(/);
     }
+  });
+
+  it("guards each exported action individually and limits what actions take from the container", () => {
+    const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file) && !PUBLIC_ACTION_FILES.includes(rel(file)));
+    let exported = 0;
+    for (const file of actions) {
+      const source = readFileSync(file, "utf8");
+      const bodies = source.split(/^export (?=async function )/m).slice(1);
+      expect(bodies.length, `${rel(file)} exports no action`).toBeGreaterThan(0);
+      expect(source.match(/^export /gm)?.length, `${rel(file)} may export only async functions`).toBe(bodies.length);
+      for (const body of bodies) {
+        exported += 1;
+        expect(body, `${rel(file)}: ${body.slice(0, 40)}`).toMatch(/\bgetContainer\(\)\.useCases\./);
+        expect(body, `${rel(file)}: ${body.slice(0, 40)}`).toMatch(/\brunMutation\(/);
+      }
+      // Actions may touch only the guarded use cases, the logger and the current user's id: never repos, auth or db.
+      for (const use of source.matchAll(/getContainer\(\)(\.\w+(?:\.\w+)?)?/g)) {
+        expect(use[1], `${rel(file)}: ${use[0]}`).toMatch(/^\.(useCases|logger|session\.getActor)$|^\.useCases/);
+      }
+    }
+    expect(exported).toBeGreaterThanOrEqual(8);
   });
 
   it("guards every non-public Server Action file with the 'use server' directive", () => {
