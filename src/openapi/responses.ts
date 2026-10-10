@@ -1,8 +1,8 @@
-import { z } from "zod";
 import { BOARD_ROLES } from "@/domain/value-objects/board-role";
 import { BOARD_STATUSES } from "@/domain/value-objects/board-status";
 import { PRIORITIES } from "@/domain/value-objects/priority";
 import { TASK_STATUSES } from "@/domain/value-objects/task-status";
+import { z } from "./zod";
 
 /**
  * What the API answers, as strict schemas: an unlisted field fails the contract tests, so a column added to an entity
@@ -18,11 +18,11 @@ export const boardResponse = z.strictObject({
   description: z.string(),
   status: z.enum(BOARD_STATUSES),
   createdAt: dateTime,
-});
+}).openapi("Board");
 
-export const boardWithRoleResponse = z.strictObject({ board: boardResponse, role });
+export const boardWithRoleResponse = z.strictObject({ board: boardResponse, role }).openapi("BoardWithRole");
 
-export const memberResponse = z.strictObject({ boardId: id, userId: z.string(), role });
+export const memberResponse = z.strictObject({ boardId: id, userId: z.string(), role }).openapi("Member");
 
 export const memberProfileResponse = z.strictObject({
   userId: z.string(),
@@ -30,11 +30,11 @@ export const memberProfileResponse = z.strictObject({
   name: z.string(),
   /** Only for callers who may manage members; null for everyone else. */
   email: z.string().nullable(),
-});
+}).openapi("MemberProfile");
 
-export const pipelineResponse = z.strictObject({ id, boardId: id, name: z.string(), description: z.string() });
+export const pipelineResponse = z.strictObject({ id, boardId: id, name: z.string(), description: z.string() }).openapi("Pipeline");
 
-export const pipelineWithRoleResponse = z.strictObject({ pipeline: pipelineResponse, role });
+export const pipelineWithRoleResponse = z.strictObject({ pipeline: pipelineResponse, role }).openapi("PipelineWithRole");
 
 export const stageResponse = z.strictObject({
   id,
@@ -44,7 +44,7 @@ export const stageResponse = z.strictObject({
   isDone: z.boolean(),
   /** Fractional index inside the pipeline: orders stages, never built by clients (use afterStageId). */
   position: z.string(),
-});
+}).openapi("Stage");
 
 export const taskResponse = z.strictObject({
   id,
@@ -65,7 +65,7 @@ export const taskResponse = z.strictObject({
   createdAt: dateTime,
   /** Derived at read time: past due and not completed. */
   overdue: z.boolean(),
-});
+}).openapi("Task");
 
 /** What `createComment` and `editComment` return: the stored comment. */
 export const commentResponse = z.strictObject({
@@ -76,9 +76,9 @@ export const commentResponse = z.strictObject({
   authorId: z.string().nullable(),
   body: z.string(),
   createdAt: dateTime,
-});
+}).openapi("Comment");
 
-export const attachmentMetadataResponse = z.strictObject({ id, fileName: z.string(), contentType: z.string(), size: z.number().int() });
+export const attachmentMetadataResponse = z.strictObject({ id, fileName: z.string(), contentType: z.string(), size: z.number().int() }).openapi("AttachmentMetadata");
 
 export const commentViewResponse = z.strictObject({
   id,
@@ -91,16 +91,16 @@ export const commentViewResponse = z.strictObject({
   attachments: z.array(attachmentMetadataResponse),
   /** Whether you may edit or delete it. */
   canManage: z.boolean(),
-});
+}).openapi("CommentView");
 
 /** How to send the file, by storage driver: S3 presigned POST, Vercel Blob client token, or the local dev PUT. */
 export const uploadTicketResponse = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("s3-post"), url: z.url(), fields: z.record(z.string(), z.string()) }),
   z.strictObject({ kind: z.literal("blob-token"), clientToken: z.string(), pathname: z.string() }),
   z.strictObject({ kind: z.literal("local-put"), url: z.url() }),
-]);
+]).openapi("UploadTicket");
 
-export const uploadRequestResponse = z.strictObject({ attachmentId: id, ticket: uploadTicketResponse });
+export const uploadRequestResponse = z.strictObject({ attachmentId: id, ticket: uploadTicketResponse }).openapi("UploadRequest");
 
 export const attachmentDownloadResponse = z.strictObject({
   /** Signed and expiring: a credential. */
@@ -108,7 +108,7 @@ export const attachmentDownloadResponse = z.strictObject({
   fileName: z.string(),
   contentType: z.string(),
   expiresInSeconds: z.number().int(),
-});
+}).openapi("AttachmentDownload");
 
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
@@ -118,7 +118,7 @@ export const errorResponse = z.strictObject({
     details: z.record(z.string(), z.array(z.string())).optional(),
     requestId: z.string(),
   }),
-});
+}).openapi("Error");
 
 /** `{ items, nextCursor }` around the item schema of a list. */
 export const pageOf = <T extends z.ZodType>(item: T) => z.strictObject({ items: z.array(item), nextCursor: z.string().nullable() });

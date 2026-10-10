@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "openapi:validate": "tsx scripts/validate-openapi.ts",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "depcruise:graph": "depcruise src --config .dependency-cruiser.cjs --output-type dot > depcruise-graph.dot",
     "test": "vitest run",
@@ -26,6 +27,7 @@
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "9.1.0",
     "@aws-sdk/client-s3": "3.1149.0",
     "@aws-sdk/s3-presigned-post": "3.1149.0",
     "@aws-sdk/s3-request-presigner": "3.1149.0",
@@ -44,6 +46,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@scalar/openapi-parser": "0.29.12",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
