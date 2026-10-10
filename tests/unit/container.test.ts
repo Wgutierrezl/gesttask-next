@@ -29,6 +29,17 @@ describe("buildContainer", () => {
     await container.close();
   }, 30_000);
 
+  it("tells the REST API which hosts are its own and rate limits per client", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const withUrl = buildContainer({ ...valid, BETTER_AUTH_URL: "https://gesttask.example.com:8443/app" });
+    expect(withUrl.api.trustedHosts).toEqual(["gesttask.example.com:8443"]);
+    expect(typeof withUrl.api.limit).toBe("function");
+    await withUrl.close();
+    const without = buildContainer(valid);
+    expect(without.api.trustedHosts).toEqual([]);
+    await without.close();
+  }, 30_000);
+
   it("builds the storage driver and the background jobs from the environment", async () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);
