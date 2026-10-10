@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, ValidationError,
 } from "@/domain/errors";
@@ -42,5 +42,39 @@ describe("runAction", () => {
     const seen: unknown[] = [];
     await runAction(async () => { throw new NotFoundError(); }, (error) => seen.push(error));
     expect(seen).toEqual([]);
+  });
+});
+
+/**
+ * Next bundles a route handler apart from the page that built the shared container, so the error classes a use case
+ * throws can come from another copy of the module: `instanceof` is false there. Found in the browser smoke test of the
+ * attachment download route, which answered 500 for a plain "not found".
+ */
+describe("errors from another copy of the domain module", () => {
+  async function foreign() {
+    vi.resetModules();
+    return import("@/domain/errors");
+  }
+
+  it("are still recognized as domain errors and never reported as bugs", async () => {
+    const other = await foreign();
+    expect(other.NotFoundError).not.toBe(NotFoundError);
+    const seen: unknown[] = [];
+    expect(await runAction(async () => { throw new other.NotFoundError(); }, (error) => seen.push(error))).toEqual({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
+    expect(await runAction(async () => { throw new other.UnauthenticatedError(); }, (error) => seen.push(error))).toMatchObject({ code: "UNAUTHENTICATED" });
+    expect(seen).toEqual([]);
+  });
+
+  it("keep their field errors and retry-after hints", async () => {
+    const other = await foreign();
+    expect(await runAction(async () => { throw new other.ValidationError("Invalid input", { size: ["too big"] }); })).toMatchObject({ code: "VALIDATION", fieldErrors: { size: ["too big"] } });
+    expect(await runAction(async () => { throw new other.RateLimitError(30); })).toMatchObject({ code: "RATE_LIMITED", retryAfterSeconds: 30 });
+  });
+
+  it("do not make look-alikes domain errors: a plain Error with a code stays a bug", async () => {
+    const seen: unknown[] = [];
+    const result = await runAction(async () => { throw Object.assign(new Error("db"), { code: "NOT_FOUND" }); }, (error) => seen.push(error));
+    expect(result).toMatchObject({ code: "INTERNAL" });
+    expect(seen).toHaveLength(1);
   });
 });
