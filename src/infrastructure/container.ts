@@ -2,8 +2,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import type { Actor } from "@/application/actor";
+import { API_RATE_READ, API_RATE_WRITE, type ApiRateKind } from "@/application/api-policy";
 import type { SessionPort } from "@/application/ports/services";
 import { guardAll } from "@/application/require-actor";
+import { enforceRateLimit } from "@/application/use-cases/auth/_rate-limit";
 import { makeSignInEmail } from "@/application/use-cases/auth/sign-in-email";
 import { makeSignInGuest } from "@/application/use-cases/auth/sign-in-guest";
 import { makeSignOut } from "@/application/use-cases/auth/sign-out";
@@ -46,11 +48,22 @@ export interface Container {
   useCases: GuardedUseCases;
   /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
   maintenance: Maintenance;
+  /** What the REST API (`/api/v1`) needs besides the use cases: the hosts it trusts as its own, and its per-client rate limit. */
+  api: { trustedHosts: string[]; limit(kind: ApiRateKind): Promise<void> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
   authHandler: (request: Request) => Promise<Response>;
   close(): Promise<void>;
+}
+
+/** The public host the app answers to when a proxy rewrites `Host` (BETTER_AUTH_URL), as CSRF checks compare it. */
+function publicHosts(appUrl: string | undefined): string[] {
+  try {
+    return appUrl ? [new URL(appUrl).host] : [];
+  } catch {
+    return [];
+  }
 }
 
 export function buildContainer(source: Record<string, string | undefined> = process.env): Container {
@@ -102,6 +115,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signInEmail: async (input) => signInEmail(await caller(), input),
       signUp: async (input) => signUp(await caller(), input),
       signOut: () => signOut(),
+    },
+    api: {
+      trustedHosts: publicHosts(env.BETTER_AUTH_URL),
+      limit: async (kind) => enforceRateLimit(limiter, `api:${kind}:${(await caller()).clientKey}`, kind === "read" ? API_RATE_READ : API_RATE_WRITE),
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),

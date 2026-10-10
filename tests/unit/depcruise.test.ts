@@ -89,4 +89,11 @@ describe("dependency boundaries", () => {
       );
     });
   });
+
+  describe("openapi", () => {
+    it("is a declaration layer: it may use application and domain, never infrastructure", async () => {
+      const violations = await violationsIn("violations");
+      expect(ruleNamesFor(violations, "openapi/uses-repo.ts")).toContain("openapi-declares-over-application-only");
+    });
+  });
 });
