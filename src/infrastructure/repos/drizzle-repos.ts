@@ -1,6 +1,9 @@
 import type { Repos } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
+import { createAttachmentRepo } from "./drizzle-attachment.repo";
 import { createBoardRepo } from "./drizzle-board.repo";
+import { createCommentRepo } from "./drizzle-comment.repo";
+import { DrizzleDeletionOutbox } from "./drizzle-deletion-outbox";
 import { createMemberRepo } from "./drizzle-member.repo";
 import { createPipelineRepo } from "./drizzle-pipeline.repo";
 import { createStageRepo } from "./drizzle-stage.repo";
@@ -17,5 +20,8 @@ export function createDrizzleRepos(db: Database, lock: boolean): Repos {
     pipelines: createPipelineRepo(db, lock),
     stages: createStageRepo(db, lock),
     tasks: createTaskRepo(db, lock),
+    comments: createCommentRepo(db, lock),
+    attachments: createAttachmentRepo(db, lock),
+    outbox: new DrizzleDeletionOutbox(db),
   };
 }

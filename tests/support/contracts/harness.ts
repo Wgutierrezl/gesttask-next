@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Repos, UnitOfWork } from "@/application/ports/repositories";
 import type { Board } from "@/domain/entities/board";
+import type { Attachment, Comment } from "@/domain/entities/comment";
 import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 import type { Task } from "@/domain/entities/task";
 
@@ -52,3 +53,23 @@ export async function seedStage(h: RepoHarness, stageExtra: Partial<Stage> = {})
   await h.repos.stages.insert(stage);
   return { board, pipeline, stage };
 }
+
+/** A board, pipeline, stage and one task: the parent chain a comment needs. */
+export async function seedTask(h: RepoHarness) {
+  const seeded = await seedStage(h);
+  const task = makeTask(seeded.stage);
+  await h.repos.tasks.insert(task);
+  return { ...seeded, task };
+}
+
+export const makeComment = (task: Task, extra: Partial<Comment> = {}): Comment => ({
+  id: uuid(), taskId: task.id, boardId: task.boardId, authorId: "author", body: "A comment", createdAt: T0, ...extra,
+});
+
+export const makeAttachment = (boardId: string, extra: Partial<Attachment> = {}): Attachment => {
+  const id = uuid();
+  return {
+    id, commentId: null, boardId, uploaderId: "author", storageKey: `boards/${boardId}/attachments/${id}`, fileName: "photo.png",
+    contentType: "image/png", size: 1024, status: "pending", createdAt: T0, ...extra,
+  };
+};
