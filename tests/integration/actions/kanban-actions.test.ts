@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${to};307;` });
   },
+  useRouter: () => ({ refresh: vi.fn() }),
   notFound: () => {
     throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   },

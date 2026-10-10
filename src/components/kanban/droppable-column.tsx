@@ -13,17 +13,18 @@ interface DroppableColumnProps {
   nameOf: (userId: string) => string | null;
   taskHref: (taskId: string) => string;
   onMove: (request: MoveRequest) => void;
+  registerHandle: (taskId: string, element: HTMLElement | null) => void;
 }
 
 /** A stage that accepts drops on its open area (so an empty stage can receive a card) and sorts the cards inside it. */
-export function DroppableColumn({ column, columns, nameOf, taskHref, onMove }: DroppableColumnProps) {
+export function DroppableColumn({ column, columns, nameOf, taskHref, onMove, registerHandle }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({ id: columnId(column.stage.id) });
   return (
     <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
       <ColumnShell column={column} listRef={setNodeRef}>
         {column.tasks.map((task) => (
           <li key={task.id}>
-            <SortableCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} href={taskHref(task.id)} columns={columns} onMove={onMove} />
+            <SortableCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} href={taskHref(task.id)} columns={columns} onMove={onMove} registerHandle={registerHandle} />
           </li>
         ))}
       </ColumnShell>

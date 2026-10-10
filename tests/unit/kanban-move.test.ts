@@ -41,13 +41,19 @@ describe("applyMove", () => {
     expect(same[2]!.tasks[0]!.completedAt).toBe("2026-10-01T00:00:00.000Z");
   });
 
-  it("recomputes overdue: a late task is no longer overdue once completed, and is again when reopened", () => {
+  it("leaves overdue to the server: the flag is never recomputed from the browser clock", () => {
     const late = board();
     late[0]!.tasks[0] = task("a", "todo", { dueDate: "2026-10-01", overdue: true });
-    const done = applyMove(late, { taskId: "a", toStageId: "done", afterTaskId: null }, NOW);
-    expect(done[2]!.tasks[0]!.overdue).toBe(false);
-    const reopened = applyMove(done, { taskId: "a", toStageId: "doing", afterTaskId: null }, NOW);
-    expect(reopened[1]!.tasks[0]!.overdue).toBe(true);
+    late[0]!.tasks[1] = task("b", "todo", { dueDate: "2026-10-01", overdue: false });
+    const moved = applyMove(late, { taskId: "a", toStageId: "done", afterTaskId: null }, NOW);
+    expect(moved[2]!.tasks[0]!.overdue).toBe(true);
+    expect(applyMove(late, { taskId: "b", toStageId: "doing", afterTaskId: null }, NOW)[1]!.tasks[0]!.overdue).toBe(false);
+  });
+
+  it("puts the task last in the destination for an end move, whatever is shown there", () => {
+    expect(ids(applyMove(board(), { taskId: "a", toStageId: "done", afterTaskId: null, toEnd: true }, NOW))[2]).toEqual(["d", "a"]);
+    expect(ids(applyMove(board(), { taskId: "a", toStageId: "todo", afterTaskId: null, toEnd: true }, NOW))[0]).toEqual(["b", "c", "a"]);
+    expect(ids(applyMove(board(), { taskId: "a", toStageId: "doing", afterTaskId: null, toEnd: true }, NOW))[1]).toEqual(["a"]);
   });
 
   it("does not mutate its input", () => {
@@ -102,8 +108,8 @@ describe("neighborMoves", () => {
     expect(middle.up).toEqual({ taskId: "b", toStageId: "todo", afterTaskId: null });
     expect(middle.down).toEqual({ taskId: "b", toStageId: "todo", afterTaskId: "c" });
     expect(middle.toStages).toEqual([
-      { stageId: "doing", name: "In progress", request: { taskId: "b", toStageId: "doing", afterTaskId: null } },
-      { stageId: "done", name: "Done", request: { taskId: "b", toStageId: "done", afterTaskId: "d" } },
+      { stageId: "doing", name: "In progress", request: { taskId: "b", toStageId: "doing", afterTaskId: null, toEnd: true } },
+      { stageId: "done", name: "Done", request: { taskId: "b", toStageId: "done", afterTaskId: null, toEnd: true } },
     ]);
     const first = neighborMoves(board(), "a");
     expect(first.up).toBeNull();

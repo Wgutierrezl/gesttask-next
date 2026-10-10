@@ -13,15 +13,20 @@ interface SortableCardProps {
   href: string;
   columns: ColumnView[];
   onMove: (request: MoveRequest) => void;
+  /** Lets the board find the handle again to put focus back after a move. */
+  registerHandle: (taskId: string, element: HTMLElement | null) => void;
 }
 
 /** A card that can be dragged by its handle with the pointer or the keyboard (space, arrows, space), or moved from its menu. */
-export function SortableCard({ task, assigneeName, href, columns, onMove }: SortableCardProps) {
+export function SortableCard({ task, assigneeName, href, columns, onMove, registerHandle }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const handle = (
     <button
       type="button"
-      ref={setActivatorNodeRef}
+      ref={(element) => {
+        setActivatorNodeRef(element);
+        registerHandle(task.id, element);
+      }}
       {...attributes}
       {...listeners}
       aria-label={`Drag ${task.title}`}

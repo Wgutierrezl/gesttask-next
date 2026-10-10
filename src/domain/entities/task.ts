@@ -22,7 +22,10 @@ export interface Task {
 
 export type TaskView = Task & { overdue: boolean };
 
-/** Overdue is derived at read time, never stored and never an error (REQ-TSK-05). */
+/**
+ * Overdue is derived at read time, never stored and never an error (REQ-TSK-05). Due dates are calendar dates and
+ * "today" is the UTC date of the server clock, the same basis the board uses when it shows a due date.
+ */
 export function isOverdue(task: Pick<Task, "dueDate" | "completedAt">, now: Date): boolean {
   return task.dueDate !== null && task.completedAt === null && task.dueDate < now.toISOString().slice(0, 10);
 }
