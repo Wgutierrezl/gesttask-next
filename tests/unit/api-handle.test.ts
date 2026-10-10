@@ -90,6 +90,12 @@ describe("handle: the thin adapter between a route and a use case", () => {
     });
   });
 
+  it("wraps an unpaginated list with a null cursor", async () => {
+    useCases.listMyMemberships = vi.fn().mockResolvedValue([{ boardId: BOARD, userId: "u", role: "owner" }]);
+    expect(await (await call("listMyMemberships")).json()).toEqual({ items: [{ boardId: BOARD, userId: "u", role: "owner" }], nextCursor: null });
+    expect(useCases.listMyMemberships).toHaveBeenCalledWith({});
+  });
+
   describe("errors", () => {
     it("maps domain errors to the uniform body with the request id, and echoes a client-supplied id", async () => {
       useCases.getBoard = vi.fn().mockRejectedValue(new NotFoundError());
