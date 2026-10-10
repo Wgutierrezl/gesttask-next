@@ -105,7 +105,7 @@ describe("CommentItem", () => {
 describe("CommentForm", () => {
   it("posts the text for the task", async () => {
     const user = userEvent.setup();
-    render(<CommentForm taskId="t1" />);
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
     await user.type(screen.getByLabelText("Add a comment"), "Ship it");
     await user.click(screen.getByRole("button", { name: "Comment" }));
     await waitFor(() => expect(actions.createCommentAction).toHaveBeenCalled());
@@ -113,14 +113,14 @@ describe("CommentForm", () => {
   });
 
   it("limits the text to 2000 characters in the browser too", () => {
-    render(<CommentForm taskId="t1" />);
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
     expect((screen.getByLabelText("Add a comment") as HTMLTextAreaElement).maxLength).toBe(2000);
   });
 
   it("links a validation error to the box", async () => {
     actions.createCommentAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { body: ["Write something first"] } });
     const user = userEvent.setup();
-    render(<CommentForm taskId="t1" />);
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
     await user.type(screen.getByLabelText("Add a comment"), " ");
     await user.click(screen.getByRole("button", { name: "Comment" }));
     expect(await screen.findByText("Write something first")).toBeTruthy();
@@ -130,20 +130,20 @@ describe("CommentForm", () => {
 
 describe("CommentsSection", () => {
   it("lists the comments oldest first under a heading and offers the form", () => {
-    render(<CommentsSection taskId="t1" comments={[row({ id: "a", body: "first" }), row({ id: "b", body: "second", authorName: "Marco" })]} truncated={false} />);
+    render(<CommentsSection taskId="t1" comments={[row({ id: "a", body: "first" }), row({ id: "b", body: "second", authorName: "Marco" })]} truncated={false} canAttach demoGuest={false} />);
     expect(screen.getByRole("heading", { name: "Comments (2)" })).toBeTruthy();
     expect(screen.getAllByRole("article").map((a) => a.textContent)).toEqual([expect.stringContaining("first"), expect.stringContaining("second")]);
     expect(screen.getByLabelText("Add a comment")).toBeTruthy();
   });
 
   it("says so when there are none", () => {
-    render(<CommentsSection taskId="t1" comments={[]} truncated={false} />);
+    render(<CommentsSection taskId="t1" comments={[]} truncated={false} canAttach demoGuest={false} />);
     expect(screen.getByText("No comments yet.")).toBeTruthy();
     expect(screen.queryAllByRole("article")).toEqual([]);
   });
 
   it("says when older or newer comments are left out of the page", () => {
-    render(<CommentsSection taskId="t1" comments={[row()]} truncated />);
+    render(<CommentsSection taskId="t1" comments={[row()]} truncated canAttach demoGuest={false} />);
     expect(screen.getByRole("status").textContent).toMatch(/first 200 comments/i);
   });
 });

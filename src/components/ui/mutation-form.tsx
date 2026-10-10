@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import type { ActionFailure } from "@/application/result";
 import { failureOf, type MutationState } from "@/app/_shared/mutation-state";
 import { FormError } from "@/components/auth/form-error";
@@ -12,13 +12,20 @@ interface MutationFormProps {
   hidden?: Record<string, string>;
   /** Fields whose errors the children render next to their inputs. */
   inlineFields?: readonly string[];
+  /** Runs after each successful submission, e.g. to clear client state the form reset does not touch. */
+  onSuccess?: () => void;
   className?: string;
   children: (failure: ActionFailure | undefined) => ReactNode;
 }
 
 /** A form that runs a Server Action and shows its failure in a live region. */
-export function MutationForm({ action, hidden = {}, inlineFields, className, children }: MutationFormProps) {
+export function MutationForm({ action, hidden = {}, inlineFields, onSuccess, className, children }: MutationFormProps) {
   const [state, formAction] = useActionState(action, undefined);
+  useEffect(() => {
+    if (state?.ok) onSuccess?.();
+    // `onSuccess` is deliberately not a dependency: each new result object is one submission.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
   const failure = failureOf(state);
   return (
     <form action={formAction} className={className}>

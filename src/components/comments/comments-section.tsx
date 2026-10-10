@@ -7,9 +7,11 @@ interface CommentsSectionProps {
   comments: CommentRow[];
   /** More comments exist than this page loaded. */
   truncated: boolean;
+  canAttach: boolean;
+  demoGuest: boolean;
 }
 
-export function CommentsSection({ taskId, comments, truncated }: CommentsSectionProps) {
+export function CommentsSection({ taskId, comments, truncated, canAttach, demoGuest }: CommentsSectionProps) {
   return (
     <section aria-labelledby="comments-heading" className="flex flex-col gap-4">
       <h2 id="comments-heading" className="text-lg font-medium">Comments ({comments.length})</h2>
@@ -19,7 +21,7 @@ export function CommentsSection({ taskId, comments, truncated }: CommentsSection
           {comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)}
         </div>
       )}
-      <CommentForm taskId={taskId} />
+      <CommentForm taskId={taskId} canAttach={canAttach} demoGuest={demoGuest} />
     </section>
   );
 }

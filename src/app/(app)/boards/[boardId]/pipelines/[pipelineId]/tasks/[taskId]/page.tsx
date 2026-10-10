@@ -19,7 +19,7 @@ interface TaskPageProps {
 }
 
 export default async function TaskPage({ params }: TaskPageProps) {
-  await requirePageActor();
+  const actor = await requirePageActor();
   const { boardId, pipelineId, taskId } = await params;
   const data = await loadPage(async () => {
     const { getTask, getPipeline, listStages, listMemberProfiles, listComments } = getContainer().useCases;
@@ -78,7 +78,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
         <dd>{formatDate(task.createdAt.toISOString())}</dd>
       </dl>
       {task.description ? <p className="whitespace-pre-wrap text-sm">{task.description}</p> : null}
-      <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} />
+      <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />
       {canWrite ? (
         <>
           <section aria-labelledby="move-heading">
