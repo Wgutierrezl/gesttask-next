@@ -7,3 +7,9 @@ const role = z.enum(BOARD_ROLES);
 export const addMemberSchema = z.object({ boardId: idSchema, userId: userIdSchema, role });
 export const memberTargetSchema = z.object({ boardId: idSchema, userId: userIdSchema });
 export const changeMemberRoleSchema = z.object({ boardId: idSchema, userId: userIdSchema, role });
+
+export const addMemberByEmailSchema = z.object({
+  boardId: idSchema,
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+  role,
+});
