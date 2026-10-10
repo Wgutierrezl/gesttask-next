@@ -72,6 +72,15 @@ describe("TaskPage", () => {
     expect(html).toContain("Hello");
     expect(html).toContain("Add a comment");
     expect(html).not.toContain("Edit task");
+    expect(html).not.toContain("Attach files");
+    expect(html).toContain("only members can attach files");
+  });
+
+  it("offers the file picker to writers, with the demo limits spelled out for demo sessions", async () => {
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }))).toContain("Attach files");
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }))).not.toContain("Demo sessions can attach");
+    getActor.mockResolvedValue({ userId: "g1", isGuest: true });
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }))).toContain("Demo sessions can attach up to 5 files in total");
   });
 
   it("does not load comments for a task the viewer may not see", async () => {

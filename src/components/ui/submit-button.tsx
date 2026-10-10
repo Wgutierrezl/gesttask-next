@@ -15,13 +15,15 @@ interface SubmitButtonProps {
   variant?: keyof typeof STYLES;
   /** Accessible name when the visible text alone is ambiguous, e.g. one "Remove" button per row. */
   ariaLabel?: string;
+  /** Keeps the button disabled for reasons outside its form's action, e.g. files still uploading. */
+  disabled?: boolean;
 }
 
 /** Submit button that disables itself while its form's action runs, so a double click cannot submit twice. */
-export function SubmitButton({ children, pendingLabel, variant = "primary", ariaLabel }: SubmitButtonProps) {
+export function SubmitButton({ children, pendingLabel, variant = "primary", ariaLabel, disabled = false }: SubmitButtonProps) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} aria-label={ariaLabel} className={`rounded px-4 py-2 text-sm disabled:opacity-60 ${STYLES[variant]}`}>
+    <button type="submit" disabled={pending || disabled} aria-label={ariaLabel} className={`rounded px-4 py-2 text-sm disabled:opacity-60 ${STYLES[variant]}`}>
       {pending ? (pendingLabel ?? children) : children}
     </button>
   );
