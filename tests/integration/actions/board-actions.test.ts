@@ -126,7 +126,7 @@ describe("board actions on Postgres", () => {
       boards.updateBoardAction(undefined, form({ boardId: g.boardId, name: "x" })),
       boards.deleteBoardAction(undefined, form({ boardId: g.boardId, confirm: "yes" })),
       members.addMemberAction(undefined, form({ boardId: g.boardId, email: "a@b.co", role: "member" })),
-      members.removeMemberAction(undefined, form({ boardId: g.boardId, userId: g.userId })),
+      members.removeMemberAction(undefined, form({ boardId: g.boardId, userId: g.userId, confirm: "yes" })),
       pipelines.createPipelineAction(undefined, form({ boardId: g.boardId, name: "x" })),
     ];
     for (const digest of await Promise.all(attempts.map(redirected))) expect(digest).toContain("/login");
@@ -153,11 +153,13 @@ describe("member and pipeline actions on Postgres", () => {
     await members.changeMemberRoleAction(undefined, form({ boardId: t.boardId, userId: t.invitee.userId, role: "guest" }));
     expect(await roleOf(t.boardId, t.invitee.userId)).toBe("guest");
 
-    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId }))).toEqual({ ok: false, code: "CONFLICT", message: "A board needs at least one owner" });
+    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId, confirm: "yes" }))).toEqual({ ok: false, code: "CONFLICT", message: "A board needs at least one owner" });
     expect(await members.changeMemberRoleAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId, role: "member" }))).toMatchObject({ code: "CONFLICT" });
     expect(await roleOf(t.boardId, t.owner.userId)).toBe("owner");
 
-    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.invitee.userId }))).toEqual({ ok: true, data: null });
+    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.invitee.userId }))).toMatchObject({ code: "VALIDATION", fieldErrors: { confirm: [expect.any(String)] } });
+    expect(await roleOf(t.boardId, t.invitee.userId)).toBe("guest");
+    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.invitee.userId, confirm: "yes" }))).toEqual({ ok: true, data: null });
     expect(await roleOf(t.boardId, t.invitee.userId)).toBeUndefined();
   });
 
@@ -167,7 +169,7 @@ describe("member and pipeline actions on Postgres", () => {
 
     as(t.invitee.headers);
     expect(await members.addMemberAction(undefined, form({ boardId: t.boardId, email: "stranger@example.com", role: "member" }))).toMatchObject({ code: "FORBIDDEN" });
-    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId }))).toMatchObject({ code: "FORBIDDEN" });
+    expect(await members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId, confirm: "yes" }))).toMatchObject({ code: "FORBIDDEN" });
     expect(await pipelines.createPipelineAction(undefined, form({ boardId: t.boardId, name: "P" }))).toMatchObject({ code: "FORBIDDEN" });
 
     as(t.stranger.headers);
@@ -189,7 +191,7 @@ describe("member and pipeline actions on Postgres", () => {
   it("lets an owner who removes themselves leave for the board list", async () => {
     const t = await team();
     await members.addMemberAction(undefined, form({ boardId: t.boardId, email: "invitee@example.com", role: "owner" }));
-    expect(await redirected(members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId })))).toContain("/boards;");
+    expect(await redirected(members.removeMemberAction(undefined, form({ boardId: t.boardId, userId: t.owner.userId, confirm: "yes" })))).toContain("/boards;");
     expect(await roleOf(t.boardId, t.owner.userId)).toBeUndefined();
   });
 });
@@ -213,10 +215,10 @@ describe("cross-board attempts by an owner of another board", () => {
     revalidatePath.mockClear();
     const attempts = [
       () => members.changeMemberRoleAction(undefined, form({ boardId: t.boardA, userId: t.carol.userId, role: "owner" })),
-      () => members.removeMemberAction(undefined, form({ boardId: t.boardA, userId: t.alice.userId })),
+      () => members.removeMemberAction(undefined, form({ boardId: t.boardA, userId: t.alice.userId, confirm: "yes" })),
       () => members.addMemberAction(undefined, form({ boardId: t.boardA, email: "bob@example.com", role: "owner" })),
       () => members.changeMemberRoleAction(undefined, form({ boardId: t.boardB, userId: t.carol.userId, role: "owner" })),
-      () => members.removeMemberAction(undefined, form({ boardId: t.boardB, userId: t.alice.userId })),
+      () => members.removeMemberAction(undefined, form({ boardId: t.boardB, userId: t.alice.userId, confirm: "yes" })),
       () => pipelines.createPipelineAction(undefined, form({ boardId: t.boardA, name: "Injected" })),
     ];
     for (const attempt of attempts) expect(await attempt()).toMatchObject({ ok: false, code: "NOT_FOUND" });
@@ -236,7 +238,7 @@ describe("cross-board attempts by an owner of another board", () => {
     expect(await refreshed(() => members.addMemberAction(undefined, form({ boardId: id, email: "carol@example.com", role: "member" })))).toEqual(pages.sort());
     expect(await refreshed(() => members.changeMemberRoleAction(undefined, form({ boardId: id, userId: t.carol.userId, role: "guest" })))).toEqual(pages.sort());
     expect(await refreshed(() => pipelines.createPipelineAction(undefined, form({ boardId: id, name: "Sprint" })))).toEqual([`/boards/${id}`]);
-    expect(await refreshed(() => members.removeMemberAction(undefined, form({ boardId: id, userId: t.carol.userId })))).toEqual([...pages, "/boards"].sort());
+    expect(await refreshed(() => members.removeMemberAction(undefined, form({ boardId: id, userId: t.carol.userId, confirm: "yes" })))).toEqual([...pages, "/boards"].sort());
   });
 
   it("refuses demo-session owners the invitation lookup at the action level", async () => {
@@ -255,14 +257,14 @@ describe("pages on Postgres", () => {
     as(a.headers);
     const list = await BoardsPage({ searchParams: Promise.resolve({}) });
     expect(text(list)).toContain("Your boards");
-    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }) }))).toContain("Pipelines");
-    expect(text(await SettingsPage({ params: Promise.resolve({ boardId: a.boardId }) }))).toContain("Delete board");
+    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Pipelines");
+    expect(text(await SettingsPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Delete board");
 
     as(b.headers);
     for (const render of [
-      () => BoardPage({ params: Promise.resolve({ boardId: a.boardId }) }),
-      () => SettingsPage({ params: Promise.resolve({ boardId: a.boardId }) }),
-      () => BoardPage({ params: Promise.resolve({ boardId: "not-a-uuid" }) }),
+      () => BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }),
+      () => SettingsPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }),
+      () => BoardPage({ params: Promise.resolve({ boardId: "not-a-uuid" }), searchParams: Promise.resolve({}) }),
     ]) await expect(render()).rejects.toMatchObject({ digest: expect.stringContaining("404") });
 
     as(new Headers());

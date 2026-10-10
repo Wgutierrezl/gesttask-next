@@ -17,7 +17,7 @@ export function AddMemberForm({ boardId }: { boardId: string }) {
       <input type="hidden" name="boardId" value={boardId} />
       <FormField label="Email" name="email" type="email" autoComplete="off" errors={failure?.fieldErrors?.email} />
       <RoleSelect id="role" label="Role" defaultValue="member" />
-      <FormError failure={failure} />
+      <FormError failure={failure} inlineFields={["email"]} />
       {state?.ok ? <p role="status" className="text-sm text-green-800">Member added.</p> : null}
       <div>
         <SubmitButton pendingLabel="Adding...">Add member</SubmitButton>

@@ -38,6 +38,9 @@ export async function changeMemberRoleAction(_previous: MutationState, form: For
 export async function removeMemberAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   const boardId = text(form, "boardId");
   const userId = text(form, "userId");
+  if (text(form, "confirm") !== "yes") {
+    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to remove this member"] } };
+  }
   return runMutation(
     async () => {
       const self = (await currentUserId()) === userId;

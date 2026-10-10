@@ -40,6 +40,7 @@ describe("FormField", () => {
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain('aria-describedby="email-error"');
     expect(html).toContain("Invalid email Required");
+    expect(html).toContain('role="alert"');
   });
 });
 
@@ -56,9 +57,17 @@ describe("FormError", () => {
     [{ ok: false, code: "CONFLICT", message: "Email already registered" }, "Email already registered"],
     [{ ok: false, code: "INTERNAL", message: "stack trace here" }, "Something went wrong. Please try again."],
     [{ ok: false, code: "VALIDATION", message: "Invalid input" }, "Invalid input"],
-    [{ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { email: ["bad"] } }, null],
+    [{ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { email: ["bad"] } }, "bad"],
   ])("describes %j", (failure, expected) => {
     expect(describeFailure(failure)).toBe(expected);
+  });
+
+  it("shows only the field errors that have no input of their own to sit next to", () => {
+    const failure: ActionFailure = { ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { email: ["bad email"], role: ["bad role", "worse"] } };
+    expect(describeFailure(failure, ["email"])).toBe("bad role worse");
+    expect(describeFailure(failure, ["email", "role"])).toBeNull();
+    expect(renderToStaticMarkup(<FormError failure={failure} inlineFields={["email"]} />)).toContain("bad role worse");
+    expect(renderToStaticMarkup(<FormError failure={failure} inlineFields={["email"]} />)).not.toContain("bad email");
   });
 
   it("renders the message inside the live region", () => {

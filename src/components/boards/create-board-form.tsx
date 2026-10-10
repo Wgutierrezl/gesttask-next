@@ -14,7 +14,7 @@ export function CreateBoardForm() {
     <form action={formAction} className="flex flex-col gap-4">
       <FormField label="Name" name="name" maxLength={100} errors={failure?.fieldErrors?.name} />
       <FormField label="Description" name="description" multiline required={false} maxLength={2000} errors={failure?.fieldErrors?.description} />
-      <FormError failure={failure} />
+      <FormError failure={failure} inlineFields={["name", "description"]} />
       <div>
         <SubmitButton pendingLabel="Creating...">Create board</SubmitButton>
       </div>

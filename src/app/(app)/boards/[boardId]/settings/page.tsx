@@ -1,23 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPage } from "@/app/_shared/load-page";
+import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { AddMemberForm } from "@/components/boards/add-member-form";
 import { ArchiveBoardForm } from "@/components/boards/archive-board-form";
 import { DeleteBoardForm } from "@/components/boards/delete-board-form";
 import { EditBoardForm } from "@/components/boards/edit-board-form";
 import { MemberRow } from "@/components/boards/member-row";
+import { PastTheEnd, Pager } from "@/components/boards/pager";
 import { getContainer } from "@/infrastructure/container";
 
 export const metadata = { title: "Board settings - GestTask" };
 
-export default async function BoardSettingsPage({ params }: { params: Promise<{ boardId: string }> }) {
-  await requirePageActor();
+interface SettingsPageProps {
+  params: Promise<{ boardId: string }>;
+  searchParams: Promise<{ page?: string | string[] }>;
+}
+
+export default async function BoardSettingsPage({ params, searchParams }: SettingsPageProps) {
+  const actor = await requirePageActor();
   const { boardId } = await params;
+  const page = parsePage((await searchParams).page);
   const { board, role } = await loadPage(() => getContainer().useCases.getBoard({ boardId }));
   // Settings are for owners; everyone else gets the same 404 as a board that does not exist.
   if (role !== "owner") notFound();
-  const members = await loadPage(() => getContainer().useCases.listMemberProfiles({ boardId }));
+  const members = slicePage(await loadPage(() => getContainer().useCases.listMemberProfiles({ boardId, ...pageWindow(page) })));
+  const settingsPath = `/boards/${board.id}/settings`;
   return (
     <main className="flex flex-col gap-10">
       <header>
@@ -33,10 +42,12 @@ export default async function BoardSettingsPage({ params }: { params: Promise<{ 
       <section aria-labelledby="members-heading" className="flex flex-col gap-4">
         <h2 id="members-heading" className="text-lg font-medium">Members</h2>
         <ul className="divide-y divide-gray-100 rounded border border-gray-200">
-          {members.map((member) => (
-            <MemberRow key={member.userId} boardId={board.id} member={member} />
+          {members.items.map((member) => (
+            <MemberRow key={member.userId} boardId={board.id} member={member} isSelf={member.userId === actor.userId} />
           ))}
         </ul>
+        {members.items.length === 0 && page > 1 ? <PastTheEnd what="members" href={settingsPath} /> : null}
+        <Pager page={page} hasNext={members.hasNext} basePath={settingsPath} />
         <AddMemberForm boardId={board.id} />
       </section>
       <section aria-labelledby="status-heading">

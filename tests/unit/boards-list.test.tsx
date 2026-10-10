@@ -83,6 +83,9 @@ describe("components", () => {
     const middle = renderToStaticMarkup(<Pager page={2} hasNext basePath="/boards" />);
     expect(middle).toContain('href="/boards"'); // page 1 has no query
     expect(middle).toContain('href="/boards?page=3"');
+    const other = renderToStaticMarkup(<Pager page={2} hasNext basePath="/boards/b1" param="membersPage" preserve={{ pipelinesPage: "3", empty: "" }} />);
+    expect(other).toContain('href="/boards/b1?pipelinesPage=3"');
+    expect(other).toContain('href="/boards/b1?pipelinesPage=3&amp;membersPage=3"');
     expect(renderToStaticMarkup(<Pager page={1} hasNext basePath="/boards" />)).not.toContain("Previous");
   });
 });
@@ -115,6 +118,14 @@ describe("BoardsPage", () => {
     const html = renderToStaticMarkup(await BoardsPage({ searchParams: search() }));
     expect(html).toContain("You have no boards yet");
     expect(html).toContain("Create board");
+  });
+
+  it("shows the empty state on the first page only; a page past the end says so and links back", async () => {
+    const past = renderToStaticMarkup(await BoardsPage({ searchParams: search("4") }));
+    expect(past).not.toContain("You have no boards yet");
+    expect(past).toContain("No boards on this page");
+    expect(past).toContain('href="/boards"');
+    expect(renderToStaticMarkup(await BoardsPage({ searchParams: search("1") }))).not.toContain("No boards on this page");
   });
 
   it("pages through boards and offers Next only when another page exists", async () => {
