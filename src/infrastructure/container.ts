@@ -3,10 +3,12 @@ import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import type { Actor } from "@/application/actor";
 import type { SessionPort } from "@/application/ports/services";
+import { guardAll } from "@/application/require-actor";
 import { makeSignInEmail } from "@/application/use-cases/auth/sign-in-email";
 import { makeSignInGuest } from "@/application/use-cases/auth/sign-in-guest";
 import { makeSignOut } from "@/application/use-cases/auth/sign-out";
 import { makeSignUp } from "@/application/use-cases/auth/sign-up";
+import { DrizzleUserDirectory } from "./auth/drizzle-user-directory";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
 import { sessionCookieConfig } from "./auth/cookie-config";
@@ -19,7 +21,9 @@ import { getEnv } from "./config/env";
 import { createDb } from "./db/client";
 import { createLogger, type Logger } from "./logging/logger";
 import { PgRateLimiter } from "./ratelimit/pg-rate-limiter";
+import { createDrizzleRepos } from "./repos/drizzle-repos";
 import { DrizzleUnitOfWork } from "./repos/drizzle-unit-of-work";
+import { buildUseCases } from "./use-cases";
 
 /** Authentication flows as the web layer sees them: callers pass only form input, never ids, headers or tokens. */
 export interface AuthFacade {
@@ -29,10 +33,15 @@ export interface AuthFacade {
   signOut(): Promise<void>;
 }
 
+/** Every protected use case, already bound to the session: callers pass input only and never choose the actor. */
+export type GuardedUseCases = ReturnType<typeof guardUseCases>;
+const guardUseCases = (session: SessionPort, registry: ReturnType<typeof buildUseCases>) => guardAll(session, registry);
+
 export interface Container {
   logger: Logger;
   session: SessionPort;
   auth: AuthFacade;
+  useCases: GuardedUseCases;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
   authHandler: (request: Request) => Promise<Response>;
   close(): Promise<void>;
@@ -54,10 +63,16 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const session = new BetterAuthSession(auth, () => headers());
   const authPort = new BetterAuthPort(auth, () => headers());
   const limiter = new PgRateLimiter(db, clock);
-  const sandbox = new SeededGuestSandbox(db, { uow: new DrizzleUnitOfWork(db), ids: { next: randomUUID }, clock });
+  const uow = new DrizzleUnitOfWork(db);
+  const ids = { next: randomUUID };
+  const sandbox = new SeededGuestSandbox(db, { uow, ids, clock });
   const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
   const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
+  const useCases = guardUseCases(
+    session,
+    buildUseCases({ uow, repos: createDrizzleRepos(db, false), clock, ids }, { users: new DrizzleUserDirectory(db), limiter }),
+  );
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });
   const signUp = makeSignUp({ auth: authPort, limiter });
@@ -65,6 +80,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   return {
     logger,
     session,
+    useCases,
     auth: {
       signInGuest: async () => signInGuest(await caller()),
       signInEmail: async (input) => signInEmail(await caller(), input),

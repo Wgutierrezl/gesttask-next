@@ -19,6 +19,16 @@ describe("buildContainer", () => {
     await container.close();
   }, 30_000); // first import transforms the whole auth library
 
+  it("exposes the use cases only behind the session: without one they answer Unauthenticated", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const { UnauthenticatedError } = await import("@/domain/errors");
+    const container = buildContainer(valid);
+    expect(Object.keys(container.useCases)).toEqual(expect.arrayContaining(["createBoard", "listMyBoards", "getBoard", "addMemberByEmail", "moveTask"]));
+    await expect(container.useCases.listMyBoards({})).rejects.toBeInstanceOf(UnauthenticatedError);
+    await expect(container.useCases.deleteBoard({ boardId: "00000000-0000-4000-8000-00000000ffff" })).rejects.toBeInstanceOf(UnauthenticatedError);
+    await container.close();
+  }, 30_000);
+
   it("does not expose credential or guest flows on the HTTP handler", async () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);
