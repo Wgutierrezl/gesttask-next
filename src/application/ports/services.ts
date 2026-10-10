@@ -22,6 +22,8 @@ export interface AuthPort {
 
 /** Gives a guest its own copy of the demo board. Idempotent: provisioning twice leaves one sandbox. */
 export interface GuestSandbox {
+  /** Whether the guest is a member of any board (a sandbox, or whatever is left of it). */
+  hasBoards(guest: Actor): Promise<boolean>;
   provision(guest: Actor): Promise<void>;
 }
 

@@ -36,6 +36,15 @@ describe("SeededGuestSandbox", () => {
     expect(tasks.some((t) => t.assigneeId === guest.userId)).toBe(true);
   });
 
+  it("reports whether the guest owns any board, and is false again once the sandbox is deleted", async () => {
+    const guest = await newGuest();
+    expect(await sandbox().hasBoards(guest)).toBe(false);
+    await sandbox().provision(guest);
+    expect(await sandbox().hasBoards(guest)).toBe(true);
+    await handle.db.delete(schema.boards).where(eq(schema.boards.id, sandboxBoardId(guest.userId)));
+    expect(await sandbox().hasBoards(guest)).toBe(false);
+  });
+
   it("is idempotent, even when provisioned concurrently", async () => {
     const guest = await newGuest();
     await Promise.all([1, 2, 3].map(() => sandbox().provision(guest)));
@@ -59,7 +68,7 @@ describe("SeededGuestSandbox", () => {
 describe("linking a guest to a real account", () => {
   it("moves the sandbox to the account the guest signs up with", async () => {
     const { auth } = authFixture(handle, {
-      onLinkAccount: async (link) => (await import("@/infrastructure/auth/transfer-guest")).transferGuestData(handle.db, link.guestUserId, link.userId),
+      onLinkAccount: async (link) => (await import("@/infrastructure/auth/transfer-guest")).transferGuestData(handle.db, link.guestUserId, link.userId, authFixture(handle).logger),
     });
     const anonymous = await auth.api.signInAnonymous({ returnHeaders: true });
     const guest = { userId: anonymous.response!.user.id, isGuest: true as const };

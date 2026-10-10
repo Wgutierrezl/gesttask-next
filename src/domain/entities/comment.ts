@@ -4,7 +4,8 @@ export interface Comment {
   id: string;
   taskId: string;
   boardId: string;
-  authorId: string;
+  /** Null once the author was deleted (UI: "Deleted user"). */
+  authorId: string | null;
   body: string;
   createdAt: Date;
 }
@@ -14,7 +15,8 @@ export interface Attachment {
   id: string;
   commentId: string | null;
   boardId: string;
-  uploaderId: string;
+  /** Null once the uploader was deleted. */
+  uploaderId: string | null;
   storageKey: string;
   fileName: string;
   contentType: string;

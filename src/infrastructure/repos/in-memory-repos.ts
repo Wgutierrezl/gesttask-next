@@ -81,6 +81,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
           slice([...store.members.values()].filter((m) => m.boardId === boardId).sort((a, b) => byText(a.userId, b.userId)), page),
         ),
       listByUser: async (userId) => copies([...store.members.values()].filter((m) => m.userId === userId)),
+      lockUserQuota: async () => undefined, // the in-memory store has no concurrency to serialize
       updateRole: async (boardId, userId, role) => {
         const member = store.members.get(memberKey(boardId, userId));
         if (member) member.role = role;

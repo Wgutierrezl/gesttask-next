@@ -30,7 +30,7 @@ describe("guest quotas (REQ-SEC-04)", () => {
     await expect(makeCreateBoard(ctx)(guest, { name: "mine" })).resolves.toBeDefined();
   });
 
-  it("limits a guest to 200 tasks across the boards they own", async () => {
+  it("limits a guest to 200 tasks across the boards they belong to", async () => {
     expect(GUEST_MAX_TASKS).toBe(200);
     const k = await seedKanban(ctx, guest);
     const stage = (await ctx.repos.stages.findById(k.todoId))!;
@@ -42,7 +42,7 @@ describe("guest quotas (REQ-SEC-04)", () => {
     expect(await ctx.repos.tasks.countByBoards([stage.boardId])).toBe(GUEST_MAX_TASKS);
   });
 
-  it("ignores tasks on boards the guest does not own and never limits real users", async () => {
+  it("counts tasks on boards the guest merely belongs to, and never limits real users", async () => {
     const k = await seedKanban(ctx);
     const stage = (await ctx.repos.stages.findById(k.todoId))!;
     await ctx.repos.members.insert({ boardId: k.boardId, userId: guest.userId, role: "member" });
@@ -50,5 +50,7 @@ describe("guest quotas (REQ-SEC-04)", () => {
       await ctx.repos.tasks.insert(buildTask({ id: ctx.ids.next(), stageId: stage.id, pipelineId: stage.pipelineId, boardId: stage.boardId, position: `a${i.toString().padStart(4, "0")}` }));
     }
     await expect(makeCreateTask(ctx)(OWNER, { stageId: stage.id, title: "owner is unlimited" })).resolves.toBeDefined();
+    // As a member the guest can write here (task:write), but the board is already over their quota.
+    await expect(makeCreateTask(ctx)(guest, { stageId: stage.id, title: "no loophole" })).rejects.toBeInstanceOf(ConflictError);
   });
 });

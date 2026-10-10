@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getAuthTables } from "better-auth/db";
 import { getTableColumns, sql } from "drizzle-orm";
+import { GUEST_TTL_HOURS } from "@/infrastructure/auth/guest-ttl";
 import * as schema from "@/infrastructure/db/schema";
 import { connectTestDb, resetDb } from "../support/db";
 import { authFixture, cookieHeader, sessionFor } from "../support/auth";
@@ -49,6 +50,19 @@ describe("Better Auth on Postgres", () => {
     const response = await auth.api.signInAnonymous({ returnHeaders: true });
     const actor = await sessionFor(auth, cookieHeader(response.headers)).getActor();
     expect(actor).toEqual({ userId: response.response!.user.id, isGuest: true });
+  });
+
+  it("caps a guest session at the 24 hour TTL while real sessions keep the default lifetime", async () => {
+    const { auth } = authFixture(handle);
+    const guest = await auth.api.signInAnonymous({ returnHeaders: true });
+    const real = await auth.api.signUpEmail({ body: credentials, returnHeaders: true });
+    const { rows } = await handle.db.execute<{ id: string; hours: number }>(sql`
+      SELECT u.id, EXTRACT(EPOCH FROM (s.expires_at - u.created_at)) / 3600 AS hours
+      FROM session s JOIN "user" u ON u.id = s.user_id`);
+    const hoursOf = (id: string) => Number(rows.find((row) => row.id === id)?.hours);
+    expect(hoursOf(guest.response!.user.id)).toBeGreaterThan(23.9);
+    expect(hoursOf(guest.response!.user.id)).toBeLessThanOrEqual(GUEST_TTL_HOURS);
+    expect(hoursOf(real.response.user.id)).toBeGreaterThan(24 * 6);
   });
 
   it("has no actor without a cookie, with a forged cookie, or after sign-out", async () => {

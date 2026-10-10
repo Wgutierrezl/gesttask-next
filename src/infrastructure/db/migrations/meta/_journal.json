@@ -36,6 +36,13 @@
       "when": 1791579654853,
       "tag": "0004_auth_tables_user_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791583035146,
+      "tag": "0005_comment_author_set_null",
+      "breakpoints": true
     }
   ]
 }
