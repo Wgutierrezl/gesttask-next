@@ -33,7 +33,7 @@ describe("buildContainer", () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);
     expect(typeof container.devStorageHandler).toBe("function"); // STORAGE_DRIVER=local
-    expect(Object.keys(container.maintenance).sort()).toEqual(["drainStorageDeletions", "purgeExpiredGuests"]);
+    expect(Object.keys(container.maintenance).sort()).toEqual(["drainStorageDeletions", "purgeExpiredGuests", "sweepPendingUploads"]);
     expect(Object.keys(container.useCases)).toEqual(expect.arrayContaining(["createComment", "requestUpload", "getAttachmentUrl", "deleteComment"]));
     await container.close();
     const s3 = buildContainer({

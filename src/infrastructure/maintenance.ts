@@ -1,11 +1,13 @@
 import { drainStorageDeletions, type DrainResult } from "@/application/drain-storage-deletions";
 import type { Clock, StoragePort } from "@/application/ports/services";
 import { enqueueAttachmentCleanup } from "@/application/storage-cleanup";
+import { sweepPendingUploads, type SweepResult } from "@/application/sweep-pending-uploads";
 import { purgeExpiredGuests, type PurgeOptions, type PurgeResult } from "./auth/purge-guests";
 import type { Database } from "./db/client";
 import type { Logger } from "./logging/logger";
 import { DrizzleDeletionOutbox } from "./repos/drizzle-deletion-outbox";
 import { createDrizzleRepos } from "./repos/drizzle-repos";
+import { DrizzleUnitOfWork } from "./repos/drizzle-unit-of-work";
 
 /**
  * The `beforeDeleteBoards` hook of the guest purge: inside the purge transaction, lock each board and queue the storage
@@ -25,6 +27,8 @@ export interface Maintenance {
   drainStorageDeletions(): Promise<DrainResult>;
   /** Removes expired demo guests with their sandboxes, queueing their objects in the same transaction. */
   purgeExpiredGuests(): Promise<PurgeResult>;
+  /** Deletes uploads never attached to a comment after one hour, queueing their objects in the same transaction. */
+  sweepPendingUploads(): Promise<SweepResult>;
 }
 
 /** Background jobs that have no signed-in user. The cron route (slice 9) is the only caller. */
@@ -35,6 +39,7 @@ export function createMaintenance(deps: { db: Database; clock: Clock; storage: S
         { outbox: new DrizzleDeletionOutbox(deps.db), storage: deps.storage },
         { onError: (error, key) => deps.logger.warn("storage deletion failed, will retry", { storageKey: key, error }) },
       ),
+    sweepPendingUploads: () => sweepPendingUploads({ uow: new DrizzleUnitOfWork(deps.db), clock: deps.clock }),
     purgeExpiredGuests: () => purgeExpiredGuests(deps.db, { now: deps.clock.now(), beforeDeleteBoards: queueBoardAttachmentKeys }),
   };
 }

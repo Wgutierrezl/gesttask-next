@@ -137,6 +137,11 @@ export interface AttachmentRepo {
   /** Confirmed uploads of the user plus pending ones created at or after `pendingSince` (abandoned ones do not count). */
   countByUploader(userId: string, pendingSince: Date): Promise<number>;
   /**
+   * Deletes up to `limit` abandoned uploads (still `pending`, created strictly before `before`), oldest first, and
+   * returns their storage keys. Rows locked by a concurrent transaction (e.g. one linking them to a comment) are skipped.
+   */
+  deleteAbandoned(before: Date, limit: number): Promise<string[]>;
+  /**
    * Storage keys of every attachment row that disappears when the scope is deleted (a board scope includes pending
    * uploads, which have no comment). Inside a transaction it first locks the tasks below the scope, so a comment
    * being created concurrently cannot attach an object this read missed; callers lock the scope's own row first.

@@ -129,6 +129,34 @@ export function runCommentContract(name: string, setup: () => RepoHarness): void
       expect(await h.repos.attachments.listByComments([])).toEqual([]);
     });
 
+    describe("deleteAbandoned", () => {
+      it("removes only pending rows created before the cutoff and returns their keys, oldest first", async () => {
+        const { board, task } = await seedTask(h);
+        const comment = makeComment(task);
+        await h.repos.comments.insert(comment);
+        const cutoff = at(100);
+        const oldest = makeAttachment(board.id, { createdAt: at(10) });
+        const older = makeAttachment(board.id, { createdAt: at(20) });
+        const edge = makeAttachment(board.id, { createdAt: cutoff });
+        const fresh = makeAttachment(board.id, { createdAt: at(150) });
+        const keptConfirmed = makeAttachment(board.id, { commentId: comment.id, status: "confirmed", createdAt: at(5) });
+        for (const row of [older, fresh, keptConfirmed, edge, oldest]) await h.repos.attachments.insert(row);
+        expect(await h.repos.attachments.deleteAbandoned(cutoff, 10)).toEqual([oldest.storageKey, older.storageKey]);
+        const left = await h.repos.attachments.findManyByIds([oldest.id, older.id, edge.id, fresh.id, keptConfirmed.id]);
+        expect(left.map((a) => a.id).sort()).toEqual([edge.id, fresh.id, keptConfirmed.id].sort());
+        expect(await h.repos.attachments.deleteAbandoned(cutoff, 10)).toEqual([]);
+      });
+
+      it("takes at most `limit` rows per call, the oldest ones first", async () => {
+        const { board } = await seedTask(h);
+        const rows = [30, 10, 20].map((s) => makeAttachment(board.id, { createdAt: at(s) }));
+        for (const row of rows) await h.repos.attachments.insert(row);
+        const byAge = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        expect(await h.repos.attachments.deleteAbandoned(at(1000), 2)).toEqual([byAge[0]!.storageKey, byAge[1]!.storageKey]);
+        expect(await h.repos.attachments.deleteAbandoned(at(1000), 2)).toEqual([byAge[2]!.storageKey]);
+      });
+    });
+
     it("counts a user's confirmed attachments plus pending ones newer than the cutoff", async () => {
       const { board } = await seedTask(h);
       const cutoff = at(100);

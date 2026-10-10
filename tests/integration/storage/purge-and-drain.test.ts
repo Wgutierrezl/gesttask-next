@@ -14,7 +14,7 @@ import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-l
 import { LocalStorage } from "@/infrastructure/storage/local.adapter";
 import { createLogger } from "@/infrastructure/logging/logger";
 import { connectTestDb, resetDb } from "../support/db";
-import { drizzleDeps } from "../support/tx";
+import { deferred, drizzleDeps } from "../support/tx";
 
 const handle = connectTestDb();
 const { db } = handle;
@@ -107,5 +107,54 @@ describe("guest purge and storage drain (REQ-CAS-03, REQ-ATT-05)", () => {
     await db.execute(sql`UPDATE storage_deletions SET next_attempt_at = now() - interval '1 second'`);
     expect(await maintenance.drainStorageDeletions()).toEqual({ deleted: 1, failed: 0 });
     expect(await storage.head(key)).toBeNull();
+  });
+  describe("sweepPendingUploads (REQ-ATT-06)", () => {
+    /** A guest who asked for a ticket `ageMinutes` ago and uploaded the bytes, but never posted the comment. */
+    async function abandonedUpload(id: string, ageMinutes: number): Promise<{ key: string; attachmentId: string }> {
+      await db.insert(schema.user).values({ id, name: id, email: `${id}@x.test`, emailVerified: false, isAnonymous: true });
+      const actor: Actor = { userId: id, isGuest: true };
+      await new SeededGuestSandbox(db, { uow: deps.uow, ids: { next: randomUUID }, clock }).provision(actor);
+      const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.boardId, sandboxBoardId(id))).limit(1);
+      const then = { now: () => new Date(NOW.getTime() - ageMinutes * 60_000) };
+      // The ticket is issued in the past, so the browser's side of the story needs a storage that shares that clock.
+      const past = new LocalStorage({ rootDir: root, secret: "purge-test-secret-purge-test-secret", baseUrl: "http://localhost:3000", clock: then });
+      const upload = await makeRequestUpload({ ...deps, clock: then }, { storage: past, limiter: new InMemoryRateLimiter(then) })(actor, {
+        taskId: task!.id, fileName: "scan.png", contentType: "image/png", size: 4,
+      });
+      if (upload.ticket.kind !== "local-put") throw new Error("local ticket expected");
+      const sent = await past.handle(new Request(upload.ticket.url, { method: "PUT", headers: { "content-type": "image/png" }, body: new Blob([new Uint8Array([1, 2, 3, 4])]) }));
+      expect(sent.status).toBe(204);
+      return { key: `boards/${sandboxBoardId(id)}/attachments/${upload.attachmentId}`, attachmentId: upload.attachmentId };
+    }
+
+    it("queues the key of an upload abandoned for over an hour and deletes its row; the drain removes the object", async () => {
+      const stale = await abandonedUpload("stale-guest", 61);
+      const recent = await abandonedUpload("recent-guest", 10);
+      expect(await maintenance.sweepPendingUploads()).toEqual({ swept: 1 });
+      expect(await queued()).toEqual([stale.key]);
+      expect((await db.select().from(schema.attachments)).map((a) => a.id)).toEqual([recent.attachmentId]);
+      expect(await maintenance.drainStorageDeletions()).toEqual({ deleted: 1, failed: 0 });
+      expect(await storage.head(stale.key)).toBeNull();
+      expect(await storage.head(recent.key)).not.toBeNull();
+      expect(await maintenance.sweepPendingUploads()).toEqual({ swept: 0 });
+    });
+
+    it("skips an abandoned row that another transaction holds (a comment linking it right now) instead of waiting", async () => {
+      const stale = await abandonedUpload("stale-guest", 90);
+      const held = deferred();
+      const release = deferred();
+      const linking = db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT id FROM attachments WHERE id = ${stale.attachmentId} FOR UPDATE`);
+        held.resolve();
+        await release.promise;
+      });
+      await held.promise;
+      expect(await maintenance.sweepPendingUploads()).toEqual({ swept: 0 });
+      release.resolve();
+      await linking;
+      expect(await queued()).toEqual([]);
+      expect(await maintenance.sweepPendingUploads()).toEqual({ swept: 1 });
+      expect(await queued()).toEqual([stale.key]);
+    });
   });
 });
