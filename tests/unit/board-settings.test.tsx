@@ -11,10 +11,11 @@ const notFound = vi.fn(() => {
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("@/app/_actions/members", () => ({ addMemberAction: async () => undefined, changeMemberRoleAction: async () => undefined, removeMemberAction: async () => undefined }));
 vi.mock("@/app/_actions/boards", () => ({ createBoardAction: async () => undefined, updateBoardAction: async () => undefined, setBoardStatusAction: async () => undefined, deleteBoardAction: async () => undefined }));
 
 const getActor = vi.fn();
-const useCases = { getBoard: vi.fn(), updateBoard: vi.fn(), deleteBoard: vi.fn() };
+const useCases = { getBoard: vi.fn(), updateBoard: vi.fn(), deleteBoard: vi.fn(), listMemberProfiles: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
 
@@ -33,6 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getActor.mockResolvedValue({ userId: "u", isGuest: false });
   useCases.getBoard.mockResolvedValue({ board, role: "owner" });
+  useCases.listMemberProfiles.mockResolvedValue([]);
 });
 
 describe("components", () => {
@@ -74,6 +76,7 @@ describe("SettingsPage", () => {
   it.each(["member", "guest"])("renders the 404 page for a %s, so settings never reveal themselves", async (role) => {
     useCases.getBoard.mockResolvedValue({ board, role });
     await expect(SettingsPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+    expect(useCases.listMemberProfiles).not.toHaveBeenCalled();
   });
 
   it("checks the session first and 404s foreign boards", async () => {
