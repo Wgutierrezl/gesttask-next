@@ -15,8 +15,23 @@ const PUBLIC_ACTION_FILES = ["_actions/auth.ts"];
 describe("authorization guards are present everywhere", () => {
   it("calls requirePageActor in every page and data loader under (app)", () => {
     const guarded = walk(join(APP, "(app)")).filter((file) => /(^|\/)(page|loader|loaders)\.tsx?$|\.loader\.tsx?$/.test(file));
-    expect(guarded.map(rel)).toContain("(app)/boards/page.tsx");
+    expect(guarded.map(rel)).toEqual(
+      expect.arrayContaining(["(app)/boards/page.tsx", "(app)/boards/[boardId]/page.tsx", "(app)/boards/[boardId]/settings/page.tsx"]),
+    );
     for (const file of guarded) expect(readFileSync(file, "utf8"), rel(file)).toMatch(/\brequire(Page)?Actor\(/);
+  });
+
+  it("guards the (app) layout too, and every page is force-dynamic through it", () => {
+    const layout = readFileSync(join(APP, "(app)/layout.tsx"), "utf8");
+    expect(layout).toMatch(/\brequirePageActor\(/);
+    expect(layout).toMatch(/dynamic = "force-dynamic"/);
+  });
+
+  it("keeps pages from reading data any other way than the container's guarded use cases", () => {
+    for (const file of walk(join(APP, "(app)")).filter((f) => /page\.tsx$/.test(f))) {
+      const source = readFileSync(file, "utf8");
+      expect(source, rel(file)).not.toMatch(/\bmake[A-Z]\w+\(|infrastructure\/(?!container)/);
+    }
   });
 
   it("guards every non-public Server Action: it reaches data only through the container's session-bound use cases", () => {
