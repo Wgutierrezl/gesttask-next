@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError, UnauthenticatedError, ValidationError } from "@/application/errors";
 import { parseInput } from "@/application/schemas/parse";
 import { getContainer } from "@/infrastructure/container";
 import { operationById } from "@/openapi/operations";
@@ -42,7 +42,11 @@ export function handle(operationId: string) {
       const container = getContainer();
       const reading = READ_METHODS.has(request.method);
       assertSameOrigin(request, container.api.trustedHosts);
-      await container.api.limit(reading ? "read" : "write");
+      // The session comes before anything in the request is parsed, so an anonymous caller always learns 401 and nothing else
+      // (no 404/422 telling a valid id or body from an invalid one). The ceiling is per client address, and per user once known.
+      const actor = await container.session.getActor();
+      await container.api.limit(reading ? "read" : "write", actor?.userId);
+      if (!actor) throw new UnauthenticatedError();
 
       // A malformed id names no resource: same answer as a missing or foreign one (REQ-ISO-08).
       const params = operation.params ? parseParams(operation.params, await context.params) : {};

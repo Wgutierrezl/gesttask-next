@@ -49,7 +49,7 @@ export interface Container {
   /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
   maintenance: Maintenance;
   /** What the REST API (`/api/v1`) needs besides the use cases: the hosts it trusts as its own, and its per-client rate limit. */
-  api: { trustedHosts: string[]; limit(kind: ApiRateKind): Promise<void> };
+  api: { trustedHosts: string[]; limit(kind: ApiRateKind, userId?: string): Promise<void> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -65,6 +65,9 @@ function publicHosts(appUrl: string | undefined): string[] {
     return [];
   }
 }
+
+/** One bucket per client address for anonymous calls, per user AND address once signed in (one account cannot spend another's budget). */
+const apiRateKey = (kind: ApiRateKind, clientKey: string, userId?: string) => (userId ? `api:${kind}:u:${userId}:${clientKey}` : `api:${kind}:${clientKey}`);
 
 export function buildContainer(source: Record<string, string | undefined> = process.env): Container {
   const env = getEnv(source);
@@ -118,7 +121,8 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     },
     api: {
       trustedHosts: publicHosts(env.BETTER_AUTH_URL),
-      limit: async (kind) => enforceRateLimit(limiter, `api:${kind}:${(await caller()).clientKey}`, kind === "read" ? API_RATE_READ : API_RATE_WRITE),
+      limit: async (kind, userId) =>
+        enforceRateLimit(limiter, apiRateKey(kind, (await caller()).clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE),
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),

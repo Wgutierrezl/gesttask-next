@@ -85,4 +85,21 @@ describe("per-client rate limit", () => {
     expect((await call(boardsRoute.GET, "GET", owner)).status).toBe(200);
     expect(API_RATE_READ.limit).toBeGreaterThan(API_RATE_WRITE.limit);
   });
+
+  it("gives every signed-in user their own budget even from one address, and anonymous calls another", async () => {
+    const other = await signUpUser(auth, "other@example.com");
+    for (let i = 0; i < API_RATE_WRITE.limit; i++) await call(boardsRoute.POST, "POST", owner, { body: { name: "" } });
+    expect((await call(boardsRoute.POST, "POST", owner, { body: { name: "" } })).status).toBe(429);
+    expect((await call(boardsRoute.POST, "POST", other, { body: { name: "" } })).status).toBe(422);
+    expect((await call(boardsRoute.POST, "POST", null, { body: { name: "" } })).status).toBe(401);
+  });
+});
+
+describe("authentication comes before parsing", () => {
+  it("answers 401 to an anonymous caller sending a broken body, a bad query or a bad id", async () => {
+    request.headers = new Headers();
+    const broken = new Request("http://localhost:3000/api/v1/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
+    await expectError(await boardsRoute.POST(broken, { params: Promise.resolve({}) }), 401, "UNAUTHENTICATED");
+    await expectError(await call(boardsRoute.GET, "GET", null, { query: { limit: 9999 } }), 401, "UNAUTHENTICATED");
+  });
 });

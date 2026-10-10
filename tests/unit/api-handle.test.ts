@@ -4,7 +4,8 @@ import { ConflictError, NotFoundError, RateLimitError, UnauthenticatedError } fr
 const useCases = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
 const api = vi.hoisted(() => ({ trustedHosts: [] as string[], limit: vi.fn() }));
-vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api }) }));
+const session = vi.hoisted(() => ({ getActor: vi.fn() }));
+vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api, session }) }));
 
 const { handle } = await import("@/app/api/v1/_lib/handle");
 
@@ -23,6 +24,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   for (const key of Object.keys(useCases)) delete useCases[key];
   api.limit.mockResolvedValue(undefined);
+  session.getActor.mockReset();
+  session.getActor.mockResolvedValue({ userId: "user-1", isGuest: false });
 });
 
 describe("handle: the thin adapter between a route and a use case", () => {
@@ -94,6 +97,33 @@ describe("handle: the thin adapter between a route and a use case", () => {
     useCases.listMyMemberships = vi.fn().mockResolvedValue([{ boardId: BOARD, userId: "u", role: "owner" }]);
     expect(await (await call("listMyMemberships")).json()).toEqual({ items: [{ boardId: BOARD, userId: "u", role: "owner" }], nextCursor: null });
     expect(useCases.listMyMemberships).toHaveBeenCalledWith({});
+  });
+
+  describe("authentication comes first", () => {
+    it("answers 401 to an anonymous caller whatever else is wrong with the request (no 404/422/413 oracle before the session)", async () => {
+      session.getActor.mockResolvedValue(null);
+      useCases.createBoard = vi.fn();
+      useCases.getBoard = vi.fn();
+      useCases.listMyBoards = vi.fn();
+      const garbage = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
+      expect((await handle("createBoard")(garbage, { params: Promise.resolve({}) })).status).toBe(401);
+      expect((await call("getBoard", { params: { boardId: "not-a-uuid" } })).status).toBe(401);
+      expect((await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=9999&cursor=***" })).status).toBe(401);
+      expect(useCases.createBoard).not.toHaveBeenCalled();
+      expect(useCases.getBoard).not.toHaveBeenCalled();
+    });
+
+    it("still rate limits an anonymous caller, by address only", async () => {
+      session.getActor.mockResolvedValue(null);
+      await call("listMyBoards");
+      expect(api.limit).toHaveBeenCalledWith("read", undefined);
+    });
+
+    it("keys the limit of a signed-in caller by user as well as address", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([]);
+      await call("listMyBoards");
+      expect(api.limit).toHaveBeenCalledWith("read", "user-1");
+    });
   });
 
   describe("errors", () => {
