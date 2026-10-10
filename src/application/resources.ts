@@ -1,4 +1,5 @@
 import { NotFoundError } from "@/domain/errors";
+import type { Comment } from "@/domain/entities/comment";
 import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 import type { Task } from "@/domain/entities/task";
 import type { BoardAction } from "@/domain/policy/board-policy";
@@ -34,4 +35,12 @@ export async function loadTask(repos: Repos, actor: Actor, taskId: string, actio
   if (!task) throw new NotFoundError();
   await requireBoardAccess(repos.members, actor, task.boardId, action);
   return task;
+}
+
+/** A comment is authorized by its OWN board, which the row carries (never by an id the caller sends along). */
+export async function loadComment(repos: Repos, actor: Actor, commentId: string, action: BoardAction): Promise<Comment> {
+  const comment = await repos.comments.findById(commentId);
+  if (!comment) throw new NotFoundError();
+  await requireBoardAccess(repos.members, actor, comment.boardId, action);
+  return comment;
 }

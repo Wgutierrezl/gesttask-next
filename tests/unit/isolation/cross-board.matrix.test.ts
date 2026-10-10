@@ -7,6 +7,10 @@ import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
 import { makeGetBoard } from "@/application/use-cases/boards/get-board";
 import { makeListMyBoards } from "@/application/use-cases/boards/list-my-boards";
 import { makeUpdateBoard } from "@/application/use-cases/boards/update-board";
+import { makeCreateComment } from "@/application/use-cases/comments/create-comment";
+import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
+import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
+import { makeListComments } from "@/application/use-cases/comments/list-comments";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeAddMemberByEmail } from "@/application/use-cases/members/add-member-by-email";
 import { makeChangeMemberRole } from "@/application/use-cases/members/change-member-role";
@@ -50,6 +54,7 @@ interface Ids {
   taskId: string;
   anchorTodoId: string;
   anchorDoneId: string;
+  commentId: string;
 }
 type IdKey = keyof Ids;
 type Run = (deps: AppDeps, actor: Actor, ids: Ids) => Promise<unknown>;
@@ -63,6 +68,7 @@ const GHOSTS: Ids = {
   taskId: ghost(5),
   anchorTodoId: ghost(6),
   anchorDoneId: ghost(7),
+  commentId: ghost(8),
 };
 const ID_KEYS = Object.keys(GHOSTS) as IdKey[];
 
@@ -107,6 +113,10 @@ const RESOURCES: Record<string, Case> = {
   "tasks/delete-task.ts": { action: "task:write", uses: ["taskId"], run: (d, a, i) => makeDeleteTask(d)(a, { taskId: i.taskId }) },
   "tasks/list-tasks-by-pipeline.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeListTasksByPipeline(d)(a, { pipelineId: i.pipelineId }) },
   "tasks/move-task.ts": { action: "task:write", uses: ["taskId", "doneId", "anchorDoneId"], run: (d, a, i) => makeMoveTask(d)(a, { taskId: i.taskId, toStageId: i.doneId, afterTaskId: i.anchorDoneId }) },
+  "comments/create-comment.ts": { action: "comment:create", uses: ["taskId"], run: (d, a, i) => makeCreateComment(d)(a, { taskId: i.taskId, body: "x" }) },
+  "comments/list-comments.ts": { action: "board:view", uses: ["taskId"], run: (d, a, i) => makeListComments(d, directory)(a, { taskId: i.taskId }) },
+  "comments/edit-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeEditComment(d)(a, { commentId: i.commentId, body: "x" }) },
+  "comments/delete-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeDeleteComment(d)(a, { commentId: i.commentId }) },
   "tasks/reorder-task.ts": { action: "task:write", uses: ["taskId", "anchorTodoId"], run: (d, a, i) => makeReorderTask(d)(a, { taskId: i.taskId, afterTaskId: i.anchorTodoId }) },
 };
 
@@ -128,6 +138,8 @@ const worldOf = (ctx: TestContext, ids: Ids) => ({
   pipelines: [...ctx.store.pipelines.values()].filter((p) => p.boardId === ids.boardId),
   stages: [...ctx.store.stages.values()].filter((s) => s.boardId === ids.boardId),
   tasks: [...ctx.store.tasks.values()].filter((t) => t.boardId === ids.boardId),
+  comments: [...ctx.store.comments.values()].filter((c) => c.boardId === ids.boardId),
+  attachments: [...ctx.store.attachments.values()].filter((a) => a.boardId === ids.boardId),
 });
 const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
 /**
@@ -146,6 +158,7 @@ async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promis
   const k = await seedKanban(ctx, owner);
   const add = (stageId: string, title: string) => makeCreateTask(ctx)(owner, { stageId, title: `${label}-${title}` });
   const [task, anchorTodo, anchorDone] = [await add(k.todoId, "secret"), await add(k.todoId, "anchor"), await add(k.doneId, "anchor")];
+  const comment = await makeCreateComment(ctx)(owner, { taskId: task.id, body: `${label}-comment` });
   return {
     boardId: k.boardId,
     pipelineId: k.pipelineId,
@@ -154,6 +167,7 @@ async function buildWorld(ctx: TestContext, owner: Actor, label: string): Promis
     taskId: task.id,
     anchorTodoId: anchorTodo.id,
     anchorDoneId: anchorDone.id,
+    commentId: comment.id,
   };
 }
 
