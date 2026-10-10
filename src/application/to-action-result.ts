@@ -1,12 +1,14 @@
-import { DomainError, RateLimitError, ValidationError } from "@/domain/errors";
+import { isDomainError, type FieldErrors } from "@/domain/errors";
 import type { ActionFailure, ActionResult } from "./result";
 
 /** The single translation from thrown domain errors to the serializable result Server Actions return. */
 export function toActionFailure(error: unknown): ActionFailure {
-  if (!(error instanceof DomainError)) return { ok: false, code: "INTERNAL", message: "Something went wrong" };
+  if (!isDomainError(error)) return { ok: false, code: "INTERNAL", message: "Something went wrong" };
   const failure: ActionFailure = { ok: false, code: error.code, message: error.message };
-  if (error instanceof ValidationError && Object.keys(error.fieldErrors).length > 0) failure.fieldErrors = error.fieldErrors;
-  if (error instanceof RateLimitError) failure.retryAfterSeconds = error.retryAfterSeconds;
+  // Structural, not `instanceof`: the error may come from another copy of the domain module.
+  const { fieldErrors, retryAfterSeconds } = error as { fieldErrors?: FieldErrors; retryAfterSeconds?: number };
+  if (error.code === "VALIDATION" && fieldErrors && Object.keys(fieldErrors).length > 0) failure.fieldErrors = fieldErrors;
+  if (error.code === "RATE_LIMITED" && retryAfterSeconds !== undefined) failure.retryAfterSeconds = retryAfterSeconds;
   return failure;
 }
 
@@ -18,7 +20,7 @@ export async function runAction<T>(work: () => Promise<T>, onUnexpected?: (error
   try {
     return { ok: true, data: await work() };
   } catch (error) {
-    if (!(error instanceof DomainError)) onUnexpected?.(error);
+    if (!isDomainError(error)) onUnexpected?.(error);
     return toActionFailure(error);
   }
 }
