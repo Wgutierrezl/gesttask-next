@@ -1,15 +1,13 @@
-import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { getContainer } from "@/infrastructure/container";
+import { requirePageActor } from "@/app/_shared/require-page-actor";
 
 // Per-request session: never prerendered at build time (no database or secrets there).
 export const dynamic = "force-dynamic";
 
 /** The authoritative guard: the proxy only pre-filters on the cookie, this validates the session. */
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const actor = await getContainer().session.getActor();
-  if (!actor) redirect("/login");
+  const actor = await requirePageActor();
   return (
     <div className="mx-auto max-w-5xl p-6">
       <header className="mb-6 flex items-center justify-between">

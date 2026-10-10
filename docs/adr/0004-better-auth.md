@@ -66,6 +66,11 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
 - **Credentials policy.** Passwords need at least 10 characters (Better Auth is configured with the same
   constant); emails on the reserved `.invalid` TLD cannot be registered because demo users live there.
 
+- **Pages and actions.** Every page and loader under `(app)` calls `requirePageActor` (the layout alone does not
+  protect a page rendered on its own); a test enumerates the files and fails if one forgets. `/login` and
+  `/register` redirect only real accounts: a guest sees the form so it can upgrade. Server Actions only accept
+  the request host plus the host of `BETTER_AUTH_URL` (`serverActions.allowedOrigins`).
+
 ## Consequences
 
 - Our rate limiter (Postgres) guards sign-in; Better Auth's built-in limiter is not relied upon.

@@ -9,7 +9,9 @@ export const metadata = { title: "Create account - GestTask" };
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
   const next = safeNext((await searchParams).next);
-  if (await getContainer().session.getActor()) redirect(next);
+  // Guests still see the form: signing in or up from a guest session upgrades it (the sandbox moves along).
+  const actor = await getContainer().session.getActor();
+  if (actor && !actor.isGuest) redirect(next);
   return (
     <main className="mx-auto flex max-w-sm flex-col gap-6 p-8">
       <h1 className="text-2xl font-semibold">Create your account</h1>
