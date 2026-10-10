@@ -84,6 +84,14 @@ export function runTaskContract(name: string, setup: () => RepoHarness): void {
       expect((await h.repos.tasks.findById(elsewhere.id))?.assigneeId).toBe("u1");
     });
 
+    it("countByBoards totals the tasks of the given boards only, and 0 for none", async () => {
+      const [one, two, three] = [await seedStage(h), await seedStage(h), await seedStage(h)];
+      for (const s of [one, one, two, three]) await h.repos.tasks.insert(makeTask(s.stage));
+      expect(await h.repos.tasks.countByBoards([one.board.id, two.board.id])).toBe(3);
+      expect(await h.repos.tasks.countByBoards([three.board.id, uuid()])).toBe(1);
+      expect(await h.repos.tasks.countByBoards([])).toBe(0);
+    });
+
     describe("referential integrity", () => {
       it("rejects a task whose stage does not exist", async () => {
         const { stage } = await seedStage(h);

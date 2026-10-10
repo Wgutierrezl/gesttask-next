@@ -148,6 +148,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
           if (task.boardId === boardId && task.assigneeId === userId) task.assigneeId = null;
         }
       },
+      countByBoards: async (boardIds) => [...store.tasks.values()].filter((t) => boardIds.includes(t.boardId)).length,
       listByStage: async (stageId) =>
         copies([...store.tasks.values()].filter((t) => t.stageId === stageId).sort(byPositionThenId)),
       listByPipeline: async (pipelineId, page) => {

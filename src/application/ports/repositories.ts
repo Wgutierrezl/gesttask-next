@@ -85,6 +85,8 @@ export interface TaskRepo {
   delete(id: string): Promise<void>;
   /** Sets `assigneeId` to null on every task of the board assigned to the user. */
   clearAssignee(boardId: string, userId: string): Promise<void>;
+  /** Number of tasks across the given boards (0 for none); backs the guest quota. */
+  countByBoards(boardIds: string[]): Promise<number>;
   /** Ordered by position, then id. */
   listByStage(stageId: string): Promise<Task[]>;
   /** Ordered by stage position, stage id, task position, task id; paginated, columns never interleave. */

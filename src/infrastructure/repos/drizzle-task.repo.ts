@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { TaskRepo } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
 import { stages, tasks } from "../db/schema";
@@ -33,6 +33,11 @@ export function createTaskRepo(db: Database, lock: boolean): TaskRepo {
       await exec(
         db.update(tasks).set({ assigneeId: null }).where(and(inArray(tasks.id, rows.map((r) => r.id)), eq(tasks.assigneeId, userId))),
       );
+    },
+    countByBoards: async (boardIds) => {
+      if (boardIds.length === 0) return 0;
+      const [row] = await exec(db.select({ n: count() }).from(tasks).where(inArray(tasks.boardId, boardIds)));
+      return Number(row?.n ?? 0);
     },
     listByStage: (stageId) => {
       const ordered = () => exec(db.select(columns).from(tasks).where(eq(tasks.stageId, stageId)).orderBy(asc(tasks.position), asc(tasks.id)));
