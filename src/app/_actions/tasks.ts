@@ -1,6 +1,5 @@
 "use server";
 
-import { loadTasks } from "../_shared/kanban-data";
 import type { MutationState } from "../_shared/mutation-state";
 import { PIPELINE_PAGE, TASK_PAGE, pipelinePath } from "../_shared/paths";
 import { checked, optionalText, runMutation, text } from "../_shared/run-mutation";
@@ -39,14 +38,14 @@ export async function updateTaskAction(_previous: MutationState, form: FormData)
   );
 }
 
-/** Deleting asks for confirmation; the ids in the hidden fields only decide where to land afterwards. */
+/** Deleting asks for confirmation; where to land afterwards comes from the deleted task, never from the form. */
 export async function deleteTaskAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   if (!checked(form, "confirm")) {
     return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] } };
   }
   return runMutation(() => getContainer().useCases.deleteTask({ taskId: text(form, "taskId") }), {
     ...pages,
-    redirectTo: () => pipelinePath(text(form, "boardId"), text(form, "pipelineId")),
+    redirectTo: ({ boardId, pipelineId }) => pipelinePath(boardId, pipelineId),
   });
 }
 
@@ -63,16 +62,9 @@ export async function reorderTaskAction(_previous: MutationState, form: FormData
 }
 
 /**
- * The form that works without drag and drop or JavaScript: the task goes to the end of the chosen stage. The
- * anchor is read through the guarded use cases (the task lookup authorizes first), then the same move runs.
+ * The form that works without drag and drop or JavaScript: the task goes to the end of the chosen stage. The end is
+ * resolved by the use case inside its transaction, so concurrent inserts and long columns cannot make it stale.
  */
 export async function moveTaskToEndAction(_previous: MutationState, form: FormData): Promise<MutationState> {
-  const taskId = text(form, "taskId");
-  const toStageId = text(form, "toStageId");
-  return runMutation(async () => {
-    const { pipelineId } = await getContainer().useCases.getTask({ taskId });
-    const { tasks } = await loadTasks((page) => getContainer().useCases.listTasksByPipeline({ pipelineId, ...page }));
-    const last = tasks.filter((task) => task.stageId === toStageId && task.id !== taskId).at(-1);
-    await getContainer().useCases.moveTask({ taskId, toStageId, afterTaskId: last?.id ?? null });
-  }, pages);
+  return runMutation(() => getContainer().useCases.moveTask({ taskId: text(form, "taskId"), toStageId: text(form, "toStageId"), toEnd: true }), pages);
 }

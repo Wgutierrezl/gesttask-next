@@ -4,10 +4,10 @@ import { deleteTaskAction } from "@/app/_actions/tasks";
 import { MutationForm } from "@/components/ui/mutation-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-/** A required checkbox, so confirming also works without JavaScript; the ids say where to go afterwards. */
-export function DeleteTaskForm({ taskId, boardId, pipelineId }: { taskId: string; boardId: string; pipelineId: string }) {
+/** A required checkbox, so confirming also works without JavaScript. */
+export function DeleteTaskForm({ taskId }: { taskId: string }) {
   return (
-    <MutationForm action={deleteTaskAction} hidden={{ taskId, boardId, pipelineId }} inlineFields={["confirm"]} className="flex flex-col gap-2">
+    <MutationForm action={deleteTaskAction} hidden={{ taskId }} inlineFields={["confirm"]} className="flex flex-col gap-2">
       {(failure) => {
         const error = failure?.fieldErrors?.confirm;
         return (

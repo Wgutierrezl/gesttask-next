@@ -83,7 +83,8 @@ describe("tasks CRUD", () => {
     it("lets members write and every role read", async () => {
       const task = await makeCreateTask(ctx)(MEMBER, { stageId: k.todoId, title: "by member" });
       for (const who of [OWNER, MEMBER, GUEST]) expect((await makeGetTask(ctx)(who, { taskId: task.id })).id).toBe(task.id);
-      await makeDeleteTask(ctx)(MEMBER, { taskId: task.id });
+      // The ids come back so callers can navigate somewhere without trusting the client.
+      expect(await makeDeleteTask(ctx)(MEMBER, { taskId: task.id })).toEqual({ boardId: k.boardId, pipelineId: k.pipelineId });
       expect(ctx.store.tasks.size).toBe(0);
     });
 

@@ -52,6 +52,24 @@ describe("tasks under real concurrency", () => {
     }
   });
 
+  it("moving to the end while another task is inserted there keeps distinct positions and the mover last or just before the newcomer", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { todo, doing } = await seedKanban(deps);
+      await addTask(deps, doing.id);
+      const mover = await addTask(deps, todo.id);
+      const results = await Promise.allSettled([
+        makeMoveTask(deps)(OWNER, { taskId: mover.id, toStageId: doing.id, toEnd: true }),
+        makeCreateTask(deps)(OWNER, { stageId: doing.id, title: "newcomer" }),
+      ]);
+      expect(statuses(results)).toEqual(["fulfilled", "fulfilled"]);
+      const column = await deps.repos.tasks.listByStage(doing.id);
+      expect(column).toHaveLength(3);
+      expect(new Set(column.map((t) => t.position)).size).toBe(3);
+      expect(column.map((t) => t.id)).toContain(mover.id);
+      expect(column[0]!.id).not.toBe(mover.id);
+    }
+  });
+
   it("tasks swapping columns in opposite directions never deadlock", async () => {
     for (let round = 0; round < ROUNDS; round++) {
       const { todo, doing } = await seedKanban(deps);

@@ -100,21 +100,21 @@ describe("EditTaskForm", () => {
 });
 
 describe("DeleteTaskForm", () => {
-  it("needs the confirmation box and sends the ids it will return to", async () => {
+  it("needs the confirmation box and sends only the task id", async () => {
     const user = userEvent.setup();
-    render(<DeleteTaskForm taskId="t1" boardId="b1" pipelineId="p1" />);
+    render(<DeleteTaskForm taskId="t1" />);
     const box = screen.getByLabelText(/delete this task/i) as HTMLInputElement;
     expect(box.required).toBe(true);
     await user.click(box);
     await user.click(screen.getByRole("button", { name: "Delete task" }));
     await waitFor(() => expect(actions.deleteTaskAction).toHaveBeenCalled());
-    expect(fields(actions.deleteTaskAction.mock.calls[0]![1])).toEqual({ taskId: "t1", boardId: "b1", pipelineId: "p1", confirm: "yes" });
+    expect(fields(actions.deleteTaskAction.mock.calls[0]![1])).toEqual({ taskId: "t1", confirm: "yes" });
   });
 
   it("shows the server's confirmation error next to the box", async () => {
     actions.deleteTaskAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] } });
     const user = userEvent.setup();
-    render(<DeleteTaskForm taskId="t1" boardId="b1" pipelineId="p1" />);
+    render(<DeleteTaskForm taskId="t1" />);
     const box = screen.getByLabelText(/delete this task/i) as HTMLInputElement;
     box.required = false;
     await user.click(screen.getByRole("button", { name: "Delete task" }));

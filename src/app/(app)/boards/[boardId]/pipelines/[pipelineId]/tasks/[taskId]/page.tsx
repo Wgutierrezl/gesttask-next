@@ -80,7 +80,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
           </section>
           <section aria-labelledby="delete-heading">
             <h2 id="delete-heading" className="mb-3 text-lg font-medium">Delete task</h2>
-            <DeleteTaskForm taskId={task.id} boardId={boardId} pipelineId={pipelineId} />
+            <DeleteTaskForm taskId={task.id} />
           </section>
         </>
       ) : null}

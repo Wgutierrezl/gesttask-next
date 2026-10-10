@@ -116,6 +116,55 @@ describe("task placement", () => {
     });
   });
 
+  describe("moveTask toEnd", () => {
+    it("lands after every task of the destination, however many there are", { timeout: 30_000 }, async () => {
+      // More tasks than any page the UI loads: the end must be resolved on the server, not from a partial list.
+      const keys = generatePositions(1205);
+      for (const [i, position] of keys.entries()) {
+        const id = `22222222-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`;
+        await ctx.repos.tasks.insert(buildTask({ id, title: `F${i}`, position, stageId: k.doneId, pipelineId: k.pipelineId, boardId: k.boardId }));
+      }
+      const t = await add("T");
+      await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: k.doneId, toEnd: true });
+      const column = await ctx.repos.tasks.listByStage(k.doneId);
+      expect(column).toHaveLength(1206);
+      expect(column.at(-1)?.id).toBe(t.id);
+      expect(new Set(column.map((c) => c.position)).size).toBe(1206);
+    });
+
+    it("goes to the top of an empty stage and to the bottom of its own stage", async () => {
+      const [a, b, c] = [await add("A"), await add("B"), await add("C")];
+      await makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: k.doneId, toEnd: true });
+      expect(await order(k.doneId)).toEqual(["A"]);
+      await makeMoveTask(ctx)(OWNER, { taskId: b.id, toStageId: k.todoId, toEnd: true });
+      expect(await order(k.todoId)).toEqual(["C", "B"]);
+      const same = await makeMoveTask(ctx)(OWNER, { taskId: b.id, toStageId: k.todoId, toEnd: true });
+      expect(same).toMatchObject({ id: b.id, position: (await ctx.repos.tasks.findById(b.id))!.position });
+      expect(c.stageId).toBe(k.todoId);
+    });
+
+    it("completes the task when the end of the done stage is chosen", async () => {
+      const t = await add("T");
+      expect((await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: k.doneId, toEnd: true })).completedAt).toEqual(ctx.clock.now());
+    });
+
+    it("needs exactly one of afterTaskId and toEnd", async () => {
+      const t = await add("T");
+      for (const input of [{ toEnd: true, afterTaskId: null }, {}]) {
+        await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: k.doneId, ...input })).rejects.toBeInstanceOf(ValidationError);
+      }
+    });
+
+    it("keeps the destination rules: foreign stage, other pipeline and viewers are refused", async () => {
+      const t = await add("T");
+      const sibling = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
+      const siblingStage = await makeCreateStage(ctx)(OWNER, { pipelineId: sibling.id, name: "S" });
+      await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: siblingStage.id, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(makeMoveTask(ctx)(GUEST, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(makeMoveTask(ctx)(STRANGER, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
   describe("position integrity", () => {
     it("keeps order and short keys over 1000 inserts into the same gap", { timeout: 30_000 }, async () => {
       const [a, b] = [await add("A"), await add("B")];

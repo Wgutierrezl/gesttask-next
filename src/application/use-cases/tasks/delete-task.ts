@@ -5,9 +5,11 @@ import { parseInput } from "../../schemas/parse";
 import { taskIdSchema } from "../../schemas/task";
 
 export function makeDeleteTask(deps: AppDeps) {
-  return async (actor: Actor, input: unknown): Promise<void> => {
+  /** Returns where the task lived, so the caller can go back there without trusting ids sent by the client. */
+  return async (actor: Actor, input: unknown): Promise<{ boardId: string; pipelineId: string }> => {
     const { taskId } = parseInput(taskIdSchema, input);
-    await loadTask(deps.repos, actor, taskId, "task:write");
+    const { boardId, pipelineId } = await loadTask(deps.repos, actor, taskId, "task:write");
     await deps.uow.run((tx) => tx.tasks.delete(taskId));
+    return { boardId, pipelineId };
   };
 }
