@@ -18,6 +18,9 @@ const TRIGGER = "autoprovision_user";
  */
 export async function installAutoUsers(handle: DbHandle): Promise<void> {
   const { db } = handle;
+  const current = await db.execute<{ name: string }>(sql`SELECT current_database() AS name`);
+  const name = current.rows[0]?.name ?? "";
+  if (!name.endsWith("_test")) throw new Error(`installAutoUsers refuses to touch "${name}": only *_test databases are allowed`);
   await db.execute(sql`
     CREATE OR REPLACE FUNCTION test_autoprovision_user() RETURNS trigger AS $$
     DECLARE ref text := to_jsonb(NEW) ->> TG_ARGV[0];

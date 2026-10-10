@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { createDb } from "@/infrastructure/db/client";
 import { pgErrorCode } from "@/infrastructure/db/pg-error";
 import { DrizzleUnitOfWork } from "@/infrastructure/repos/drizzle-unit-of-work";
+import { installAutoUsers } from "./support/auto-users";
 import { connectTestDb, resetDb, testDatabaseUrl } from "./support/db";
 import { deferred } from "./support/tx";
 
@@ -17,6 +18,19 @@ describe("resetDb safety", () => {
     const dev = createDb({ driver: "pg", url: url.toString() });
     try {
       await expect(resetDb(dev)).rejects.toThrow(/_test/);
+    } finally {
+      await dev.close();
+    }
+  });
+});
+
+describe("auto-user fixture safety", () => {
+  it("refuses to install its triggers on a database whose name does not end in _test", async () => {
+    const url = new URL(testDatabaseUrl());
+    url.pathname = url.pathname.replace(/_test$/, "");
+    const dev = createDb({ driver: "pg", url: url.toString() });
+    try {
+      await expect(installAutoUsers(dev)).rejects.toThrow(/_test/);
     } finally {
       await dev.close();
     }
