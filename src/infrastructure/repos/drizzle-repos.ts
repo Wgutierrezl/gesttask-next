@@ -3,6 +3,7 @@ import type { Database } from "../db/client";
 import { createAttachmentRepo } from "./drizzle-attachment.repo";
 import { createBoardRepo } from "./drizzle-board.repo";
 import { createCommentRepo } from "./drizzle-comment.repo";
+import { createDashboardRepo } from "./drizzle-dashboard.repo";
 import { DrizzleDeletionOutbox } from "./drizzle-deletion-outbox";
 import { createMemberRepo } from "./drizzle-member.repo";
 import { createPipelineRepo } from "./drizzle-pipeline.repo";
@@ -22,6 +23,7 @@ export function createDrizzleRepos(db: Database, lock: boolean): Repos {
     tasks: createTaskRepo(db, lock),
     comments: createCommentRepo(db, lock),
     attachments: createAttachmentRepo(db, lock),
+    dashboard: createDashboardRepo(db),
     outbox: new DrizzleDeletionOutbox(db),
   };
 }

@@ -1,5 +1,6 @@
 import type { Board, BoardMember } from "@/domain/entities/board";
 import type { Attachment, Comment } from "@/domain/entities/comment";
+import type { BoardDashboard, UserDashboard } from "@/domain/entities/dashboard";
 import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 import type { Task } from "@/domain/entities/task";
 import type { BoardRole } from "@/domain/value-objects/board-role";
@@ -151,6 +152,18 @@ export interface AttachmentRepo {
   keysUnder(scope: AttachmentScope): Promise<string[]>;
 }
 
+/**
+ * Read models for the dashboards (REQ-DSH-01). Each method is ONE aggregation statement, however many boards, stages or
+ * tasks there are (no N+1, REQ-NFR-07), and always a snapshot read: it never locks. `today` is the UTC calendar date
+ * (YYYY-MM-DD) that decides what is overdue, the same basis as `isOverdue`.
+ */
+export interface DashboardRepo {
+  /** The user's boards and the tasks assigned to them on those boards only; zeros when there are none. */
+  forUser(userId: string, today: string): Promise<UserDashboard>;
+  /** Every pipeline of the board with every stage (zero counts included) and the member count; null when the board does not exist. */
+  forBoard(boardId: string, today: string): Promise<BoardDashboard | null>;
+}
+
 /** Repositories bound to the same transaction scope. */
 export interface Repos {
   boards: BoardRepo;
@@ -160,6 +173,7 @@ export interface Repos {
   tasks: TaskRepo;
   comments: CommentRepo;
   attachments: AttachmentRepo;
+  dashboard: DashboardRepo;
   /** Bound to the transaction in a unit of work: enqueued keys exist only if the whole transaction commits. */
   outbox: StorageDeletionOutbox;
 }

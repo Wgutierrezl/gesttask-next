@@ -53,6 +53,7 @@ export function recordTxCalls(ctx: TestContext): { ctx: TestContext; calls: stri
               tasks: spy("tasks", tx.tasks),
               comments: spy("comments", tx.comments),
               attachments: spy("attachments", tx.attachments),
+              dashboard: tx.dashboard,
               outbox: spy("outbox", tx.outbox),
             }),
           ),
