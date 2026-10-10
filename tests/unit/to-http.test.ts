@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, ValidationError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, UnavailableError, ValidationError } from "@/domain/errors";
 import { badRequest, payloadTooLarge } from "@/app/_shared/http-errors";
 import { toHttp } from "@/app/_shared/to-http";
 
@@ -11,6 +11,7 @@ describe("toHttp (REQ-API-03)", () => {
     [new NotFoundError(), 404, "NOT_FOUND"],
     [new ConflictError("Taken"), 409, "CONFLICT"],
     [new StorageError(), 502, "STORAGE"],
+    [new UnavailableError(), 503, "UNAVAILABLE"],
   ])("maps %s to its status with the uniform error body", (error, status, code) => {
     const response = toHttp(error, "req-1");
     expect(response.status).toBe(status);

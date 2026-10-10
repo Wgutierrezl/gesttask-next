@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, NotFoundError, RateLimitError, UnauthenticatedError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, UnauthenticatedError, ValidationError } from "@/domain/errors";
 
 const useCases = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
@@ -170,6 +170,20 @@ describe("handle: the thin adapter between a route and a use case", () => {
     it("answers 401 when the use case says there is no session", async () => {
       useCases.listMyBoards = vi.fn().mockRejectedValue(new UnauthenticatedError());
       expect((await call("listMyBoards")).status).toBe(401);
+    });
+
+    it("answers the download of an attachment 404 for forbidden and invalid too, like the web route (nothing about existence leaks)", async () => {
+      const attachmentId = "5b0e0a53-3a9a-4c53-8d57-58b1d7b0b0aa";
+      for (const error of [new ForbiddenError(), new ValidationError("Invalid input", { attachmentId: ["bad"] }), new NotFoundError()]) {
+        useCases.getAttachmentUrl = vi.fn().mockRejectedValue(error);
+        const response = await call("getAttachmentUrl", { params: { attachmentId } });
+        expect(response.status).toBe(404);
+        expect((await response.json()).error).toMatchObject({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      useCases.getAttachmentUrl = vi.fn().mockRejectedValue(new ConflictError("x"));
+      expect((await call("getAttachmentUrl", { params: { attachmentId } })).status).toBe(409);
+      useCases.updateBoard = vi.fn().mockRejectedValue(new ForbiddenError());
+      expect((await call("updateBoard", { method: "PATCH", body: { name: "x" }, params: { boardId: BOARD } })).status).toBe(403); // other operations keep 403
     });
 
     it("answers 429 with Retry-After when the client is over the API limit, before running anything", async () => {

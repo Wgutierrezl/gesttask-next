@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NotFoundError, UnauthenticatedError, ValidationError } from "@/application/errors";
 import { parseInput } from "@/application/schemas/parse";
+import { toActionFailure } from "@/application/to-action-result";
 import { getContainer } from "@/infrastructure/container";
 import { operationById } from "@/openapi/operations";
 import { decodeCursor, encodeCursor, MAX_OFFSET } from "@/openapi/page-query";
@@ -67,12 +68,15 @@ export function handle(operationId: string) {
       const result = await (container.useCases as unknown as Record<string, UseCase>)[operation.id]!(input);
       return respond(success(operation.response, result, paginated ? { limit, offset } : null), requestId);
     } catch (error) {
-      const response = toHttp(error, requestId);
+      const response = toHttp(operation.hidesExistence && refusesAccess(error) ? new NotFoundError() : error, requestId);
       if (response.status === 500) logUnexpected(error, requestId, operation.id);
       return respond(response.toResponse(), requestId);
     }
   };
 }
+
+/** Forbidden and invalid are what a stranger could tell apart from "missing"; they are answered as missing. */
+const refusesAccess = (error: unknown) => ["FORBIDDEN", "VALIDATION"].includes(toActionFailure(error).code);
 
 function parseParams(schema: NonNullable<ReturnType<typeof operationById>["params"]>, raw: Record<string, string>) {
   try {

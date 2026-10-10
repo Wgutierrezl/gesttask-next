@@ -10,6 +10,7 @@ const STATUS: Record<string, number> = {
   CONFLICT: 409,
   RATE_LIMITED: 429,
   STORAGE: 502,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 

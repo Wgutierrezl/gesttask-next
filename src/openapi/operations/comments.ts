@@ -33,6 +33,6 @@ export const commentOperations: Operation[] = [
   {
     id: "getAttachmentUrl", method: "get", path: "/attachments/{attachmentId}/download", tag: "Attachments",
     summary: "Get a signed, expiring download URL for an attachment (a credential: do not store or log it)",
-    params: attachmentIdSchema, response: { kind: "item", status: 200, schema: attachmentDownloadResponse },
+    params: attachmentIdSchema, response: { kind: "item", status: 200, schema: attachmentDownloadResponse }, hidesExistence: true,
   },
 ];

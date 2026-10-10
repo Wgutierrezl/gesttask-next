@@ -67,7 +67,7 @@ describe("the OpenAPI document (REQ-API-02)", () => {
   it("documents the failures a client has to handle with the uniform error body", () => {
     for (const operation of OPERATIONS) {
       const statuses = Object.keys(doc.paths[operation.path]![operation.method]!.responses);
-      expect(statuses, operation.id).toEqual(expect.arrayContaining(["401", "429", "500"]));
+      expect(statuses, operation.id).toEqual(expect.arrayContaining(["401", "429", "500", "503"]));
       if (operation.method !== "get") expect(statuses, operation.id).toEqual(expect.arrayContaining(["403", "409"]));
       if (operation.params) expect(statuses, operation.id).toContain("404");
       if (operation.body || operation.query) expect(statuses, operation.id).toContain("422");

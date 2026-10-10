@@ -76,6 +76,39 @@ describe("buildContainer", () => {
     }
   }, 30_000);
 
+  it("warns at startup when production has no trustworthy client address (not on Vercel, TRUSTED_PROXY_HOPS=0), and only then", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const warned = () => write.mock.calls.map(([line]) => String(line)).filter((line) => line.includes('"level":"warn"') && line.includes("TRUSTED_PROXY_HOPS"));
+      const production = { ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "https://gesttask.example.com" };
+      await buildContainer(production).close();
+      expect(warned()).toHaveLength(1);
+      write.mockClear();
+      await buildContainer(valid).close(); // development
+      await buildContainer({ ...production, TRUSTED_PROXY_HOPS: "1" }).close();
+      await buildContainer({ ...production, VERCEL: "1", STORAGE_DRIVER: "s3", S3_BUCKET: "b", AWS_REGION: "us-east-1", AWS_ACCESS_KEY_ID: "id", AWS_SECRET_ACCESS_KEY: "secret" }).close();
+      expect(warned()).toEqual([]);
+    } finally {
+      write.mockRestore();
+    }
+  }, 30_000);
+
+  it("answers the REST API limit with a clear 503-class error, not an opaque crash, when production has no client address", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const { UnavailableError } = await import("@/domain/errors");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const container = buildContainer({ ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "https://gesttask.example.com" });
+      await expect(container.api.limit("read", "user-1")).rejects.toBeInstanceOf(UnavailableError);
+      const logged = write.mock.calls.map(([line]) => String(line)).filter((line) => line.includes('"level":"error"'));
+      expect(logged.join("")).toMatch(/TRUSTED_PROXY_HOPS/); // the operator is told what to fix; the client is not
+      await container.close();
+    } finally {
+      write.mockRestore();
+    }
+  }, 30_000);
+
   it("does not expose credential or guest flows on the HTTP handler", async () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);

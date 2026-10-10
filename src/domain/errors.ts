@@ -5,7 +5,8 @@ export type DomainErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "RATE_LIMITED"
-  | "STORAGE";
+  | "STORAGE"
+  | "UNAVAILABLE";
 
 /**
  * Shared across copies of this module on purpose: a bundler may load the domain twice (e.g. a route handler and the page
@@ -75,6 +76,13 @@ export class RateLimitError extends DomainError {
 export class StorageError extends DomainError {
   constructor(message = "Storage operation failed") {
     super("STORAGE", message);
+  }
+}
+
+/** The service cannot take the request right now because of how it is deployed or configured, not because of the request. */
+export class UnavailableError extends DomainError {
+  constructor(message = "The service is temporarily unavailable") {
+    super("UNAVAILABLE", message);
   }
 }
 

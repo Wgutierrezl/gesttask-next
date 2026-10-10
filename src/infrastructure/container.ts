@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import type { Actor } from "@/application/actor";
+import { UnavailableError } from "@/domain/errors";
 import { API_RATE_READ, API_RATE_WRITE, type ApiRateKind } from "@/application/api-policy";
 import type { SessionPort } from "@/application/ports/services";
 import { guardAll } from "@/application/require-actor";
@@ -14,7 +15,7 @@ import { DrizzleUserDirectory } from "./auth/drizzle-user-directory";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
 import { sessionCookieConfig } from "./auth/cookie-config";
-import { clientKeyFrom } from "./auth/client-key";
+import { ClientAddressUnavailableError, clientKeyFrom } from "./auth/client-key";
 import { guardAuthHandler } from "./auth/http-guard";
 import { SeededGuestSandbox } from "./auth/guest-sandbox";
 import { BetterAuthSession } from "./auth/session";
@@ -91,6 +92,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
   const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
+  if (clientKeyOptions.production && !clientKeyOptions.vercel && clientKeyOptions.trustedProxyHops < 1) {
+    logger.warn("Production without Vercel and with TRUSTED_PROXY_HOPS=0: the client address is unknown, so sign-in and the REST API will answer 503; set TRUSTED_PROXY_HOPS to the number of reverse proxies in front of the app");
+  }
+
   const { storage, local } = createStorage(env, clock);
   // ADR 0009 allows the local driver in a production build (e2e and smoke runs off Vercel), but it is development storage.
   if (env.STORAGE_DRIVER === "local" && env.NODE_ENV === "production") {
@@ -122,8 +127,18 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     api: {
       trustedOrigins: publicOrigins(env.BETTER_AUTH_URL),
       trustForwardedProto: Boolean(env.VERCEL) || env.TRUSTED_PROXY_HOPS >= 1,
-      limit: async (kind, userId) =>
-        enforceRateLimit(limiter, apiRateKey(kind, (await caller()).clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE),
+      limit: async (kind, userId) => {
+        let clientKey: string;
+        try {
+          clientKey = (await caller()).clientKey;
+        } catch (error) {
+          if (!(error instanceof ClientAddressUnavailableError)) throw error;
+          // A deployment problem, not the caller's: tell the operator exactly what to fix and the client that it is not their fault.
+          logger.error(error.message, { operation: "api rate limit" });
+          throw new UnavailableError();
+        }
+        await enforceRateLimit(limiter, apiRateKey(kind, clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE);
+      },
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),

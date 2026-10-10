@@ -21,6 +21,7 @@ function failures(operation: Operation): ResponseMap {
   if (operation.body || operation.query) responses[422] = problem("Invalid input: `error.details` maps each field to its messages");
   responses[429] = problem("Too many requests: wait `Retry-After` seconds");
   if (operation.tag === "Attachments") responses[502] = problem("The file storage failed");
+  responses[503] = problem("The service cannot tell clients apart (deployment misconfigured): retry later, the operator has been told");
   responses[500] = problem("Unexpected error: quote `error.requestId` when reporting it");
   return responses;
 }
