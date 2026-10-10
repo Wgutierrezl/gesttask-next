@@ -12,7 +12,7 @@ import { makeCreateComment } from "../comments/create-comment";
 import { makeListComments } from "../comments/list-comments";
 import { makeGetAttachmentUrl } from "./get-attachment-url";
 import { makeRequestUpload } from "./request-upload";
-import { ALLOWED_CONTENT_TYPES, MAX_ATTACHMENT_BYTES } from "../../attachment-policy";
+import { ALLOWED_CONTENT_TYPES, MAX_ATTACHMENT_BYTES, PENDING_UPLOAD_TTL_MS } from "../../attachment-policy";
 
 const MB = 1024 * 1024;
 const GUEST_USER = { userId: "guest-user", isGuest: true };
@@ -214,6 +214,19 @@ describe("attachments", () => {
       const row = await uploaded(OWNER);
       await comment(OWNER, { attachmentIds: [row.id] });
       await expect(comment(OWNER, { attachmentIds: [row.id], body: "again" })).rejects.toBeInstanceOf(ConflictError);
+      expect(ctx.store.comments.size).toBe(1);
+    });
+
+    it("refuses an upload whose ticket window is over, but still takes one that is exactly at the limit", async () => {
+      const edge = await uploaded(OWNER);
+      ctx.clock.set(new Date(ctx.clock.now().getTime() + PENDING_UPLOAD_TTL_MS));
+      await expect(comment(OWNER, { attachmentIds: [edge.id], body: "on time" })).resolves.toMatchObject({ body: "on time" });
+      const stale = await uploaded(OWNER);
+      ctx.clock.set(new Date(ctx.clock.now().getTime() + PENDING_UPLOAD_TTL_MS + 1));
+      const error = await comment(OWNER, { attachmentIds: [stale.id], body: "too late" }).catch((e) => e);
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).fieldErrors).toHaveProperty("attachmentIds");
+      expect(ctx.store.attachments.get(stale.id)?.status).toBe("pending");
       expect(ctx.store.comments.size).toBe(1);
     });
 
