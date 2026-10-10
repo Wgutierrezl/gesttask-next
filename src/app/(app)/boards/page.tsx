@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { loadPage } from "@/app/_shared/load-page";
 import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
@@ -23,7 +24,13 @@ export default async function BoardsPage({ searchParams }: { searchParams: Promi
       <section aria-labelledby="boards-heading">
         <h1 id="boards-heading" className="text-xl font-semibold">Your boards</h1>
         {items.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-600">You have no boards yet. Create your first one below.</p>
+          <p className="mt-2 text-sm text-gray-600">
+            {page > 1 ? (
+              <>No boards on this page. <Link href="/boards" className="underline">Go to the first page</Link></>
+            ) : (
+              "You have no boards yet. Create your first one below."
+            )}
+          </p>
         ) : (
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
             {items.map((board) => (

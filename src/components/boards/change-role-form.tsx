@@ -15,7 +15,7 @@ export function ChangeRoleForm({ boardId, member }: { boardId: string; member: M
       <input type="hidden" name="boardId" value={boardId} />
       <input type="hidden" name="userId" value={member.userId} />
       <RoleSelect id={`role-${member.userId}`} label={`Role of ${member.name}`} defaultValue={member.role} hideLabel />
-      <SubmitButton variant="secondary" pendingLabel="Saving...">
+      <SubmitButton variant="secondary" pendingLabel="Saving..." ariaLabel={`Update role for ${member.name}`}>
         Update
       </SubmitButton>
       <FormError failure={failureOf(state)} />

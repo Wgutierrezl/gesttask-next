@@ -67,7 +67,7 @@ describe("components", () => {
 
 describe("SettingsPage", () => {
   it("renders all three controls for the owner", async () => {
-    const html = renderToStaticMarkup(await SettingsPage({ params: params() }));
+    const html = renderToStaticMarkup(await SettingsPage({ params: params(), searchParams: Promise.resolve({}) }));
     expect(html).toContain("Save changes");
     expect(html).toContain("Archive board");
     expect(html).toContain("Delete board");
@@ -75,16 +75,16 @@ describe("SettingsPage", () => {
 
   it.each(["member", "guest"])("renders the 404 page for a %s, so settings never reveal themselves", async (role) => {
     useCases.getBoard.mockResolvedValue({ board, role });
-    await expect(SettingsPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+    await expect(SettingsPage({ params: params(), searchParams: Promise.resolve({}) })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
     expect(useCases.listMemberProfiles).not.toHaveBeenCalled();
   });
 
   it("checks the session first and 404s foreign boards", async () => {
     getActor.mockResolvedValue(null);
-    await expect(SettingsPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
+    await expect(SettingsPage({ params: params(), searchParams: Promise.resolve({}) })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
     getActor.mockResolvedValue({ userId: "x", isGuest: false });
     useCases.getBoard.mockRejectedValue(new NotFoundError());
-    await expect(SettingsPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+    await expect(SettingsPage({ params: params(), searchParams: Promise.resolve({}) })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
   });
 });
 
