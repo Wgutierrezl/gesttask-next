@@ -33,7 +33,7 @@ export function FormField({ label, name, type = "text", autoComplete, errors, mi
       </label>
       {multiline ? <textarea {...shared} rows={3} /> : <input {...shared} type={type} minLength={minLength} />}
       {errors ? (
-        <p id={errorId} className="text-sm text-red-700">
+        <p id={errorId} role="alert" className="text-sm text-red-700">
           {errors.join(" ")}
         </p>
       ) : null}

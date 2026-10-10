@@ -16,7 +16,7 @@ export function CreatePipelineForm({ boardId }: { boardId: string }) {
       <input type="hidden" name="boardId" value={boardId} />
       <FormField label="Name" name="name" maxLength={100} errors={failure?.fieldErrors?.name} />
       <FormField label="Description" name="description" multiline required={false} maxLength={2000} errors={failure?.fieldErrors?.description} />
-      <FormError failure={failure} />
+      <FormError failure={failure} inlineFields={["name", "description"]} />
       <p className="text-xs text-gray-600">A new pipeline starts with the stages To do, In progress and Done.</p>
       <div>
         <SubmitButton pendingLabel="Creating...">Create pipeline</SubmitButton>

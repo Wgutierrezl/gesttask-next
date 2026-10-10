@@ -15,7 +15,7 @@ export function EditBoardForm({ board }: { board: { id: string; name: string; de
       <input type="hidden" name="boardId" value={board.id} />
       <FormField label="Name" name="name" defaultValue={board.name} maxLength={100} errors={failure?.fieldErrors?.name} />
       <FormField label="Description" name="description" multiline required={false} defaultValue={board.description} maxLength={2000} errors={failure?.fieldErrors?.description} />
-      <FormError failure={failure} />
+      <FormError failure={failure} inlineFields={["name", "description"]} />
       {state?.ok ? <p role="status" className="text-sm text-green-800">Saved.</p> : null}
       <div>
         <SubmitButton pendingLabel="Saving...">Save changes</SubmitButton>
