@@ -81,8 +81,11 @@ export class LocalStorage implements StoragePort {
 
   private async receive(grant: Grant, request: Request): Promise<Response> {
     if (request.headers.get("content-type") !== grant.type) return empty(403);
-    const body = new Uint8Array(await request.arrayBuffer());
-    if (body.byteLength < 1 || body.byteLength > grant.size) return empty(413);
+    // Refuse by the announced length before reading anything, then keep counting while reading (the header can lie or be absent).
+    const announced = request.headers.get("content-length");
+    if (announced !== null && !(/^\d+$/.test(announced) && Number(announced) <= grant.size)) return empty(413);
+    const body = await readAtMost(request, grant.size);
+    if (!body || body.byteLength < 1) return empty(413);
     await mkdir(this.options.rootDir, { recursive: true });
     await writeFile(this.path(grant.key, "bin"), body);
     await writeFile(this.path(grant.key, "json"), JSON.stringify({ size: body.byteLength, contentType: grant.type }));
@@ -132,6 +135,25 @@ export class LocalStorage implements StoragePort {
     if (grant.op !== expected || given.length !== wanted.length || !timingSafeEqual(given, wanted)) return null;
     return this.options.clock.now().getTime() < grant.exp * 1000 ? grant : null;
   }
+}
+
+/** The request body, or null as soon as it exceeds `limit` bytes (the rest is never buffered). */
+async function readAtMost(request: Request, limit: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array(await request.arrayBuffer());
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }
 
 function isMissing(error: unknown): boolean {
