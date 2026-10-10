@@ -31,6 +31,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm depcruise
+      - run: pnpm openapi:validate
 
   # Job B: unit tests; coverage thresholds (90% domain + application) break the build.
   unit:
