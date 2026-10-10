@@ -20,8 +20,9 @@ runStorageContract(
     },
     async fetchUrl(url) {
       const response = await fetch(url);
-      return { status: response.status, body: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") };
+      return { status: response.status, body: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type"), disposition: response.headers.get("content-disposition") };
     },
+    namesDownloads: true,
     // Nothing listens on port 1: every call fails at the socket, like an AWS outage would.
     broken: () => new S3Storage({ ...options, endpoint: "http://127.0.0.1:1", maxAttempts: 1 }),
     pass: (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000 + 500)),

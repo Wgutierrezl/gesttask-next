@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import type { AttachmentRepo, AttachmentScope } from "@/application/ports/repositories";
 import type { Database } from "../db/client";
 import { attachments, comments, tasks } from "../db/schema";
@@ -51,6 +51,21 @@ export function createAttachmentRepo(db: Database, lock: boolean): AttachmentRep
           .where(and(eq(attachments.uploaderId, userId), or(eq(attachments.status, "confirmed"), gte(attachments.createdAt, pendingSince)))),
       );
       return Number(row?.n ?? 0);
+    },
+    deleteAbandoned: async (before, limit) => {
+      const abandoned = and(eq(attachments.status, "pending"), lt(attachments.createdAt, before));
+      // Two statements: SKIP LOCKED leaves rows another transaction is linking, and a LIMIT + FOR UPDATE subselect inside
+      // the DELETE is re-planned by Postgres and may take more than `limit` rows. The delete re-checks its conditions.
+      const batch = await exec(
+        db.select({ id: attachments.id }).from(attachments).where(abandoned)
+          .orderBy(asc(attachments.createdAt), asc(attachments.id)).limit(limit).for("update", { skipLocked: true }),
+      );
+      if (batch.length === 0) return [];
+      const deleted = await exec(
+        db.delete(attachments).where(and(inArray(attachments.id, batch.map((r) => r.id)), abandoned))
+          .returning({ key: attachments.storageKey, createdAt: attachments.createdAt, id: attachments.id }),
+      );
+      return deleted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1)).map((r) => r.key);
     },
     keysUnder: async (scope) => {
       if ("boardId" in scope) {

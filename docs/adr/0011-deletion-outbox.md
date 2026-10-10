@@ -28,6 +28,19 @@ global lock order), and every writer takes a `FOR KEY SHARE`-conflicting lock on
 needs the task, the upload request locks the task. The loser waits and then fails with `NotFound`. The integration
 tests pin this with a deleter paused right after queueing and a writer that must block on a lock.
 
+Lock order is board, then task: the comment and pending-upload inserts take a `KEY SHARE` on the board for their
+foreign key, and a board delete holds the board and then waits for its tasks. A writer that locked the task first
+formed a cycle with it (`40P01`, retried by the unit of work but a wasted second of `deadlock_timeout` each time), so
+`createComment` and `requestUpload` lock the board row before the task. The cost is that comments and upload requests
+on one board queue behind each other for the length of their transaction, which is negligible at this scale.
+
+## Abandoned uploads
+
+A pending upload that never becomes part of a comment would sit in the table and in the storage forever. After
+`PENDING_UPLOAD_TTL_MS` (one hour) it stops counting for quotas and cannot be linked (`assertLinkable`), and
+`container.maintenance.sweepPendingUploads()` deletes the row and queues its key in the same transaction
+(`SKIP LOCKED`, so a row being linked at that moment is left alone). The cron of slice 9 calls it next to the drain.
+
 ## Consequences
 
 - Deletion is at-least-once and idempotent; there is no window where a row is gone and its key is unrecorded.

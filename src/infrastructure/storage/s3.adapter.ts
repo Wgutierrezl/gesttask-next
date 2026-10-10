@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StoragePort, UploadTicket } from "@/application/ports/services";
 import { StorageError } from "@/domain/errors";
 import { UPLOAD_TICKET_TTL_SECONDS } from "./constants";
+import { attachmentDisposition } from "./content-disposition";
 
 export interface S3StorageOptions {
   bucket: string;
@@ -75,11 +76,11 @@ export class S3Storage implements StoragePort {
     });
   }
 
-  getDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
+  getDownloadUrl(key: string, ttlSeconds: number, options?: { fileName?: string }): Promise<string> {
     return guarded(() =>
       getSignedUrl(
         this.client,
-        new GetObjectCommand({ Bucket: this.options.bucket, Key: key, ResponseContentDisposition: "attachment" }),
+        new GetObjectCommand({ Bucket: this.options.bucket, Key: key, ResponseContentDisposition: attachmentDisposition(options?.fileName) }),
         { expiresIn: ttlSeconds },
       ),
     );

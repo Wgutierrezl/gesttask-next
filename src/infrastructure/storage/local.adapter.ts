@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Clock, StoragePort, UploadTicket } from "@/application/ports/services";
 import { StorageError } from "@/domain/errors";
 import { UPLOAD_TICKET_TTL_SECONDS } from "./constants";
+import { attachmentDisposition } from "./content-disposition";
 
 export interface LocalStorageOptions {
   rootDir: string;
@@ -21,6 +22,8 @@ interface Grant {
   exp: number;
   size: number;
   type: string;
+  /** Download name (get only); signed like the rest, so it cannot be swapped. */
+  name: string;
 }
 
 const ROUTE = "/api/dev-storage";
@@ -39,7 +42,7 @@ export class LocalStorage implements StoragePort {
 
   async prepareUpload(input: { key: string; contentType: string; size: number }): Promise<UploadTicket> {
     const exp = this.expiry(UPLOAD_TICKET_TTL_SECONDS);
-    return { kind: "local-put", url: this.url({ op: "put", key: input.key, exp, size: input.size, type: input.contentType }) };
+    return { kind: "local-put", url: this.url({ op: "put", key: input.key, exp, size: input.size, type: input.contentType, name: "" }) };
   }
 
   async head(key: string): Promise<{ size: number; contentType: string } | null> {
@@ -52,8 +55,8 @@ export class LocalStorage implements StoragePort {
     }
   }
 
-  async getDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
-    return this.url({ op: "get", key, exp: this.expiry(ttlSeconds), size: 0, type: "" });
+  async getDownloadUrl(key: string, ttlSeconds: number, options?: { fileName?: string }): Promise<string> {
+    return this.url({ op: "get", key, exp: this.expiry(ttlSeconds), size: 0, type: "", name: options?.fileName ?? "" });
   }
 
   async delete(keys: string[]): Promise<void> {
@@ -81,8 +84,11 @@ export class LocalStorage implements StoragePort {
 
   private async receive(grant: Grant, request: Request): Promise<Response> {
     if (request.headers.get("content-type") !== grant.type) return empty(403);
-    const body = new Uint8Array(await request.arrayBuffer());
-    if (body.byteLength < 1 || body.byteLength > grant.size) return empty(413);
+    // Refuse by the announced length before reading anything, then keep counting while reading (the header can lie or be absent).
+    const announced = request.headers.get("content-length");
+    if (announced !== null && !(/^\d+$/.test(announced) && Number(announced) <= grant.size)) return empty(413);
+    const body = await readAtMost(request, grant.size);
+    if (!body || body.byteLength < 1) return empty(413);
     await mkdir(this.options.rootDir, { recursive: true });
     await writeFile(this.path(grant.key, "bin"), body);
     await writeFile(this.path(grant.key, "json"), JSON.stringify({ size: body.byteLength, contentType: grant.type }));
@@ -94,7 +100,7 @@ export class LocalStorage implements StoragePort {
     if (!meta) return empty(404);
     const body = await readFile(this.path(grant.key, "bin"));
     return new Response(body, {
-      headers: { "content-type": meta.contentType, "content-length": String(meta.size), "x-content-type-options": "nosniff", "content-disposition": "attachment" },
+      headers: { "content-type": meta.contentType, "content-length": String(meta.size), "x-content-type-options": "nosniff", "content-disposition": attachmentDisposition(grant.name === "" ? undefined : grant.name) },
     });
   }
 
@@ -109,11 +115,11 @@ export class LocalStorage implements StoragePort {
   }
 
   private sign(grant: Grant): string {
-    return createHmac("sha256", this.options.secret).update([grant.op, grant.key, grant.exp, grant.size, grant.type].join("\n")).digest("hex");
+    return createHmac("sha256", this.options.secret).update([grant.op, grant.key, grant.exp, grant.size, grant.type, grant.name].join("\n")).digest("hex");
   }
 
   private url(grant: Grant): string {
-    const query = new URLSearchParams({ op: grant.op, key: grant.key, exp: String(grant.exp), size: String(grant.size), type: grant.type });
+    const query = new URLSearchParams({ op: grant.op, key: grant.key, exp: String(grant.exp), size: String(grant.size), type: grant.type, name: grant.name });
     query.set("sig", this.sign(grant));
     return `${this.options.baseUrl}${ROUTE}?${query.toString()}`;
   }
@@ -126,12 +132,32 @@ export class LocalStorage implements StoragePort {
       exp: Number(params.get("exp")),
       size: Number(params.get("size")),
       type: params.get("type") ?? "",
+      name: params.get("name") ?? "",
     };
     const given = Buffer.from(params.get("sig") ?? "", "hex");
     const wanted = Buffer.from(this.sign(grant), "hex");
     if (grant.op !== expected || given.length !== wanted.length || !timingSafeEqual(given, wanted)) return null;
     return this.options.clock.now().getTime() < grant.exp * 1000 ? grant : null;
   }
+}
+
+/** The request body, or null as soon as it exceeds `limit` bytes (the rest is never buffered). */
+async function readAtMost(request: Request, limit: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array(await request.arrayBuffer());
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }
 
 function isMissing(error: unknown): boolean {

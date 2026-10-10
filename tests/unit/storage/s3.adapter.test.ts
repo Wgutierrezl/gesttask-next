@@ -40,11 +40,26 @@ describe("S3Storage", () => {
     expect((failure as StorageError).message).not.toContain("bucket");
   });
 
+  it("the POST policy expires five minutes after it was signed", async () => {
+    const before = Date.now();
+    const ticket = await new S3Storage(options).prepareUpload({ key: "boards/b/a1", contentType: "image/png", size: 10 });
+    if (ticket.kind !== "s3-post") throw new Error("s3 ticket expected");
+    const policy = JSON.parse(Buffer.from(ticket.fields.Policy!, "base64").toString("utf8")) as { expiration: string };
+    const lifetime = Date.parse(policy.expiration) - before;
+    expect(lifetime).toBeGreaterThan(299_000 - 1_000);
+    expect(lifetime).toBeLessThanOrEqual(300_000 + 1_000);
+  });
+
   it("signs a download URL that expires as asked and forces a download", async () => {
     const url = new URL(await new S3Storage(options).getDownloadUrl("boards/b/a1", 300));
     expect(url.searchParams.get("X-Amz-Expires")).toBe("300");
     expect(url.searchParams.get("response-content-disposition")).toBe("attachment");
     expect(url.pathname).toBe("/b/boards/b/a1");
+  });
+
+  it("names the download after the attachment, encoded", async () => {
+    const url = new URL(await new S3Storage(options).getDownloadUrl("boards/b/a1", 300, { fileName: "résumé.pdf" }));
+    expect(url.searchParams.get("response-content-disposition")).toBe("attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf");
   });
 
   it("issues a POST ticket that pins the size range and the content type", async () => {

@@ -5,7 +5,7 @@ import { StorageError } from "@/domain/errors";
 export class FakeStorage implements StoragePort {
   readonly objects = new Map<string, { size: number; contentType: string }>();
   readonly prepared: { key: string; contentType: string; size: number }[] = [];
-  readonly signed: { key: string; ttlSeconds: number }[] = [];
+  readonly signed: { key: string; ttlSeconds: number; fileName?: string }[] = [];
   readonly deleted: string[][] = [];
   failing = false;
   /** Keys whose deletion fails while the rest of a batch would succeed. */
@@ -31,9 +31,9 @@ export class FakeStorage implements StoragePort {
     return this.objects.get(key) ?? null;
   }
 
-  async getDownloadUrl(key: string, ttlSeconds: number): Promise<string> {
+  async getDownloadUrl(key: string, ttlSeconds: number, options?: { fileName?: string }): Promise<string> {
     this.check();
-    this.signed.push({ key, ttlSeconds });
+    this.signed.push({ key, ttlSeconds, fileName: options?.fileName });
     return `https://storage.test/get/${key}?ttl=${ttlSeconds}`;
   }
 

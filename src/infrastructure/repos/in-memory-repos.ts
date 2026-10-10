@@ -227,6 +227,14 @@ export function createInMemoryRepos(store: InMemoryStore, options: { now?: () =>
         [...store.attachments.values()].filter(
           (a) => a.uploaderId === userId && (a.status === "confirmed" || a.createdAt.getTime() >= pendingSince.getTime()),
         ).length,
+      deleteAbandoned: async (before, limit) => {
+        const doomed = [...store.attachments.values()]
+          .filter((a) => a.status === "pending" && a.createdAt.getTime() < before.getTime())
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || byText(a.id, b.id))
+          .slice(0, limit);
+        for (const a of doomed) store.attachments.delete(a.id);
+        return doomed.map((a) => a.storageKey);
+      },
       keysUnder: async (scope: AttachmentScope) => {
         if ("boardId" in scope) return [...store.attachments.values()].filter((a) => a.boardId === scope.boardId).map((a) => a.storageKey);
         if ("commentId" in scope) return keysOfComments((c) => c.id === scope.commentId);

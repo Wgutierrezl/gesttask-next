@@ -28,7 +28,7 @@ lies about the size or type is refused by the storage itself. Adapter failures a
 | Question | Finding |
 |---|---|
 | Private objects | Supported: `access: "private" \| "public"` on `put`, `get` and on client uploads. Private blobs "require authentication to access". We always use `private`. |
-| Client uploads | The server mints a client token with `generateClientTokenFromReadWriteToken({ pathname, maximumSizeInBytes, allowedContentTypes, validUntil, addRandomSuffix: false, allowOverwrite: false })`; the browser calls `put(pathname, file, { access: "private", token, contentType })` from `@vercel/blob/client`. A `handleUpload` route is only needed for the SDK `upload()` helper; minting the token inside `prepareUpload` keeps the whole flow inside the port. The token is bound to one pathname (`BlobPathnameMismatchError`) and expires (`validUntil`, default 1 h; we use 15 min). |
+| Client uploads | The server mints a client token with `generateClientTokenFromReadWriteToken({ pathname, maximumSizeInBytes, allowedContentTypes, validUntil, addRandomSuffix: false, allowOverwrite: false })`; the browser calls `put(pathname, file, { access: "private", token, contentType })` from `@vercel/blob/client`. A `handleUpload` route is only needed for the SDK `upload()` helper; minting the token inside `prepareUpload` keeps the whole flow inside the port. The token is bound to one pathname (`BlobPathnameMismatchError`) and expires (`validUntil`, default 1 h; we use 5 min). |
 | Size and type limits | `maximumSizeInBytes` and `allowedContentTypes` travel inside the client token and are enforced by Blob (`BlobFileTooLargeError`, `BlobContentTypeNotAllowedError`). Unlike an S3 POST policy the size is a maximum, not a range. |
 | Short-lived read access | `issueSignedToken({ pathname, operations: ["get"], validUntil })` plus `presignUrl(token, { operation: "get", pathname, validUntil, access: "private" })` returns `{ presignedUrl }` for a private blob. This needs the read-write token (server side only); it gives us the same "signed URL with TTL" the S3 adapter has, so no trade-off on private access is needed. |
 | Metadata | `head(pathname)` returns `{ size, contentType, ... }` and throws `BlobNotFoundError` when missing (mapped to `null`). |
@@ -46,6 +46,12 @@ Blob adapter must be disabled rather than silently downgraded.
   300 s and never above 900 s (REQ-ATT-02).
 - `HeadObjectCommand` maps `NotFound` to `null`; `DeleteObjectsCommand` is idempotent for missing keys but reports
   per-key failures in `Errors`, which we turn into a `StorageError` instead of swallowing them.
+- Download names: S3 and the local adapter answer `Content-Disposition: attachment; filename*=UTF-8''<name>` with the
+  sanitized, percent-encoded attachment name (`content-disposition.ts`). A presigned Vercel Blob GET honors only its
+  expiry (`PresignGetUrlOptions`), so Blob downloads keep the disposition stored with the object; the closed list of
+  allowed types and the pinned upload content type are what keep that safe.
+- Upload tickets live five minutes: a presigned POST, a client token or a local URL is a bearer credential that can be
+  replayed until it expires, so the window is kept short.
 - `S3_ENDPOINT` points the same adapter at RustFS locally and in CI (`forcePathStyle: true` when set).
 
 ### Least-privilege IAM (production)
@@ -74,6 +80,10 @@ key, so no key can address a path outside the root. Tickets and download URLs ar
 that point at the `/api/dev-storage` route (404 for every other driver; `STORAGE_DRIVER=local` is rejected as an
 environment error on Vercel), which verifies the signature, the operation, the size range and the content type exactly
 like an S3 POST policy would.
+
+`STORAGE_DRIVER=local` is allowed in a production build (`NODE_ENV=production`) as long as it is not on Vercel: that is how
+the end-to-end and smoke runs exercise `next start` locally. It is still development storage (one machine's disk, no
+replication), so the container logs a warning at startup when it sees that combination.
 
 ## Contract
 

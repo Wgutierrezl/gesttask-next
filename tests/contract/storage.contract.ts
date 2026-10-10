@@ -8,7 +8,12 @@ export interface StorageHarness {
   /** Sends `body` the way the browser does with the ticket; resolves to whether the backend accepted it. */
   upload(ticket: UploadTicket, body: Uint8Array<ArrayBuffer>, contentType: string): Promise<boolean>;
   /** GETs a download URL (no credentials) and returns what the backend answered. */
-  fetchUrl(url: string): Promise<{ status: number; body: Uint8Array; contentType: string | null }>;
+  fetchUrl(url: string): Promise<{ status: number; body: Uint8Array; contentType: string | null; disposition?: string | null }>;
+  /**
+   * Whether the backend can set the download name from `getDownloadUrl(..., { fileName })`. Vercel Blob cannot: its
+   * presigned GET honors only the expiry, so its object keeps the disposition it was stored with (ADR 0009).
+   */
+  namesDownloads?: boolean;
   /** A storage of the same kind whose backend cannot be reached or refuses our credentials. */
   broken(): StoragePort;
   /** Lets `seconds` pass for expiry checks (fake clock or a real wait). */
@@ -69,6 +74,17 @@ export function runStorageContract(name: string, create: () => StorageHarness, o
       expect(response.status).toBe(200);
       expect(text(response.body)).toBe("download me");
       expect(response.contentType).toBe("text/plain");
+    });
+
+    it.skipIf(!h.namesDownloads)("forces a download under the attachment's own name, safely encoded", async () => {
+      const key = freshKey();
+      await put(key, "named");
+      const hostile = 'ré"sumé\r\nSet-Cookie: x=1/../final.txt';
+      const response = await h.fetchUrl(await h.storage.getDownloadUrl(key, 60, { fileName: hostile }));
+      expect(response.status).toBe(200);
+      expect(response.disposition).toBe("attachment; filename*=UTF-8''final.txt");
+      const unicode = await h.fetchUrl(await h.storage.getDownloadUrl(key, 60, { fileName: "résumé (1).txt" }));
+      expect(unicode.disposition).toBe("attachment; filename*=UTF-8''r%C3%A9sum%C3%A9%20%281%29.txt");
     });
 
     it("a signed URL stops working once its lifetime has passed", async () => {

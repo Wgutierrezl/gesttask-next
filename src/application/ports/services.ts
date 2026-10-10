@@ -44,7 +44,11 @@ export type UploadTicket =
 export interface StoragePort {
   prepareUpload(input: { key: string; contentType: string; size: number }): Promise<UploadTicket>;
   head(key: string): Promise<{ size: number; contentType: string } | null>;
-  getDownloadUrl(key: string, ttlSeconds: number): Promise<string>;
+  /**
+   * A signed, expiring GET that forces a download. `fileName` (display metadata, sanitized by the adapter) names the saved
+   * file where the backend lets the URL carry it; a backend that cannot ignores it.
+   */
+  getDownloadUrl(key: string, ttlSeconds: number, options?: { fileName?: string }): Promise<string>;
   /** Idempotent for missing keys; propagates real failures as StorageError. */
   delete(keys: string[]): Promise<void>;
 }

@@ -21,11 +21,14 @@ export interface UploadRequest {
 export function makeRequestUpload(deps: AppDeps, ext: { storage: StoragePort; limiter: RateLimiter }) {
   return async (actor: Actor, input: unknown): Promise<UploadRequest> => {
     const { taskId, fileName, contentType, size } = parseInput(requestUploadSchema, input);
-    await loadTask(deps.repos, actor, taskId, "attachment:create");
+    const known = await loadTask(deps.repos, actor, taskId, "attachment:create");
     await enforceRateLimit(ext.limiter, `upload:${actor.userId}`, actor.isGuest ? UPLOAD_RATE_GUEST : UPLOAD_RATE_USER);
     const now = deps.clock.now();
     const attachmentId = deps.ids.next();
     return deps.uow.run(async (tx) => {
+      // Global lock order: board, then task (the pending row's insert takes KEY SHARE on the board). Locking the board
+      // also makes a concurrent board delete wait, so its key queue cannot miss this row. A task never changes board.
+      if (!(await tx.boards.findById(known.boardId))) throw new NotFoundError();
       const task = await tx.tasks.findById(taskId);
       if (!task) throw new NotFoundError();
       await assertGuestAttachmentQuota(tx, actor, now);

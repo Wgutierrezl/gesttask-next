@@ -15,7 +15,9 @@ export function makeDeleteBoard(deps: AppDeps) {
     const { boardId } = parseInput(boardIdSchema, input);
     await requireBoardAccess(deps.repos.members, actor, boardId, "board:delete");
     await deps.uow.run(async (tx) => {
-      // Locking the board row first makes a concurrent upload request wait, so its pending row cannot appear unqueued.
+      // Global lock order: the board row first, then its tasks (inside enqueueAttachmentCleanup). Writers that insert a
+      // child of the board (comment, pending upload) lock the board before their task too, so they wait here instead of
+      // slipping a row past the queue, and no cycle can form.
       if (!(await tx.boards.findById(boardId))) throw new NotFoundError();
       await enqueueAttachmentCleanup(tx, { boardId });
       await tx.boards.delete(boardId);

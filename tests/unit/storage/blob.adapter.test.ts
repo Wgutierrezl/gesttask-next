@@ -37,6 +37,19 @@ describe("BlobStorage", () => {
     expect(ticket).toEqual({ kind: "blob-token", clientToken: expect.stringMatching(/^fake_client_/), pathname: "boards/b/a1" });
   });
 
+  it("the client token stops working after five minutes", async () => {
+    let now = Date.parse("2026-10-10T10:00:00.000Z");
+    const api = new FakeBlobApi(TOKEN, () => now);
+    const storage = new BlobStorage({ token: TOKEN, api, clock: { now: () => new Date(now) } });
+    const fresh = await storage.prepareUpload({ key: "boards/b/a1", contentType: "text/plain", size: 10 });
+    const stale = await storage.prepareUpload({ key: "boards/b/a2", contentType: "text/plain", size: 10 });
+    if (fresh.kind !== "blob-token" || stale.kind !== "blob-token") throw new Error("blob ticket expected");
+    now += 299_000;
+    await expect(api.clientPut(fresh.clientToken, fresh.pathname, new Uint8Array(3), "text/plain")).resolves.not.toThrow();
+    now += 2_000;
+    await expect(api.clientPut(stale.clientToken, stale.pathname, new Uint8Array(3), "text/plain")).rejects.toThrow();
+  });
+
   it("the token cannot upload to another pathname", async () => {
     const { storage, api } = setup();
     const ticket = await storage.prepareUpload({ key: "boards/b/a1", contentType: "text/plain", size: 10 });

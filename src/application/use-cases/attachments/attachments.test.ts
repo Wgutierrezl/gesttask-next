@@ -4,6 +4,7 @@ import type { Attachment } from "@/domain/entities/comment";
 import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
 import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
 import { FakeStorage } from "@tests/support/fake-storage";
+import { recordTxCalls } from "@tests/support/race";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, STRANGER, seedKanban } from "@tests/support/fixtures";
 import { makeCreateTask } from "../tasks/create-task";
@@ -11,7 +12,7 @@ import { makeCreateComment } from "../comments/create-comment";
 import { makeListComments } from "../comments/list-comments";
 import { makeGetAttachmentUrl } from "./get-attachment-url";
 import { makeRequestUpload } from "./request-upload";
-import { ALLOWED_CONTENT_TYPES, MAX_ATTACHMENT_BYTES } from "../../attachment-policy";
+import { ALLOWED_CONTENT_TYPES, MAX_ATTACHMENT_BYTES, PENDING_UPLOAD_TTL_MS } from "../../attachment-policy";
 
 const MB = 1024 * 1024;
 const GUEST_USER = { userId: "guest-user", isGuest: true };
@@ -216,6 +217,35 @@ describe("attachments", () => {
       expect(ctx.store.comments.size).toBe(1);
     });
 
+    it("refuses an upload whose ticket window is over, but still takes one that is exactly at the limit", async () => {
+      const edge = await uploaded(OWNER);
+      ctx.clock.set(new Date(ctx.clock.now().getTime() + PENDING_UPLOAD_TTL_MS));
+      await expect(comment(OWNER, { attachmentIds: [edge.id], body: "on time" })).resolves.toMatchObject({ body: "on time" });
+      const stale = await uploaded(OWNER);
+      ctx.clock.set(new Date(ctx.clock.now().getTime() + PENDING_UPLOAD_TTL_MS + 1));
+      const error = await comment(OWNER, { attachmentIds: [stale.id], body: "too late" }).catch((e) => e);
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).fieldErrors).toHaveProperty("attachmentIds");
+      expect(ctx.store.attachments.get(stale.id)?.status).toBe("pending");
+      expect(ctx.store.comments.size).toBe(1);
+    });
+
+    it.each([
+      ["text/plain", "text/plain; charset=utf-8"],
+      ["image/png", "IMAGE/PNG"],
+      ["application/pdf", "  application/pdf ;x=y"],
+    ])("compares the media type only: a %s upload the storage reports as %j is accepted", async (declared, reported) => {
+      const row = await uploaded(OWNER, { contentType: declared, actual: { contentType: reported } });
+      await expect(comment(OWNER, { attachmentIds: [row.id] })).resolves.toMatchObject({ taskId });
+      expect(ctx.store.attachments.get(row.id)?.status).toBe("confirmed");
+    });
+
+    it.each([["image/svg+xml"], ["text/plain; image/png"], ["image/png-x"], [""]])("still refuses a PNG upload the storage reports as %j", async (reported) => {
+      const row = await uploaded(OWNER, { contentType: "image/png", actual: { contentType: reported } });
+      await expect(comment(OWNER, { attachmentIds: [row.id] })).rejects.toBeInstanceOf(ValidationError);
+      expect(ctx.store.attachments.get(row.id)?.status).toBe("pending");
+    });
+
     it("treats a repeated id in one request as a single attachment", async () => {
       const row = await uploaded(OWNER);
       await comment(OWNER, { attachmentIds: [row.id, row.id] });
@@ -255,6 +285,7 @@ describe("attachments", () => {
         expect(await url(who, row.id)).toEqual({ url: `https://storage.test/get/${row.storageKey}?ttl=300`, fileName: "photo.png", contentType: "image/png", expiresInSeconds: 300 });
       }
       expect(storage.signed.every((s) => s.ttlSeconds <= 15 * 60)).toBe(true);
+      expect(storage.signed.every((s) => s.fileName === "photo.png")).toBe(true);
     });
 
     it("answers NotFound to strangers and rivals without signing anything, exactly like a missing id (REQ-ISO-08)", async () => {
@@ -278,6 +309,35 @@ describe("attachments", () => {
       const row = await confirmed();
       storage.failing = true;
       await expect(url(OWNER, row.id)).rejects.toBeInstanceOf(StorageError);
+    });
+  });
+  describe("global lock order: the board row before the task row (a child insert takes KEY SHARE on its board)", () => {
+    const order = (calls: string[]) => ({ board: calls.indexOf("boards.findById"), task: calls.indexOf("tasks.findById") });
+
+    it("requestUpload locks the board before the task", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeRequestUpload(spy.ctx, { storage, limiter: new InMemoryRateLimiter(ctx.clock) })(OWNER, { taskId, fileName: "a.png", contentType: "image/png", size: 10 });
+      const { board, task } = order(spy.calls);
+      expect(board).toBeGreaterThanOrEqual(0);
+      expect(board).toBeLessThan(task);
+    });
+
+    it("createComment locks the board before the task, with and without files", async () => {
+      const spy = recordTxCalls(ctx);
+      await makeCreateComment(spy.ctx, { storage })(OWNER, { taskId, body: "text only" });
+      const { board, task } = order(spy.calls);
+      expect(board).toBeGreaterThanOrEqual(0);
+      expect(board).toBeLessThan(task);
+      const file = await uploaded();
+      const withFile = recordTxCalls(ctx);
+      await makeCreateComment(withFile.ctx, { storage })(OWNER, { taskId, body: "with file", attachmentIds: [file.id] });
+      expect(order(withFile.calls).board).toBeGreaterThanOrEqual(0);
+      expect(order(withFile.calls).board).toBeLessThan(order(withFile.calls).task);
+    });
+
+    it("answers NotFound when the board is gone by the time the transaction starts", async () => {
+      const racing = { ...ctx, uow: { run: <T,>(work: Parameters<typeof ctx.uow.run<T>>[0]) => { ctx.store.boards.delete(k.boardId); return ctx.uow.run(work); } } };
+      await expect(makeCreateComment(racing, { storage })(OWNER, { taskId, body: "late" })).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 });
