@@ -3,11 +3,12 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const actions = vi.hoisted(() => ({ createTaskAction: vi.fn(), updateTaskAction: vi.fn(), deleteTaskAction: vi.fn() }));
+const actions = vi.hoisted(() => ({ createTaskAction: vi.fn(), updateTaskAction: vi.fn(), deleteTaskAction: vi.fn(), moveTaskToEndAction: vi.fn() }));
 vi.mock("@/app/_actions/tasks", () => actions);
 
 const { CreateTaskForm } = await import("@/components/kanban/create-task-form");
 const { EditTaskForm } = await import("@/components/kanban/edit-task-form");
+const { MoveTaskForm } = await import("@/components/kanban/move-task-form");
 const { DeleteTaskForm } = await import("@/components/kanban/delete-task-form");
 
 const fields = (form: FormData) => Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
@@ -118,5 +119,18 @@ describe("DeleteTaskForm", () => {
     box.required = false;
     await user.click(screen.getByRole("button", { name: "Delete task" }));
     expect(await screen.findByText("Confirm that you want to delete this task")).toBeTruthy();
+  });
+});
+
+describe("MoveTaskForm", () => {
+  it("starts on the task's own stage and sends the chosen one", async () => {
+    const user = userEvent.setup();
+    render(<MoveTaskForm taskId="t1" stages={STAGES} currentStageId="s1" />);
+    const select = screen.getByLabelText("Move to stage") as HTMLSelectElement;
+    expect(select.value).toBe("s1");
+    await user.selectOptions(select, "s2");
+    await user.click(screen.getByRole("button", { name: "Move task" }));
+    await waitFor(() => expect(actions.moveTaskToEndAction).toHaveBeenCalled());
+    expect(fields(actions.moveTaskToEndAction.mock.calls[0]![1])).toEqual({ taskId: "t1", toStageId: "s2" });
   });
 });
