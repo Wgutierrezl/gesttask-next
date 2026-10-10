@@ -289,6 +289,97 @@ describe("task actions on Postgres", () => {
   });
 });
 
+describe("task move actions on Postgres", () => {
+  const order = async (pipelineId: string, stageId: string) =>
+    (await taskRows(pipelineId)).filter((t) => t.stageId === stageId).sort((x, y) => (x.position < y.position ? -1 : 1)).map((t) => t.title);
+  async function withTasks(email: string) {
+    const o = await owner(email);
+    for (const title of ["one", "two", "three"]) await tasks.createTaskAction(undefined, form({ stageId: o.todoId, title, description: "", priority: "medium", dueDate: "", assigneeId: "" }));
+    const rows = await taskRows(o.pipelineId);
+    const id = (title: string) => rows.find((t) => t.title === title)!.id;
+    return { ...o, one: id("one"), two: id("two"), three: id("three") };
+  }
+
+  it("reorders and moves between stages, completing and reopening on the way, and refreshes both pages", async () => {
+    const a = await withTasks("alice@example.com");
+    revalidatePath.mockClear();
+    expect(await tasks.moveTaskAction(undefined, form({ taskId: a.three, toStageId: a.todoId, afterTaskId: "" }))).toEqual({ ok: true, data: null });
+    expect(await order(a.pipelineId, a.todoId)).toEqual(["three", "one", "two"]);
+    expect(revalidatePath.mock.calls.map(([path]) => path)).toEqual([PAGE, TASK_PAGE]);
+
+    await tasks.reorderTaskAction(undefined, form({ taskId: a.three, afterTaskId: a.two }));
+    expect(await order(a.pipelineId, a.todoId)).toEqual(["one", "two", "three"]);
+
+    await tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.doneId, afterTaskId: "" }));
+    expect(await order(a.pipelineId, a.doneId)).toEqual(["one"]);
+    expect((await taskRows(a.pipelineId)).find((t) => t.id === a.one)!.completedAt).toBeInstanceOf(Date);
+    await tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.progressId, afterTaskId: "" }));
+    expect((await taskRows(a.pipelineId)).find((t) => t.id === a.one)!.completedAt).toBeNull();
+  });
+
+  it("moves a task to the end of a stage without drag and drop", async () => {
+    const a = await withTasks("alice@example.com");
+    await tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.progressId }));
+    await tasks.moveTaskToEndAction(undefined, form({ taskId: a.two, toStageId: a.progressId }));
+    expect(await order(a.pipelineId, a.progressId)).toEqual(["one", "two"]);
+    await tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.progressId }));
+    expect(await order(a.pipelineId, a.progressId)).toEqual(["two", "one"]);
+  });
+
+  it("reports a stale move as state and changes nothing", async () => {
+    const a = await withTasks("alice@example.com");
+    await tasks.deleteTaskAction(undefined, form({ taskId: a.two, confirm: "yes", boardId: a.boardId, pipelineId: a.pipelineId })).catch(() => undefined);
+    revalidatePath.mockClear();
+    expect(await tasks.moveTaskAction(undefined, form({ taskId: a.two, toStageId: a.doneId, afterTaskId: "" }))).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.doneId, afterTaskId: a.two }))).toMatchObject({ ok: false });
+    expect(await order(a.pipelineId, a.todoId)).toEqual(["one", "three"]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("answers NotFound when the owner of board B aims board A's ids at the move actions, and moves nothing", async () => {
+    const a = await withTasks("alice@example.com");
+    const b = await withTasks("bob@example.com");
+    revalidatePath.mockClear();
+    const before = await taskRows(a.pipelineId);
+    for (const attempt of [
+      () => tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.doneId, afterTaskId: "" })),
+      () => tasks.moveTaskAction(undefined, form({ taskId: b.one, toStageId: a.doneId, afterTaskId: "" })),
+      () => tasks.moveTaskAction(undefined, form({ taskId: b.one, toStageId: b.doneId, afterTaskId: a.one })),
+      () => tasks.reorderTaskAction(undefined, form({ taskId: a.one, afterTaskId: "" })),
+      () => tasks.reorderTaskAction(undefined, form({ taskId: b.one, afterTaskId: a.two })),
+      () => tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.doneId })),
+      () => tasks.moveTaskToEndAction(undefined, form({ taskId: b.one, toStageId: a.doneId })),
+    ]) expect(await attempt()).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await taskRows(a.pipelineId)).toEqual(before);
+    expect(await order(b.pipelineId, b.todoId)).toEqual(["one", "two", "three"]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("keeps viewers from moving anything", async () => {
+    const a = await withTasks("alice@example.com");
+    const viewer = await account("viewer@example.com");
+    await members.addMemberAction(undefined, form({ boardId: a.boardId, email: "viewer@example.com", role: "guest" }));
+    as(viewer.headers);
+    for (const attempt of [
+      () => tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.doneId, afterTaskId: "" })),
+      () => tasks.reorderTaskAction(undefined, form({ taskId: a.one, afterTaskId: "" })),
+      () => tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.doneId })),
+    ]) expect(await attempt()).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await order(a.pipelineId, a.todoId)).toEqual(["one", "two", "three"]);
+  });
+
+  it("sends the move actions to the login page without a session", async () => {
+    const a = await withTasks("alice@example.com");
+    as(new Headers());
+    const digests = await Promise.all([
+      redirected(tasks.moveTaskAction(undefined, form({ taskId: a.one, toStageId: a.doneId, afterTaskId: "" }))),
+      redirected(tasks.reorderTaskAction(undefined, form({ taskId: a.one, afterTaskId: "" }))),
+      redirected(tasks.moveTaskToEndAction(undefined, form({ taskId: a.one, toStageId: a.doneId }))),
+    ]);
+    for (const digest of digests) expect(digest).toContain("/login");
+  });
+});
+
 describe("Kanban pages on Postgres", () => {
   const html = (node: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(node);
   const notFound = (promise: Promise<unknown>) => expect(promise).rejects.toMatchObject({ digest: expect.stringContaining("404") });

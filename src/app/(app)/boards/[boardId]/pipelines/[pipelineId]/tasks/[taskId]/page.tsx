@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadPage } from "@/app/_shared/load-page";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { DeleteTaskForm } from "@/components/kanban/delete-task-form";
+import { MoveTaskForm } from "@/components/kanban/move-task-form";
 import { EditTaskForm } from "@/components/kanban/edit-task-form";
 import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
 import { getContainer } from "@/infrastructure/container";
@@ -69,6 +70,10 @@ export default async function TaskPage({ params }: TaskPageProps) {
       {task.description ? <p className="whitespace-pre-wrap text-sm">{task.description}</p> : null}
       {canWrite ? (
         <>
+          <section aria-labelledby="move-heading">
+            <h2 id="move-heading" className="mb-3 text-lg font-medium">Move task</h2>
+            <MoveTaskForm taskId={task.id} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} />
+          </section>
           <section aria-labelledby="edit-heading">
             <h2 id="edit-heading" className="mb-3 text-lg font-medium">Edit task</h2>
             <EditTaskForm task={task} members={members} />

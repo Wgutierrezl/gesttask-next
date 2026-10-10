@@ -46,6 +46,7 @@ describe("TaskPage", () => {
     expect(html).toContain("Cut the tag");
     expect(html).toContain("Edit task");
     expect(html).toContain("Delete task");
+    expect(html).toContain("Move to stage");
     expect(html).toContain(`href="/boards/${BOARD}/pipelines/${PIPELINE}"`);
   });
 
@@ -70,6 +71,7 @@ describe("TaskPage", () => {
     expect(html).toContain("Ship the release");
     expect(html).not.toContain("Edit task");
     expect(html).not.toContain("Delete task");
+    expect(html).not.toContain("Move to stage");
   });
 
   it.each([
