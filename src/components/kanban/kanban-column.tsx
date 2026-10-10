@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
-/** A stage and its tasks. `nameOf` resolves an assignee id to a display name (null when unknown). */
-export function KanbanColumn({ column, nameOf, taskHref }: { column: ColumnView; nameOf: (userId: string) => string | null; taskHref?: (taskId: string) => string }) {
+/** The frame of a column: header with the done marker and count, the empty message, and the list its `children` fill. */
+export function ColumnShell({ column, listRef, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; children: ReactNode }) {
   const { stage, tasks } = column;
   const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
   return (
@@ -15,13 +16,22 @@ export function KanbanColumn({ column, nameOf, taskHref }: { column: ColumnView;
         </span>
       </header>
       {tasks.length === 0 ? <p className="text-xs text-gray-600">No tasks</p> : null}
-      <ul className="flex flex-col gap-2">
-        {tasks.map((task) => (
-          <li key={task.id}>
-            <TaskCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} href={taskHref?.(task.id)} />
-          </li>
-        ))}
+      <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
+        {children}
       </ul>
     </section>
+  );
+}
+
+/** A read-only column. `nameOf` resolves an assignee id to a display name (null when unknown). */
+export function KanbanColumn({ column, nameOf, taskHref }: { column: ColumnView; nameOf: (userId: string) => string | null; taskHref?: (taskId: string) => string }) {
+  return (
+    <ColumnShell column={column}>
+      {column.tasks.map((task) => (
+        <li key={task.id}>
+          <TaskCard task={task} assigneeName={task.assigneeId ? nameOf(task.assigneeId) : null} href={taskHref?.(task.id)} />
+        </li>
+      ))}
+    </ColumnShell>
   );
 }
