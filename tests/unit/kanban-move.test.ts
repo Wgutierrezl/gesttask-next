@@ -122,6 +122,8 @@ describe("announcementsFor", () => {
   it("speaks in task titles and stage names, never ids", () => {
     expect(say.onDragStart({ active: { id: "a" } } as never)).toBe("Picked up Task a.");
     expect(say.onDragOver({ active: { id: "a" }, over: { id: "d" } } as never)).toBe("Task a is over Task d in Done.");
+    expect(say.onDragOver({ active: { id: "a" }, over: { id: "a" } } as never)).toBe("Task a is in its original place.");
+    expect(say.onDragOver({ active: { id: "a" }, over: null } as never)).toBe("Task a is not over a drop area.");
     expect(say.onDragOver({ active: { id: "a" }, over: { id: "column:doing" } } as never)).toBe("Task a is over the In progress column.");
     expect(say.onDragEnd({ active: { id: "a" }, over: { id: "column:doing" } } as never)).toBe("Dropped Task a on the In progress column.");
     expect(say.onDragEnd({ active: { id: "a" }, over: null } as never)).toBe("Task a was dropped outside the board and stays where it was.");
