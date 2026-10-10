@@ -144,6 +144,13 @@ describe("StageManager", () => {
     expect(select.options[0]!.textContent).toBe("No tasks to move");
   });
 
+  it("requires a destination for every stage when some tasks are not shown, since an empty-looking stage may not be empty", () => {
+    render(<StageManager pipelineId="p1" stages={STAGES} truncated />);
+    const select = screen.getByLabelText("Move tasks of In progress to") as HTMLSelectElement;
+    expect(select.required).toBe(true);
+    expect([...select.options].map((o) => o.textContent)).toEqual(["To do", "Done"]);
+  });
+
   it("explains instead of offering a delete button for the done stage", () => {
     render(<StageManager pipelineId="p1" stages={STAGES} />);
     expect(screen.queryByRole("button", { name: "Delete Done" })).toBeNull();

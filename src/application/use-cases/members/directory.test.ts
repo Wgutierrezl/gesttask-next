@@ -58,6 +58,19 @@ describe("board detail and member directory", () => {
       expect(profiles.map((p) => p.userId)).toEqual(["member"]);
     });
 
+    it("looks up just the members asked for, however many the board has, skipping people who are not members", async () => {
+      const profiles = await makeListMemberProfiles(ctx, users)(MEMBER, { boardId, userIds: ["owner", "carol", "nobody", "owner"] });
+      expect(profiles).toEqual([{ userId: "owner", role: "owner", name: "Olivia Owner", email: null }]);
+      expect(await makeListMemberProfiles(ctx, users)(OWNER, { boardId, userIds: [] })).toEqual([]);
+    });
+
+    it("keeps the privacy and access rules when looking members up by id", async () => {
+      const [owned] = await makeListMemberProfiles(ctx, users)(OWNER, { boardId, userIds: ["member"] });
+      expect(owned?.email).toBe("mark@example.com");
+      await expect(makeListMemberProfiles(ctx, users)(STRANGER, { boardId, userIds: ["owner"] })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(makeListMemberProfiles(ctx, users)(OWNER, { boardId, userIds: Array.from({ length: 201 }, (_v, i) => `u${i}`) })).rejects.toBeInstanceOf(ValidationError);
+    });
+
     it("labels a member whose account no longer exists", async () => {
       await ctx.repos.members.insert({ boardId, userId: "ghost", role: "member" });
       const profiles = await makeListMemberProfiles(ctx, users)(OWNER, { boardId });

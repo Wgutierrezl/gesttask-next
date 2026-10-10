@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped } from "@/app/_shared/kanban-data";
 import { loadPage } from "@/app/_shared/load-page";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { DeleteTaskForm } from "@/components/kanban/delete-task-form";
@@ -22,19 +23,23 @@ export default async function TaskPage({ params }: TaskPageProps) {
     // `getTask` goes first: it is the authorization check, and a foreign task must not trigger the other reads.
     const task = await getTask({ taskId });
     if (task.boardId !== boardId || task.pipelineId !== pipelineId) return null;
-    const [{ role }, stages, members] = await Promise.all([
+    const [{ role }, stages, members, assignee] = await Promise.all([
       getPipeline({ pipelineId }),
-      listStages({ pipelineId, limit: 200 }),
-      listMemberProfiles({ boardId, limit: 200 }),
+      loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
+      loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
+      // The assignee is looked up by id: a member beyond the capped list is still named and stays selected when editing.
+      loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), [task.assigneeId]),
     ]);
-    return { task, role, stages, members };
+    return { task, role, stages, members, assignee };
   });
   // A task reached through the wrong board or pipeline in the URL is indistinguishable from a missing one.
   if (!data) notFound();
-  const { task, role, stages } = data;
-  const members = data.members.map(({ userId, name }) => ({ userId, name }));
+  const { task, role } = data;
+  const stages = data.stages.items;
+  const members = data.members.items.map(({ userId, name }) => ({ userId, name }));
+  const assignee = task.assigneeId ? (data.assignee.get(task.assigneeId) ?? null) : null;
+  if (task.assigneeId && assignee && !members.some((m) => m.userId === task.assigneeId)) members.push({ userId: task.assigneeId, name: assignee });
   const stage = stages.find((s) => s.id === task.stageId);
-  const assignee = members.find((m) => m.userId === task.assigneeId)?.name ?? null;
   const canWrite = role !== "guest";
   return (
     <main className="flex max-w-2xl flex-col gap-6">
@@ -48,6 +53,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
           {stage?.isDone ? " (Done stage)" : ""}
         </p>
       </header>
+      {data.stages.truncated ? <p role="status" className="rounded bg-yellow-50 px-3 py-2 text-sm">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</p> : null}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
         <dt className="font-medium">Priority</dt>
         <dd>{PRIORITY_LABELS[task.priority]}</dd>

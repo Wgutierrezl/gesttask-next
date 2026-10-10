@@ -65,6 +65,18 @@ describe("TaskPage", () => {
     expect(renderToStaticMarkup(await TaskPage({ params: params() }))).toContain("Former member");
   });
 
+  it("looks the assignee up by id, so a member beyond the first 200 is still named and kept in the edit form", async () => {
+    useCases.getTask.mockResolvedValue(task({ assigneeId: "far" }));
+    useCases.listMemberProfiles.mockImplementation(async (input: { userIds?: string[] }) =>
+      input.userIds ? [{ userId: "far", role: "member", name: "Far Away", email: null }] : [{ userId: "u1", role: "owner", name: "Olivia", email: null }],
+    );
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(html).toContain("Far Away");
+    expect(html).not.toContain("Former member");
+    expect(useCases.listMemberProfiles).toHaveBeenCalledWith({ boardId: BOARD, userIds: ["far"] });
+    expect(html).toContain('<option value="far" selected="">Far Away</option>');
+  });
+
   it("is read-only for viewers", async () => {
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
     const html = renderToStaticMarkup(await TaskPage({ params: params() }));

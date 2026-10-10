@@ -18,6 +18,8 @@ interface StageRowProps {
   afterWhenLeft: string | null;
   afterWhenRight: string | null;
   others: ManagedStage[];
+  /** Some tasks were not loaded, so a stage that looks empty may not be. */
+  mayHaveHiddenTasks: boolean;
 }
 
 function Move({ stage, direction, after }: { stage: ManagedStage; direction: "left" | "right"; after: string }) {
@@ -33,7 +35,8 @@ function Move({ stage, direction, after }: { stage: ManagedStage; direction: "le
 }
 
 /** Everything the owner can do to one stage; each action is its own form so it also works without JavaScript. */
-export function StageRow({ stage, afterWhenLeft, afterWhenRight, others }: StageRowProps) {
+export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHaveHiddenTasks }: StageRowProps) {
+  const hasTasks = stage.taskCount > 0 || mayHaveHiddenTasks;
   return (
     <li className="flex flex-col gap-3 rounded border border-gray-200 p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -65,8 +68,8 @@ export function StageRow({ stage, afterWhenLeft, afterWhenRight, others }: Stage
             <>
               <label className="flex flex-col gap-1 text-xs">
                 <span>{`Move tasks of ${stage.name} to`}</span>
-                <select name="moveToStageId" required={stage.taskCount > 0} defaultValue={stage.taskCount > 0 ? others[0]?.id : ""} className="rounded border border-gray-300 px-2 py-1 text-sm">
-                  {stage.taskCount === 0 ? <option value="">No tasks to move</option> : null}
+                <select name="moveToStageId" required={hasTasks} defaultValue={hasTasks ? others[0]?.id : ""} className="rounded border border-gray-300 px-2 py-1 text-sm">
+                  {!hasTasks ? <option value="">No tasks to move</option> : null}
                   {others.map((other) => (
                     <option key={other.id} value={other.id}>{other.name}</option>
                   ))}
