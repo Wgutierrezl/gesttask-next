@@ -20,6 +20,7 @@ import { transferGuestData } from "./auth/transfer-guest";
 import { getEnv } from "./config/env";
 import { createDb } from "./db/client";
 import { createLogger, type Logger } from "./logging/logger";
+import { createMaintenance, type Maintenance } from "./maintenance";
 import { PgRateLimiter } from "./ratelimit/pg-rate-limiter";
 import { createStorage } from "./storage/factory";
 import { createDrizzleRepos } from "./repos/drizzle-repos";
@@ -43,6 +44,8 @@ export interface Container {
   session: SessionPort;
   auth: AuthFacade;
   useCases: GuardedUseCases;
+  /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
+  maintenance: Maintenance;
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -89,6 +92,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     logger,
     session,
     useCases,
+    maintenance: createMaintenance({ db, clock, storage, logger }),
     auth: {
       signInGuest: async () => signInGuest(await caller()),
       signInEmail: async (input) => signInEmail(await caller(), input),
