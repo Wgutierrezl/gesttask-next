@@ -4,6 +4,7 @@ import { loadPage } from "@/app/_shared/load-page";
 import { loadTasks, toStageView, toTaskCardView } from "@/app/_shared/kanban-data";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { buildColumns } from "@/components/kanban/columns";
+import { CreateTaskForm } from "@/components/kanban/create-task-form";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { StageManager } from "@/components/kanban/stage-manager";
 import { getContainer } from "@/infrastructure/container";
@@ -32,6 +33,8 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
   // A pipeline reached through the wrong board in the URL is indistinguishable from a missing one.
   if (!data) notFound();
   const names = new Map(data.members.map((member) => [member.userId, member.name]));
+  // Viewers (the guest role) read only; the use cases enforce this too, the UI just does not offer what would fail.
+  const canWrite = data.role !== "guest";
   const columns = buildColumns(data.stages.map(toStageView), data.loaded.tasks.map(toTaskCardView));
   return (
     <main className="flex flex-col gap-4">
@@ -43,6 +46,14 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
         {data.pipeline.description ? <p className="text-sm text-gray-600">{data.pipeline.description}</p> : null}
       </header>
       {data.loaded.truncated ? <p role="status" className="rounded bg-yellow-50 px-3 py-2 text-sm">Showing the first 1000 tasks of this pipeline.</p> : null}
+      {canWrite ? (
+        <details className="rounded border border-gray-200 p-3">
+          <summary className="cursor-pointer text-sm font-medium">Add a task</summary>
+          <div className="mt-3">
+            <CreateTaskForm stages={columns.map(({ stage }) => ({ id: stage.id, name: stage.name }))} members={data.members.map(({ userId, name }) => ({ userId, name }))} />
+          </div>
+        </details>
+      ) : null}
       <div className="flex gap-4 overflow-x-auto pb-2">
         {columns.map((column) => (
           <KanbanColumn key={column.stage.id} column={column} nameOf={(userId) => names.get(userId) ?? null} />
