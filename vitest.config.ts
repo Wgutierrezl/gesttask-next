@@ -24,8 +24,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
-          include: ["tests/unit/**/*.test.ts", "src/**/*.test.ts"],
+          include: ["tests/unit/**/*.test.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
           environment: "node",
+          // Tests that import the auth library cold take seconds to transform on a loaded machine.
+          testTimeout: 20_000,
         },
       },
       {
