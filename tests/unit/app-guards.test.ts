@@ -19,9 +19,19 @@ describe("authorization guards are present everywhere", () => {
     for (const file of guarded) expect(readFileSync(file, "utf8"), rel(file)).toMatch(/\brequire(Page)?Actor\(/);
   });
 
-  it("guards every non-public Server Action with withActor or requireActor", () => {
+  it("guards every non-public Server Action: it reaches data only through the container's session-bound use cases", () => {
     const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file) && !PUBLIC_ACTION_FILES.includes(rel(file)));
-    for (const file of actions) expect(readFileSync(file, "utf8"), rel(file)).toMatch(/\b(withActor|requireActor|requirePageActor)\b/);
+    expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts"]));
+    for (const file of actions) {
+      const source = readFileSync(file, "utf8");
+      expect(source, rel(file)).toMatch(/\b(withActor|requireActor|requirePageActor)\b|\.useCases\./);
+      expect(source, `${rel(file)} must not use a raw use-case factory`).not.toMatch(/\bmake[A-Z]\w+\(/);
+    }
+  });
+
+  it("guards every non-public Server Action file with the 'use server' directive", () => {
+    const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file));
+    for (const file of actions) expect(readFileSync(file, "utf8").trimStart(), rel(file)).toMatch(/^"use server";/);
   });
 
   it("keeps the public actions list honest: those files exist", () => {
