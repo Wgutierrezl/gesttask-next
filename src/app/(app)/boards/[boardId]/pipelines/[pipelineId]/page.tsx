@@ -5,6 +5,7 @@ import { loadTasks, toStageView, toTaskCardView } from "@/app/_shared/kanban-dat
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { buildColumns } from "@/components/kanban/columns";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
+import { StageManager } from "@/components/kanban/stage-manager";
 import { getContainer } from "@/infrastructure/container";
 
 export const metadata = { title: "Pipeline - GestTask" };
@@ -47,6 +48,9 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
           <KanbanColumn key={column.stage.id} column={column} nameOf={(userId) => names.get(userId) ?? null} />
         ))}
       </div>
+      {data.role === "owner" ? (
+        <StageManager pipelineId={pipelineId} stages={columns.map(({ stage, tasks }) => ({ ...stage, taskCount: tasks.length }))} />
+      ) : null}
     </main>
   );
 }

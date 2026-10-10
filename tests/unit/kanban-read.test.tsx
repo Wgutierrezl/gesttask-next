@@ -127,6 +127,16 @@ describe("PipelinePage", () => {
     expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200 });
   });
 
+  it("offers stage management to owners only, with each stage's task count", async () => {
+    const owner = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(owner).toContain("Manage stages");
+    expect(owner).toContain('aria-label="Move To do right"');
+    for (const role of ["member", "guest"]) {
+      useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role });
+      expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Manage stages");
+    }
+  });
+
   it("authorizes through getPipeline first and never reads the rest for a foreign pipeline", async () => {
     useCases.getPipeline.mockRejectedValue(new NotFoundError());
     await expect(PipelinePage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
