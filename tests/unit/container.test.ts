@@ -19,6 +19,23 @@ describe("buildContainer", () => {
     await container.close();
   }, 30_000); // first import transforms the whole auth library
 
+  it("does not expose credential or guest flows on the HTTP handler", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const container = buildContainer(valid);
+    const direct = new Request("http://localhost/api/auth/sign-in/anonymous", { method: "POST" });
+    expect((await container.authHandler(direct)).status).toBe(404);
+    await container.close();
+  }, 30_000);
+
+  it("refuses unauthenticated flows in production when no trustworthy client address is configured", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const production = { ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "https://gesttask.example.com" };
+    const container = buildContainer(production);
+    await expect(container.auth.signInEmail({ email: "a@b.co", password: "x" })).rejects.toThrow(/TRUSTED_PROXY_HOPS/);
+    await expect(container.auth.signInGuest()).rejects.toThrow(/TRUSTED_PROXY_HOPS/);
+    await container.close();
+  }, 30_000);
+
   it("fails fast on invalid configuration, naming keys but not values", async () => {
     const { buildContainer } = await import("@/infrastructure/container");
     expect(() => buildContainer({ ...valid, BETTER_AUTH_SECRET: "short" })).toThrow(/BETTER_AUTH_SECRET/);

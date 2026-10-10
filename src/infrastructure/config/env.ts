@@ -19,12 +19,23 @@ const authSchema = z
   .object({
     NODE_ENV: z.string().optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
-    // Public origin of the app; Better Auth derives it from the request when unset.
+    // Public origin of the app (trusted origin, cookie scope). Optional outside production.
     BETTER_AUTH_URL: optionalUrl,
+    // Set by Vercel itself; its edge headers are the only forwarding headers trusted on Vercel.
+    VERCEL: z.string().optional(),
+    // Reverse proxies of ours that append to x-forwarded-for (ignored on Vercel). 0 = never trust the header.
+    TRUSTED_PROXY_HOPS: z.preprocess(
+      (value) => (value === "" || value === undefined ? "0" : value),
+      z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().max(10)),
+    ),
   })
   .refine((env) => env.NODE_ENV !== "production" || env.BETTER_AUTH_SECRET !== PLACEHOLDER_AUTH_SECRET, {
     path: ["BETTER_AUTH_SECRET"],
     message: "placeholder secret",
+  })
+  .refine((env) => env.NODE_ENV !== "production" || env.BETTER_AUTH_URL !== undefined, {
+    path: ["BETTER_AUTH_URL"],
+    message: "required in production",
   });
 
 const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [

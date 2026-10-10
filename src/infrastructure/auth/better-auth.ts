@@ -2,8 +2,11 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { anonymous } from "better-auth/plugins";
+import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { Database } from "../db/client";
 import type { Logger } from "../logging/logger";
+import { sessionCookieConfig, type SessionCookieConfig } from "./cookie-config";
+import { DISABLED_AUTH_PATHS } from "./http-guard";
 
 export interface AuthConfig {
   db: Database;
@@ -11,6 +14,8 @@ export interface AuthConfig {
   /** Public origin; Better Auth derives it from the request when omitted. */
   baseURL?: string;
   logger: Logger;
+  /** Cookie settings shared with the proxy; defaults to the non-production ones. */
+  cookies?: SessionCookieConfig;
   /** Runs when a guest signs in or up to a real account, before the guest session is dropped. */
   onLinkAccount?: (link: { guestUserId: string; userId: string }) => Promise<void>;
 }
@@ -31,12 +36,24 @@ export function toAuthLogger(logger: Logger) {
  * `nextCookies` must stay the last plugin so Server Actions can set the session cookie.
  */
 export function createAuth(config: AuthConfig) {
+  const cookies = config.cookies ?? sessionCookieConfig(undefined);
   return betterAuth({
     database: drizzleAdapter(config.db, { provider: "pg" }),
     secret: config.secret,
     baseURL: config.baseURL,
+    // Only our own origin may call the API with a session (CSRF); without a configured URL Better Auth uses the request origin.
+    trustedOrigins: config.baseURL ? [config.baseURL] : [],
+    advanced: {
+      cookiePrefix: cookies.prefix,
+      useSecureCookies: cookies.secure,
+      defaultCookieAttributes: cookies.attributes,
+      // Explicit so test environments (where Better Auth skips them by default) run the same checks as production.
+      disableCSRFCheck: false,
+      disableOriginCheck: false,
+    },
     logger: toAuthLogger(config.logger),
-    emailAndPassword: { enabled: true, minPasswordLength: 8 },
+    disabledPaths: DISABLED_AUTH_PATHS,
+    emailAndPassword: { enabled: true, minPasswordLength: MIN_PASSWORD_LENGTH },
     plugins: [
       anonymous({
         // Kept on link so the sandbox can be moved first; the TTL cleanup removes the leftover row.

@@ -9,7 +9,9 @@ import { makeSignOut } from "@/application/use-cases/auth/sign-out";
 import { makeSignUp } from "@/application/use-cases/auth/sign-up";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
+import { sessionCookieConfig } from "./auth/cookie-config";
 import { clientKeyFrom } from "./auth/client-key";
+import { guardAuthHandler } from "./auth/http-guard";
 import { SeededGuestSandbox } from "./auth/guest-sandbox";
 import { BetterAuthSession } from "./auth/session";
 import { transferGuestData } from "./auth/transfer-guest";
@@ -31,7 +33,7 @@ export interface Container {
   logger: Logger;
   session: SessionPort;
   auth: AuthFacade;
-  /** Serves `/api/auth/*`; the only way the web layer reaches the auth provider. */
+  /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
   authHandler: (request: Request) => Promise<Response>;
   close(): Promise<void>;
 }
@@ -46,13 +48,15 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     logger,
+    cookies: sessionCookieConfig(env.NODE_ENV),
     onLinkAccount: ({ guestUserId, userId }) => transferGuestData(db, guestUserId, userId),
   });
   const session = new BetterAuthSession(auth, () => headers());
   const authPort = new BetterAuthPort(auth, () => headers());
   const limiter = new PgRateLimiter(db, clock);
   const sandbox = new SeededGuestSandbox(db, { uow: new DrizzleUnitOfWork(db), ids: { next: randomUUID }, clock });
-  const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET) });
+  const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
+  const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });
@@ -67,7 +71,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signUp: async (input) => signUp(await caller(), input),
       signOut: () => signOut(),
     },
-    authHandler: (request) => auth.handler(request),
+    authHandler: guardAuthHandler((request) => auth.handler(request)),
     close,
   };
 }

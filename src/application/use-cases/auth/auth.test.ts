@@ -87,6 +87,27 @@ describe("signInEmail", () => {
   });
 });
 
+describe("signInEmail per-email limit", () => {
+  it("also caps attempts on one email at 50 per hour across clients, without burning it for blocked callers", async () => {
+    const s = setup();
+    const signIn = makeSignInEmail(s.deps);
+    for (let i = 0; i < 50; i++) await signIn({ clientKey: `ip-${Math.floor(i / 5)}` }, { email: "victim@b.co", password: "pw" });
+    await expect(signIn({ clientKey: "ip-new" }, { email: "VICTIM@b.co", password: "pw" })).rejects.toMatchObject({
+      retryAfterSeconds: 3600,
+    });
+    await expect(signIn({ clientKey: "ip-new" }, { email: "other@b.co", password: "pw" })).resolves.toBeDefined();
+    expect(s.calls.length).toBe(51);
+  });
+
+  it("does not count attempts already refused by the client+email limit", async () => {
+    const s = setup();
+    const signIn = makeSignInEmail(s.deps);
+    for (let i = 0; i < 10; i++) await signIn(CALLER, { email: "v@b.co", password: "pw" });
+    for (let i = 0; i < 100; i++) await signIn(CALLER, { email: "v@b.co", password: "pw" }).catch(() => undefined);
+    await expect(signIn({ clientKey: "ip-2" }, { email: "v@b.co", password: "pw" })).resolves.toBeDefined();
+  });
+});
+
 describe("signUp", () => {
   it("validates the password length and name", async () => {
     const s = setup();
@@ -95,6 +116,21 @@ describe("signUp", () => {
     expect(error).toBeInstanceOf(ValidationError);
     expect(Object.keys(error.fieldErrors).sort()).toEqual(["name", "password"]);
     await expect(signUp(CALLER, { email: "a@b.co", password: "long-enough", name: "Ada" })).resolves.toEqual({ userId: "u2", isGuest: false });
+  });
+
+  it("requires at least 10 characters and rejects reserved .invalid emails", async () => {
+    const s = setup();
+    const signUp = makeSignUp(s.deps);
+    const nine = await signUp(CALLER, { email: "a@b.co", password: "123456789", name: "A" }).catch((e) => e);
+    expect(nine).toBeInstanceOf(ValidationError);
+    expect(Object.keys(nine.fieldErrors)).toEqual(["password"]);
+    await expect(signUp(CALLER, { email: "a@b.co", password: "1234567890", name: "A" })).resolves.toBeDefined();
+    for (const email of ["x@demo.invalid", "x@Example.INVALID", "x@sub.host.invalid"]) {
+      const error = await signUp(CALLER, { email, password: "long-enough", name: "A" }).catch((e) => e);
+      expect(error, email).toBeInstanceOf(ValidationError);
+      expect(Object.keys(error.fieldErrors), email).toEqual(["email"]);
+    }
+    await expect(signUp(CALLER, { email: "x@invalid.com", password: "long-enough", name: "A" })).resolves.toBeDefined();
   });
 
   it("limits registrations to 10 per hour per client", async () => {

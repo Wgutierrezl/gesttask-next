@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { FormState } from "@/app/_actions/auth";
 import { FormError } from "./form-error";
 import { FormField } from "./form-field";
@@ -31,7 +32,7 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
         name="password"
         type="password"
         autoComplete={signUp ? "new-password" : "current-password"}
-        minLength={signUp ? 8 : undefined}
+        minLength={signUp ? MIN_PASSWORD_LENGTH : undefined}
         errors={fields?.password}
       />
       <FormError failure={state} />
