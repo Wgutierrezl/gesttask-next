@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EnvError, parseEnv } from "@/infrastructure/config/env";
+import { EnvError, PLACEHOLDER_AUTH_SECRET, parseEnv } from "@/infrastructure/config/env";
 
 const localBase = {
   DB_DRIVER: "pg",
   DATABASE_URL: "postgres://gesttask:gesttask@localhost:5432/gesttask",
   STORAGE_DRIVER: "local",
+  BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-chars!!",
 };
 
 const s3Base = {
@@ -105,6 +106,30 @@ describe("parseEnv", () => {
 
   it("still rejects a malformed non-empty S3_ENDPOINT", () => {
     expect(errorOf({ ...s3Base, S3_ENDPOINT: "not a url" }).message).toContain("S3_ENDPOINT");
+  });
+});
+
+describe("auth settings", () => {
+  it("requires BETTER_AUTH_SECRET, at least 32 characters, and never echoes it", () => {
+    expect(errorOf(without(localBase, "BETTER_AUTH_SECRET")).message).toContain("BETTER_AUTH_SECRET");
+    const short = errorOf({ ...localBase, BETTER_AUTH_SECRET: "too-short-leaky" });
+    expect(short.message).toContain("BETTER_AUTH_SECRET");
+    expect(short.message).not.toContain("too-short-leaky");
+  });
+
+  it("treats BETTER_AUTH_URL as an optional URL (empty counts as unset)", () => {
+    expect(parseEnv({ ...localBase, BETTER_AUTH_URL: "" }).BETTER_AUTH_URL).toBeUndefined();
+    expect(parseEnv({ ...localBase, BETTER_AUTH_URL: "http://localhost:3000" }).BETTER_AUTH_URL).toBe("http://localhost:3000");
+    expect(errorOf({ ...localBase, BETTER_AUTH_URL: "nope" }).message).toContain("BETTER_AUTH_URL");
+  });
+
+  it("rejects the .env.example placeholder secret in production only", () => {
+    const placeholder = { ...localBase, BETTER_AUTH_SECRET: PLACEHOLDER_AUTH_SECRET };
+    expect(() => parseEnv(placeholder)).not.toThrow();
+    expect(() => parseEnv({ ...placeholder, NODE_ENV: "development" })).not.toThrow();
+    const message = errorOf({ ...placeholder, NODE_ENV: "production" }).message;
+    expect(message).toContain("BETTER_AUTH_SECRET");
+    expect(message).not.toContain(PLACEHOLDER_AUTH_SECRET);
   });
 });
 
