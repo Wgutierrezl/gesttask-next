@@ -7,19 +7,17 @@ import { getContainer } from "@/infrastructure/container";
 
 const refresh = { revalidate: [PIPELINE_PAGE] };
 
-/** Ticking "mark as done" is the visitor's choice; a stage is never flagged just because of its name. */
+/** Ticking "mark as done" is the visitor's choice, applied in the same transaction as the creation; a name alone never flags a stage. */
 export async function createStageAction(_previous: MutationState, form: FormData): Promise<MutationState> {
-  return runMutation(async () => {
-    const stage = await getContainer().useCases.createStage({ pipelineId: text(form, "pipelineId"), name: text(form, "name") });
-    if (checked(form, "markDone")) await getContainer().useCases.setStageDone({ stageId: stage.id, isDone: true });
-  }, refresh);
+  return runMutation(
+    () => getContainer().useCases.createStage({ pipelineId: text(form, "pipelineId"), name: text(form, "name"), isDone: checked(form, "markDone") }),
+    refresh,
+  );
 }
 
+/** The done flag is changed only by `setStageDoneAction`. */
 export async function renameStageAction(_previous: MutationState, form: FormData): Promise<MutationState> {
-  return runMutation(async () => {
-    const stage = await getContainer().useCases.renameStage({ stageId: text(form, "stageId"), name: text(form, "name") });
-    if (checked(form, "markDone")) await getContainer().useCases.setStageDone({ stageId: stage.id, isDone: true });
-  }, refresh);
+  return runMutation(() => getContainer().useCases.renameStage({ stageId: text(form, "stageId"), name: text(form, "name") }), refresh);
 }
 
 /** `afterStageId` empty means "first". */

@@ -10,7 +10,7 @@ export function CreateStageForm({ pipelineId }: { pipelineId: string }) {
     <MutationForm action={createStageAction} hidden={{ pipelineId }} inlineFields={["name"]} className="flex max-w-sm flex-col gap-3">
       {(failure) => (
         <>
-          <StageNameFields idPrefix="new-stage" isDone={false} errors={failure?.fieldErrors?.name} />
+          <StageNameFields idPrefix="new-stage" offerDone errors={failure?.fieldErrors?.name} />
           <div>
             <SubmitButton pendingLabel="Adding...">Add stage</SubmitButton>
           </div>
