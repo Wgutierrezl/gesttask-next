@@ -34,6 +34,19 @@ describe("authorization guards are present everywhere", () => {
     }
   });
 
+  it("keeps server-only code out of components: they cannot import the container, actions' helpers or infrastructure", () => {
+    const components = walk(join(process.cwd(), "src/components")).filter((f) => /\.tsx?$/.test(f));
+    expect(components.length).toBeGreaterThan(10);
+    for (const file of components) {
+      // Bound Server Actions hang on Next 16's no-JavaScript form post: pass ids in hidden fields instead.
+      expect(readFileSync(file, "utf8"), `${file} binds a server action`).not.toMatch(/\.bind\(null/);
+      const imports = [...readFileSync(file, "utf8").matchAll(/^import (?!type\b)[^;]*from "([^"]+)"/gm)].map((m) => m[1]!);
+      for (const target of imports) {
+        expect(target, `${file} imports ${target}`).not.toMatch(/infrastructure|_shared\/(run-mutation|load-page|require-page-actor)/);
+      }
+    }
+  });
+
   it("guards every non-public Server Action: it reaches data only through the container's session-bound use cases", () => {
     const actions = walk(join(APP, "_actions")).filter((file) => /\.tsx?$/.test(file) && !PUBLIC_ACTION_FILES.includes(rel(file)));
     expect(actions.map(rel)).toEqual(expect.arrayContaining(["_actions/boards.ts"]));
