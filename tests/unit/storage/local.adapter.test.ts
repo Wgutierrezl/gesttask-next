@@ -52,6 +52,16 @@ runStorageContract("local filesystem", () => {
 });
 
 describe("LocalStorage", () => {
+  it("a ticket works for five minutes at most (a leaked form cannot be reused for long)", async () => {
+    const { storage, advance } = makeLocal();
+    const early = await localTicket(storage, "boards/b/early", 10);
+    const late = await localTicket(storage, "boards/b/late", 10);
+    advance(299);
+    expect((await put(storage, early.url, "hello")).status).toBe(204);
+    advance(2);
+    expect((await put(storage, late.url, "hello")).status).toBe(403);
+  });
+
   it("issues a PUT ticket pointing at the dev storage route", async () => {
     const { storage } = makeLocal();
     const ticket = await storage.prepareUpload({ key: "boards/b/a1", contentType: "image/png", size: 10 });

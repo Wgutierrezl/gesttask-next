@@ -14,7 +14,7 @@ application did not approve: a client can lie about the size and the type it dec
 
 | Driver | Ticket | What enforces the limits |
 |---|---|---|
-| S3 | `s3-post`: URL plus signed form fields (presigned POST) | The POST policy: `content-length-range` 1..declared size, `Content-Type` equal to the declared type, key fixed by the server, expiry 15 min. A presigned PUT cannot cap the size, which is why PUT was rejected. |
+| S3 | `s3-post`: URL plus signed form fields (presigned POST) | The POST policy: `content-length-range` 1..declared size, `Content-Type` equal to the declared type, key fixed by the server, expiry 5 min (a ticket can be replayed until it expires, so the window is kept short). A presigned PUT cannot cap the size, which is why PUT was rejected. |
 | Vercel Blob | `blob-token`: a client token bound to one pathname | `maximumSizeInBytes`, `allowedContentTypes`, `validUntil`, `allowOverwrite: false`. The size is a maximum, not a range. |
 | Local | `local-put`: HMAC-signed URL to `/api/dev-storage` | The route checks signature, expiry, operation, size range and content type, exactly like the S3 policy. |
 
