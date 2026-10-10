@@ -76,6 +76,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
 
   const { storage, local } = createStorage(env, clock);
+  // ADR 0009 allows the local driver in a production build (e2e and smoke runs off Vercel), but it is development storage.
+  if (env.STORAGE_DRIVER === "local" && env.NODE_ENV === "production") {
+    logger.warn("STORAGE_DRIVER=local in a production build: attachments live on this machine's disk; use s3 or blob for a real deployment");
+  }
 
   const useCases = guardUseCases(
     session,
