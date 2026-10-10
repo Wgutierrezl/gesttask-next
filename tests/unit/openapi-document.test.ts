@@ -71,6 +71,8 @@ describe("the OpenAPI document (REQ-API-02)", () => {
       if (operation.method !== "get") expect(statuses, operation.id).toEqual(expect.arrayContaining(["403", "409"]));
       if (operation.params) expect(statuses, operation.id).toContain("404");
       if (operation.body || operation.query) expect(statuses, operation.id).toContain("422");
+      if (operation.body) expect(statuses, operation.id).toEqual(expect.arrayContaining(["400", "413"]));
+      else expect(statuses, operation.id).not.toContain("413");
       if (operation.tag === "Attachments") expect(statuses, operation.id).toContain("502");
     }
     expect(doc.components.schemas.Error).toBeDefined();

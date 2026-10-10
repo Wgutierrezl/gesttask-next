@@ -3,7 +3,7 @@ import { ConflictError, NotFoundError, RateLimitError, UnauthenticatedError } fr
 
 const useCases = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
-const api = vi.hoisted(() => ({ trustedHosts: [] as string[], limit: vi.fn() }));
+const api = vi.hoisted(() => ({ trustedOrigins: [] as string[], trustForwardedProto: false, limit: vi.fn() }));
 const session = vi.hoisted(() => ({ getActor: vi.fn() }));
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api, session }) }));
 
@@ -190,19 +190,26 @@ describe("handle: the thin adapter between a route and a use case", () => {
     });
 
     it("accepts a write from the configured public host", async () => {
-      api.trustedHosts = ["gesttask.example.org"];
+      api.trustedOrigins = ["https://gesttask.example.org"];
       useCases.createBoard = vi.fn().mockResolvedValue({ id: BOARD });
       const response = await call("createBoard", { method: "POST", body: { name: "x" }, headers: { origin: "https://gesttask.example.org" } });
       expect(response.status).toBe(201);
-      api.trustedHosts = [];
+      api.trustedOrigins = [];
     });
 
-    it("refuses a body that is not JSON, and malformed JSON", async () => {
+    it("refuses a body that is not JSON (422), malformed JSON (400) and an oversized body (413)", async () => {
       useCases.createBoard = vi.fn();
-      const form = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "text/plain" }, body: "name=x" });
-      expect((await handle("createBoard")(form, { params: Promise.resolve({}) })).status).toBe(422);
-      const broken = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
-      expect((await handle("createBoard")(broken, { params: Promise.resolve({}) })).status).toBe(422);
+      const post = (headers: Record<string, string>, body: string) =>
+        handle("createBoard")(new Request("https://app.example.com/api/v1/boards", { method: "POST", headers, body }), { params: Promise.resolve({}) });
+      const json = { "content-type": "application/json" };
+      expect((await post({ "content-type": "text/plain" }, "name=x")).status).toBe(422);
+      const broken = await post(json, "{");
+      expect(broken.status).toBe(400);
+      expect((await broken.json()).error.code).toBe("BAD_REQUEST");
+      expect((await post(json, "[1]")).status).toBe(400);
+      const large = await post(json, JSON.stringify({ name: "x".repeat(70_000) }));
+      expect(large.status).toBe(413);
+      expect((await large.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
       expect(useCases.createBoard).not.toHaveBeenCalled();
     });
 

@@ -1,5 +1,6 @@
 import type { ActionFailure } from "@/application/result";
 import { toActionFailure } from "@/application/to-action-result";
+import { isHttpRequestError } from "./http-errors";
 
 const STATUS: Record<string, number> = {
   VALIDATION: 422,
@@ -28,16 +29,18 @@ export interface HttpError {
  * Actions use so both adapters report identical codes. Unexpected errors carry no detail at all.
  */
 export function toHttp(error: unknown, requestId: string): HttpError {
+  if (isHttpRequestError(error)) return build(error.status, {}, { error: { code: error.code, message: error.message, requestId } });
   const failure = toActionFailure(error);
   const headers: Record<string, string> = {};
   if (failure.retryAfterSeconds !== undefined) headers["Retry-After"] = String(failure.retryAfterSeconds);
   const body: HttpErrorBody = { error: { code: failure.code, message: failure.message, requestId } };
   if (failure.fieldErrors) body.error.details = failure.fieldErrors;
-  const status = STATUS[failure.code] ?? 500;
-  return {
-    status,
-    headers,
-    body,
-    toResponse: () => new Response(JSON.stringify(body), { status, headers: { ...headers, "content-type": "application/problem+json" } }),
-  };
+  return build(STATUS[failure.code] ?? 500, headers, body);
 }
+
+const build = (status: number, headers: Record<string, string>, body: HttpErrorBody): HttpError => ({
+  status,
+  headers,
+  body,
+  toResponse: () => new Response(JSON.stringify(body), { status, headers: { ...headers, "content-type": "application/problem+json" } }),
+});

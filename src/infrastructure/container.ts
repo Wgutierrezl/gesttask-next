@@ -48,8 +48,8 @@ export interface Container {
   useCases: GuardedUseCases;
   /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
   maintenance: Maintenance;
-  /** What the REST API (`/api/v1`) needs besides the use cases: the hosts it trusts as its own, and its per-client rate limit. */
-  api: { trustedHosts: string[]; limit(kind: ApiRateKind, userId?: string): Promise<void> };
+  /** What the REST API (`/api/v1`) needs besides the use cases: the origins it trusts as its own, whether `x-forwarded-proto` is ours to believe, and its rate limit. */
+  api: { trustedOrigins: string[]; trustForwardedProto: boolean; limit(kind: ApiRateKind, userId?: string): Promise<void> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -57,10 +57,10 @@ export interface Container {
   close(): Promise<void>;
 }
 
-/** The public host the app answers to when a proxy rewrites `Host` (BETTER_AUTH_URL), as CSRF checks compare it. */
-function publicHosts(appUrl: string | undefined): string[] {
+/** The public origin the app answers to when a proxy rewrites `Host` (BETTER_AUTH_URL), as CSRF checks compare it. */
+function publicOrigins(appUrl: string | undefined): string[] {
   try {
-    return appUrl ? [new URL(appUrl).host] : [];
+    return appUrl ? [new URL(appUrl).origin] : [];
   } catch {
     return [];
   }
@@ -120,7 +120,8 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signOut: () => signOut(),
     },
     api: {
-      trustedHosts: publicHosts(env.BETTER_AUTH_URL),
+      trustedOrigins: publicOrigins(env.BETTER_AUTH_URL),
+      trustForwardedProto: Boolean(env.VERCEL) || env.TRUSTED_PROXY_HOPS >= 1,
       limit: async (kind, userId) =>
         enforceRateLimit(limiter, apiRateKey(kind, (await caller()).clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE),
     },

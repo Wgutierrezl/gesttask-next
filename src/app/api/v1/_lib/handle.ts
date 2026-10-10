@@ -41,7 +41,7 @@ export function handle(operationId: string) {
     try {
       const container = getContainer();
       const reading = READ_METHODS.has(request.method);
-      assertSameOrigin(request, container.api.trustedHosts);
+      assertSameOrigin(request, { origins: container.api.trustedOrigins, forwardedProto: container.api.trustForwardedProto });
       // The session comes before anything in the request is parsed, so an anonymous caller always learns 401 and nothing else
       // (no 404/422 telling a valid id or body from an invalid one). The ceiling is per client address, and per user once known.
       const actor = await container.session.getActor();

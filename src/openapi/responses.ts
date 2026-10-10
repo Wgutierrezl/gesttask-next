@@ -113,7 +113,7 @@ export const attachmentDownloadResponse = z.strictObject({
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
   error: z.strictObject({
-    code: z.enum(["VALIDATION", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CONFLICT", "RATE_LIMITED", "STORAGE", "INTERNAL"]),
+    code: z.enum(["BAD_REQUEST", "PAYLOAD_TOO_LARGE", "VALIDATION", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "CONFLICT", "RATE_LIMITED", "STORAGE", "INTERNAL"]),
     message: z.string(),
     details: z.record(z.string(), z.array(z.string())).optional(),
     requestId: z.string(),

@@ -65,6 +65,23 @@ describe("CSRF and request guards on the session cookie", () => {
     expect(await boardCount()).toBe(0);
   });
 
+  it("refuses a page on the right host but the wrong scheme (the public origin is https)", async () => {
+    await expectError(await call(boardsRoute.POST, "POST", owner, { body: { name: "x" }, headers: { origin: "http://gesttask.example.org" } }), 403, "FORBIDDEN");
+    expect(await boardCount()).toBe(0);
+  });
+
+  it("answers 400 to a body that is not a JSON object and 413 to one over 64 KB, 422 stays for schema errors", async () => {
+    const send = (body: string) => {
+      request.headers = new Headers(owner.headers);
+      return boardsRoute.POST(new Request("http://localhost:3000/api/v1/boards", { method: "POST", headers: { ...Object.fromEntries(owner.headers), "content-type": "application/json" }, body }), { params: Promise.resolve({}) });
+    };
+    await expectError(await send("{"), 400, "BAD_REQUEST");
+    await expectError(await send("[]"), 400, "BAD_REQUEST");
+    await expectError(await send(JSON.stringify({ name: "x".repeat(70_000) })), 413, "PAYLOAD_TOO_LARGE");
+    await expectError(await send(JSON.stringify({ name: "" })), 422, "VALIDATION");
+    expect(await boardCount()).toBe(0);
+  });
+
   it("never puts a credential in a cacheable response, and sends the request id back", async () => {
     const response = await call(boardsRoute.GET, "GET", owner, { headers: { "x-request-id": "trace-12345678" } });
     expect(response.headers.get("cache-control")).toBe("no-store");
