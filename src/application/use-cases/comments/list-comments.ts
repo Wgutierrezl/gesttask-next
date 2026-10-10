@@ -8,6 +8,8 @@ import type { UserDirectory } from "../../ports/services";
 import { listCommentsSchema } from "../../schemas/comment";
 import { parseInput } from "../../schemas/parse";
 
+export type { CommentView };
+
 export const DELETED_USER = "Deleted user";
 
 /** Comments of a task, oldest first, with author names (never emails) and what the viewer may change. */

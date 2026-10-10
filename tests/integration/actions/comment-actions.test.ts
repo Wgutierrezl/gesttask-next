@@ -40,6 +40,7 @@ vi.mock("@/infrastructure/container", async (importOriginal) => {
 
 const comments = await import("@/app/_actions/comments");
 const uploads = await import("@/app/_actions/uploads");
+const { GET: download } = await import("@/app/api/attachments/[attachmentId]/download/route");
 const { getContainer } = await import("@/infrastructure/container");
 
 const handle = connectTestDb();
@@ -120,10 +121,11 @@ describe("comment actions on Postgres", () => {
     expect(row).toMatchObject({ id: attachmentId, status: "confirmed", size: PNG.byteLength, contentType: "image/png", fileName: "pixel.png", uploaderId: g.userId });
     expect(row!.storageKey).toBe(`boards/${g.boardId}/attachments/${attachmentId}`);
 
-    const download = await getContainer().useCases.getAttachmentUrl({ attachmentId });
-    expect(download).toMatchObject({ fileName: "pixel.png", contentType: "image/png", expiresInSeconds: 300 });
-    const served = await devStorage()(new Request(download.url));
-    expect(new Uint8Array(await served.arrayBuffer())).toEqual(PNG);
+    // The link in the UI: the app checks the session, then redirects to a signed URL that serves the bytes.
+    const link = await download(new Request("http://localhost/download"), { params: Promise.resolve({ attachmentId }) });
+    expect(link.status).toBe(302);
+    const url = link.headers.get("location")!;
+    expect(new Uint8Array(await (await devStorage()(new Request(url))).arrayBuffer())).toEqual(PNG);
 
     const [comment] = await commentRows(g.taskId);
     await comments.deleteCommentAction(undefined, form({ commentId: comment!.id, confirm: "yes" }));
@@ -131,7 +133,7 @@ describe("comment actions on Postgres", () => {
     expect(deferred).toHaveLength(1);
     await deferred[0]!(); // what Next runs after the response
     expect(await queuedKeys()).toEqual([]);
-    expect((await devStorage()(new Request(download.url))).status).toBe(404);
+    expect((await devStorage()(new Request(url))).status).toBe(404);
   });
 
   it("answers NotFound to another user for every comment and attachment operation, changing nothing", async () => {
@@ -149,7 +151,11 @@ describe("comment actions on Postgres", () => {
       await uploads.requestUploadAction({ taskId: owner.taskId, fileName: "x.png", contentType: "image/png", size: 8 }),
     ];
     for (const result of refused) expect(result).toMatchObject({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
-    await expect(getContainer().useCases.getAttachmentUrl({ attachmentId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const link = await download(new Request("http://localhost/download"), { params: Promise.resolve({ attachmentId }) });
+    expect(link.status).toBe(404);
+    expect(link.headers.get("location")).toBeNull();
+    as(new Headers());
+    expect((await download(new Request("http://localhost/download"), { params: Promise.resolve({ attachmentId }) })).status).toBe(401);
     expect((await commentRows(owner.taskId)).map((c) => c.body)).toEqual(["Private"]);
     expect(await queuedKeys()).toEqual([]);
   });

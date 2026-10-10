@@ -11,7 +11,7 @@ const notFound = vi.fn(() => {
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const getActor = vi.fn();
-const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn() };
+const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger: { error: vi.fn() } }) }));
 
 const { default: TaskPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
@@ -32,6 +32,7 @@ beforeEach(() => {
   useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "owner" });
   useCases.listStages.mockResolvedValue([{ id: "s1", name: "To do", isDone: false }, { id: "s2", name: "Done", isDone: true }]);
   useCases.listMemberProfiles.mockResolvedValue([{ userId: "u1", role: "owner", name: "Olivia", email: null }]);
+  useCases.listComments.mockResolvedValue([]);
 });
 
 describe("TaskPage", () => {
@@ -48,6 +49,35 @@ describe("TaskPage", () => {
     expect(html).toContain("Delete task");
     expect(html).toContain("Move to stage");
     expect(html).toContain(`href="/boards/${BOARD}/pipelines/${PIPELINE}"`);
+  });
+
+  it("lists the task's comments with author, attachments and the form to add one", async () => {
+    useCases.listComments.mockResolvedValue([
+      { id: "c1", taskId: TASK, authorId: "u1", authorName: "Olivia", body: "Needs a changelog", createdAt: new Date("2026-10-09T10:00:00Z"), canManage: true, attachments: [{ id: "a1", fileName: "plan.pdf", contentType: "application/pdf", size: 2048 }] },
+      { id: "c2", taskId: TASK, authorId: null, authorName: "Deleted user", body: "Left a note", createdAt: new Date("2026-10-09T11:00:00Z"), canManage: false, attachments: [] },
+    ]);
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(useCases.listComments).toHaveBeenCalledWith({ taskId: TASK, limit: 200, offset: 0 });
+    expect(html).toContain("Comments (2)");
+    expect(html).toContain("Needs a changelog");
+    expect(html).toContain("Deleted user");
+    expect(html).toContain('href="/api/attachments/a1/download"');
+    expect(html).toContain("Add a comment");
+  });
+
+  it("lets a read-only viewer read and write comments, since guests may comment", async () => {
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
+    useCases.listComments.mockResolvedValue([{ id: "c1", taskId: TASK, authorId: "u9", authorName: "Marco", body: "Hello", createdAt: new Date("2026-10-09T10:00:00Z"), canManage: false, attachments: [] }]);
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(html).toContain("Hello");
+    expect(html).toContain("Add a comment");
+    expect(html).not.toContain("Edit task");
+  });
+
+  it("does not load comments for a task the viewer may not see", async () => {
+    useCases.getTask.mockRejectedValue(new NotFoundError());
+    await expect(TaskPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+    expect(useCases.listComments).not.toHaveBeenCalled();
   });
 
   it("shows when a done task was completed and no overdue badge", async () => {

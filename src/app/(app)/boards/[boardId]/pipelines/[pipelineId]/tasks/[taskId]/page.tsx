@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped } from "@/app/_shared/kanban-data";
+import { toCommentRow } from "@/app/_shared/comments-data";
 import { loadPage } from "@/app/_shared/load-page";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
+import { CommentsSection } from "@/components/comments/comments-section";
 import { DeleteTaskForm } from "@/components/kanban/delete-task-form";
 import { MoveTaskForm } from "@/components/kanban/move-task-form";
 import { LocalTime } from "@/components/kanban/local-time";
@@ -20,18 +22,19 @@ export default async function TaskPage({ params }: TaskPageProps) {
   await requirePageActor();
   const { boardId, pipelineId, taskId } = await params;
   const data = await loadPage(async () => {
-    const { getTask, getPipeline, listStages, listMemberProfiles } = getContainer().useCases;
+    const { getTask, getPipeline, listStages, listMemberProfiles, listComments } = getContainer().useCases;
     // `getTask` goes first: it is the authorization check, and a foreign task must not trigger the other reads.
     const task = await getTask({ taskId });
     if (task.boardId !== boardId || task.pipelineId !== pipelineId) return null;
-    const [{ role }, stages, members, assignee] = await Promise.all([
+    const [{ role }, stages, members, assignee, comments] = await Promise.all([
       getPipeline({ pipelineId }),
       loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
       loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
       // The assignee is looked up by id: a member beyond the capped list is still named and stays selected when editing.
       loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), [task.assigneeId]),
+      loadCapped((page) => listComments({ taskId, ...page }), LIST_LOAD_CAP),
     ]);
-    return { task, role, stages, members, assignee };
+    return { task, role, stages, members, assignee, comments };
   });
   // A task reached through the wrong board or pipeline in the URL is indistinguishable from a missing one.
   if (!data) notFound();
@@ -75,6 +78,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
         <dd>{formatDate(task.createdAt.toISOString())}</dd>
       </dl>
       {task.description ? <p className="whitespace-pre-wrap text-sm">{task.description}</p> : null}
+      <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} />
       {canWrite ? (
         <>
           <section aria-labelledby="move-heading">
