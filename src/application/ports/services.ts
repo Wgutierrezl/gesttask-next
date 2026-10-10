@@ -74,3 +74,16 @@ export interface StorageDeletionOutbox {
   /** Backs off for another try, or dead-letters the row when this was its last allowed attempt. */
   fail(claimed: StorageDeletion): Promise<boolean>;
 }
+
+/** What other members may see about an account. `email` is null for accounts that have none to share. */
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+export interface UserDirectory {
+  /** Registered accounts only: never demo-session (anonymous) or seeded demo users. Case-insensitive. */
+  findByEmail(email: string): Promise<UserProfile | null>;
+  findByIds(ids: readonly string[]): Promise<UserProfile[]>;
+}

@@ -4,10 +4,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AppDeps } from "@/application/deps";
 import { makeCreateBoard } from "@/application/use-cases/boards/create-board";
 import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
+import { makeGetBoard } from "@/application/use-cases/boards/get-board";
 import { makeListMyBoards } from "@/application/use-cases/boards/list-my-boards";
 import { makeUpdateBoard } from "@/application/use-cases/boards/update-board";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
+import { makeAddMemberByEmail } from "@/application/use-cases/members/add-member-by-email";
 import { makeChangeMemberRole } from "@/application/use-cases/members/change-member-role";
+import { makeListMemberProfiles } from "@/application/use-cases/members/list-member-profiles";
 import { makeListMembers } from "@/application/use-cases/members/list-members";
 import { makeListMyMemberships } from "@/application/use-cases/members/list-my-memberships";
 import { makeRemoveMember } from "@/application/use-cases/members/remove-member";
@@ -33,6 +36,8 @@ import { can, type BoardAction } from "@/domain/policy/board-policy";
 import { ForbiddenError, NotFoundError, UnauthenticatedError, ValidationError } from "@/domain/errors";
 import type { SessionPort } from "@/application/ports/services";
 import { guardAll, withActor } from "@/application/require-actor";
+import { InMemoryRateLimiter } from "@/infrastructure/ratelimit/in-memory-rate-limiter";
+import { InMemoryUserDirectory } from "@/infrastructure/repos/in-memory-users";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, RIVAL, RIVAL_MEMBER, STRANGER, seedKanban } from "@tests/support/fixtures";
 
@@ -73,7 +78,11 @@ interface Case {
  * Self-scoped use cases (`SELF_SCOPED`) take no resource id and therefore cannot be aimed at
  * someone else's data; the suite proves their input carries no foreign id and their output leaks none.
  */
+const directory = new InMemoryUserDirectory([{ id: "carol", name: "Carol", email: "carol@example.com" }]);
 const RESOURCES: Record<string, Case> = {
+  "boards/get-board.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeGetBoard(d)(a, { boardId: i.boardId }) },
+  "members/add-member-by-email.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeAddMemberByEmail(d, { users: directory, limiter: new InMemoryRateLimiter(d.clock) })(a, { boardId: i.boardId, email: "carol@example.com", role: "member" }) },
+  "members/list-member-profiles.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListMemberProfiles(d, directory)(a, { boardId: i.boardId }) },
   "boards/update-board.ts": { action: "board:update", uses: ["boardId"], run: (d, a, i) => makeUpdateBoard(d)(a, { boardId: i.boardId, name: "x" }) },
   "boards/delete-board.ts": { action: "board:delete", uses: ["boardId"], run: (d, a, i) => makeDeleteBoard(d)(a, { boardId: i.boardId }) },
   "members/add-member.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeAddMember(d)(a, { boardId: i.boardId, userId: "carol", role: "member" }) },
