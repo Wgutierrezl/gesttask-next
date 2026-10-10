@@ -78,6 +78,6 @@ export function buildOpenApiDocument() {
         "The same use cases as the web app, over REST. Lists return `{ items, nextCursor }`. Errors return `{ error: { code, message, details?, requestId } }` as `application/problem+json`.",
     },
     servers: [{ url: "/api/v1" }],
-    tags: ["Boards", "Members", "Pipelines", "Stages", "Tasks", "Comments", "Attachments"].map((name) => ({ name })),
+    tags: ["Boards", "Members", "Pipelines", "Stages", "Tasks", "Comments", "Attachments", "Dashboard"].map((name) => ({ name })),
   });
 }

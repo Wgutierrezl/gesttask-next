@@ -1,12 +1,13 @@
 import type { Operation } from "../operation";
 import { boardOperations } from "./boards";
 import { commentOperations } from "./comments";
+import { dashboardOperations } from "./dashboard";
 import { memberOperations } from "./members";
 import { pipelineOperations } from "./pipelines";
 import { stageOperations } from "./stages";
 import { taskOperations } from "./tasks";
 
-export const OPERATIONS: readonly Operation[] = [...boardOperations, ...memberOperations, ...pipelineOperations, ...stageOperations, ...taskOperations, ...commentOperations];
+export const OPERATIONS: readonly Operation[] = [...boardOperations, ...memberOperations, ...pipelineOperations, ...stageOperations, ...taskOperations, ...commentOperations, ...dashboardOperations];
 
 const byId = new Map(OPERATIONS.map((operation) => [operation.id, operation]));
 

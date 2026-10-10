@@ -2,7 +2,7 @@ import type { z } from "zod";
 
 export type Method = "get" | "post" | "patch" | "delete";
 
-export type Tag = "Boards" | "Members" | "Pipelines" | "Stages" | "Tasks" | "Comments" | "Attachments";
+export type Tag = "Boards" | "Members" | "Pipelines" | "Stages" | "Tasks" | "Comments" | "Attachments" | "Dashboard";
 
 /**
  * What a route answers on success. Lists are always wrapped as `{ items, nextCursor }` (REQ-API-04); `paginated` lists
