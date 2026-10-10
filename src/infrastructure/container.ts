@@ -71,7 +71,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
 
   const useCases = guardUseCases(
     session,
-    buildUseCases({ uow, repos: createDrizzleRepos(db, false), clock, ids }, { users: new DrizzleUserDirectory(db), limiter }),
+    buildUseCases({ uow, repos: createDrizzleRepos(db, false), clock, ids }, { users: new DrizzleUserDirectory(db), limiter, clientKey: async () => (await caller()).clientKey }),
   );
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });

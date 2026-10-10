@@ -99,6 +99,18 @@ export function runBoardContract(name: string, setup: () => RepoHarness): void {
         expect(await h.repos.members.countByRole(b1.id, "guest")).toBe(0);
         expect(await h.repos.members.countByRole(b2.id, "owner")).toBe(0);
       });
+
+      it("narrows a user's memberships to the given boards", async () => {
+        const [b1, b2, b3] = [makeBoard(), makeBoard(), makeBoard()];
+        for (const board of [b1, b2, b3]) await h.repos.boards.insert(board);
+        await h.repos.members.insert(member(b1.id, "u1", "owner"));
+        await h.repos.members.insert(member(b2.id, "u1", "guest"));
+        await h.repos.members.insert(member(b3.id, "u2", "owner"));
+        const ids = async (boardIds: string[]) => (await h.repos.members.listByUserInBoards("u1", boardIds)).map((m) => m.boardId).sort();
+        expect(await ids([b1.id, b3.id])).toEqual([b1.id]);
+        expect(await ids([b1.id, b2.id])).toEqual([b1.id, b2.id].sort());
+        expect(await ids([])).toEqual([]);
+      });
     });
 
     describe("unit of work", () => {

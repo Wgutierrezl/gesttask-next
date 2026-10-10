@@ -81,7 +81,7 @@ interface Case {
 const directory = new InMemoryUserDirectory([{ id: "carol", name: "Carol", email: "carol@example.com" }]);
 const RESOURCES: Record<string, Case> = {
   "boards/get-board.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeGetBoard(d)(a, { boardId: i.boardId }) },
-  "members/add-member-by-email.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeAddMemberByEmail(d, { users: directory, limiter: new InMemoryRateLimiter(d.clock) })(a, { boardId: i.boardId, email: "carol@example.com", role: "member" }) },
+  "members/add-member-by-email.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeAddMemberByEmail(d, { users: directory, limiter: new InMemoryRateLimiter(d.clock), clientKey: async () => "c" })(a, { boardId: i.boardId, email: "carol@example.com", role: "member" }) },
   "members/list-member-profiles.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListMemberProfiles(d, directory)(a, { boardId: i.boardId }) },
   "boards/update-board.ts": { action: "board:update", uses: ["boardId"], run: (d, a, i) => makeUpdateBoard(d)(a, { boardId: i.boardId, name: "x" }) },
   "boards/delete-board.ts": { action: "board:delete", uses: ["boardId"], run: (d, a, i) => makeDeleteBoard(d)(a, { boardId: i.boardId }) },

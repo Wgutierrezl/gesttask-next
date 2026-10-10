@@ -63,6 +63,11 @@ and the sign-in flows through `AuthPort`. `domain` and `application` do not impo
   registered". Hiding it would need email verification (send a mail either way), which is out of scope for v1.
   Mitigation: sign-up is limited to 10/h per client, and login failures are generic. Revisit together with
   email verification and password reset.
+- **Invite-by-email enumeration (accepted trade-off).** An owner adding a member by email gets distinct
+  answers ("No account found with that email" versus added or already a member), so it is also an account
+  oracle. Distinct replies stay because the owner needs to know why an invite failed. Mitigations: owners of
+  real accounts only (demo sessions are refused), 30 lookups/h per account plus 60/h per client, and requests
+  refused for authorization or validation reasons spend no quota. See ADR 0005 for the related consent decision.
 - **Credentials policy.** Passwords need at least 10 characters (Better Auth is configured with the same
   constant); emails on the reserved `.invalid` TLD cannot be registered because demo users live there.
 

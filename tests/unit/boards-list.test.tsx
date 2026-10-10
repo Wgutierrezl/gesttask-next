@@ -99,6 +99,18 @@ describe("BoardsPage", () => {
     expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: PAGE_SIZE + 1, offset: 0 });
   });
 
+  it("loads roles only for the boards shown, never the caller's whole membership list", async () => {
+    const rows = Array.from({ length: PAGE_SIZE + 1 }, (_v, i) => board(i));
+    useCases.listMyBoards.mockResolvedValue(rows);
+    renderToStaticMarkup(await BoardsPage({ searchParams: search() }));
+    expect(useCases.listMyMemberships).toHaveBeenCalledWith({ boardIds: rows.slice(0, PAGE_SIZE).map((b) => b.id) });
+  });
+
+  it("does not look up roles when there are no boards", async () => {
+    renderToStaticMarkup(await BoardsPage({ searchParams: search() }));
+    expect(useCases.listMyMemberships).not.toHaveBeenCalled();
+  });
+
   it("shows an empty state with the create form", async () => {
     const html = renderToStaticMarkup(await BoardsPage({ searchParams: search() }));
     expect(html).toContain("You have no boards yet");

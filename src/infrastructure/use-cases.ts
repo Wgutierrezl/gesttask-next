@@ -34,7 +34,7 @@ import { makeUpdateTask } from "@/application/use-cases/tasks/update-task";
  * Every use case that needs a signed-in caller, unwrapped. The container wraps the whole registry with
  * `guardAll`, so adapters can only reach the guarded versions. A test keeps this list equal to the files on disk.
  */
-export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limiter: RateLimiter }) {
+export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limiter: RateLimiter; clientKey: () => Promise<string> }) {
   return {
     createBoard: makeCreateBoard(deps),
     deleteBoard: makeDeleteBoard(deps),

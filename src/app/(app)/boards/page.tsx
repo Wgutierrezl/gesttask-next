@@ -13,8 +13,10 @@ export default async function BoardsPage({ searchParams }: { searchParams: Promi
   const page = parsePage((await searchParams).page);
   const { items, hasNext, roles } = await loadPage(async () => {
     const { listMyBoards, listMyMemberships } = getContainer().useCases;
-    const [rows, memberships] = await Promise.all([listMyBoards(pageWindow(page)), listMyMemberships(undefined)]);
-    return { ...slicePage(rows), roles: new Map(memberships.map((m) => [m.boardId, m.role])) };
+    const shown = slicePage(await listMyBoards(pageWindow(page)));
+    // Roles only for the boards on this page: the caller may belong to many more.
+    const memberships = shown.items.length > 0 ? await listMyMemberships({ boardIds: shown.items.map((b) => b.id) }) : [];
+    return { ...shown, roles: new Map(memberships.map((m) => [m.boardId, m.role])) };
   });
   return (
     <main className="flex flex-col gap-8">
