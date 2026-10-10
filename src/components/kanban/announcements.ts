@@ -11,7 +11,11 @@ export function announcementsFor(columns: ColumnView[]): Announcements {
     overId.startsWith(COLUMN_PREFIX) ? `the ${columnName(overId)} column` : `${titleOf(overId)} in ${stageOf(overId)}`;
   return {
     onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}.`,
-    onDragOver: ({ active, over }) => (over ? `${titleOf(active.id)} is over ${where(String(over.id))}.` : `${titleOf(active.id)} is not over a drop area.`),
+    onDragOver: ({ active, over }) => {
+      if (!over) return `${titleOf(active.id)} is not over a drop area.`;
+      if (over.id === active.id) return `${titleOf(active.id)} is in its original place.`;
+      return `${titleOf(active.id)} is over ${where(String(over.id))}.`;
+    },
     onDragEnd: ({ active, over }) =>
       over
         ? `Dropped ${titleOf(active.id)} on ${where(String(over.id))}.`
