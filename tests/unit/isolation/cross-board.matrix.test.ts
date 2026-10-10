@@ -16,6 +16,7 @@ import { makeListMyMemberships } from "@/application/use-cases/members/list-my-m
 import { makeRemoveMember } from "@/application/use-cases/members/remove-member";
 import { makeCreatePipeline } from "@/application/use-cases/pipelines/create-pipeline";
 import { makeDeletePipeline } from "@/application/use-cases/pipelines/delete-pipeline";
+import { makeGetPipeline } from "@/application/use-cases/pipelines/get-pipeline";
 import { makeListPipelines } from "@/application/use-cases/pipelines/list-pipelines";
 import { makeUpdatePipeline } from "@/application/use-cases/pipelines/update-pipeline";
 import { makeCreateStage } from "@/application/use-cases/stages/create-stage";
@@ -90,6 +91,7 @@ const RESOURCES: Record<string, Case> = {
   "members/change-member-role.ts": { action: "member:manage", uses: ["boardId"], run: (d, a, i) => makeChangeMemberRole(d)(a, { boardId: i.boardId, userId: "member", role: "guest" }) },
   "members/list-members.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListMembers(d)(a, { boardId: i.boardId }) },
   "pipelines/create-pipeline.ts": { action: "pipeline:manage", uses: ["boardId"], run: (d, a, i) => makeCreatePipeline(d)(a, { boardId: i.boardId, name: "x" }) },
+  "pipelines/get-pipeline.ts": { action: "board:view", uses: ["pipelineId"], run: (d, a, i) => makeGetPipeline(d)(a, { pipelineId: i.pipelineId }) },
   "pipelines/list-pipelines.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeListPipelines(d)(a, { boardId: i.boardId }) },
   "pipelines/update-pipeline.ts": { action: "pipeline:manage", uses: ["pipelineId"], run: (d, a, i) => makeUpdatePipeline(d)(a, { pipelineId: i.pipelineId, name: "x" }) },
   "pipelines/delete-pipeline.ts": { action: "pipeline:manage", uses: ["pipelineId"], run: (d, a, i) => makeDeletePipeline(d)(a, { pipelineId: i.pipelineId }) },
