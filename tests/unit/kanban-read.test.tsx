@@ -124,6 +124,7 @@ describe("PipelinePage", () => {
     expect(html).toContain("Olivia");
     expect(html).toContain("Completed Oct 9, 2026");
     expect(html).toContain(`href="/boards/${BOARD_ID}"`);
+    expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}/tasks/t1"`);
     expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200 });
   });
 
