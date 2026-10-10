@@ -20,12 +20,15 @@ function restore(store: InMemoryStore, saved: Snapshot): void {
 
 /** Simulates a DB transaction: every write is undone if the work throws. */
 export class FakeUnitOfWork implements UnitOfWork {
-  constructor(private readonly store: InMemoryStore) {}
+  constructor(
+    private readonly store: InMemoryStore,
+    private readonly now?: () => Date,
+  ) {}
 
   async run<T>(work: (repos: Repos) => Promise<T>): Promise<T> {
     const saved = snapshot(this.store);
     try {
-      return await work(createInMemoryRepos(this.store));
+      return await work(createInMemoryRepos(this.store, { now: this.now }));
     } catch (error) {
       restore(this.store, saved);
       throw error;

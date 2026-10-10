@@ -21,6 +21,10 @@ const VANISHED_PARENTS = new Set([
   "stages_pipeline_board_fk",
   "tasks_pipeline_board_fk",
   "tasks_stage_pipeline_fk",
+  "comments_task_board_fk",
+  "comments_board_id_boards_id_fk",
+  "attachments_board_id_boards_id_fk",
+  "attachments_comment_board_fk",
 ]);
 
 /**

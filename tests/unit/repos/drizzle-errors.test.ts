@@ -22,6 +22,10 @@ describe("translateDbError", () => {
     "stages_pipeline_board_fk",
     "tasks_pipeline_board_fk",
     "tasks_stage_pipeline_fk",
+    "comments_task_board_fk",
+    "comments_board_id_boards_id_fk",
+    "attachments_board_id_boards_id_fk",
+    "attachments_comment_board_fk",
   ])("maps the vanished-parent violation %s to NotFoundError", (constraint) => {
     expect(translateDbError(pgError("23503", constraint))).toBeInstanceOf(NotFoundError);
   });
@@ -30,7 +34,7 @@ describe("translateDbError", () => {
     ["23505", "attachments_storage_key_unique"],
     ["23505", "tasks_pkey"],
     ["23505", undefined],
-    ["23503", "comments_task_board_fk"],
+    ["23503", "attachments_uploader_id_user_id_fk"],
     ["23503", undefined],
   ])("rethrows a %s on a constraint outside the allowlist (%s) unchanged", (code, constraint) => {
     const original = pgError(code!, constraint);

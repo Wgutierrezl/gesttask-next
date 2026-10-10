@@ -3,7 +3,9 @@ import { comparePositions } from "@/domain/value-objects/position";
 import type { Task } from "@/domain/entities/task";
 import type { Stage } from "@/domain/entities/pipeline";
 import type { Pipeline } from "@/domain/entities/pipeline";
-import type { Page, Repos } from "@/application/ports/repositories";
+import type { Attachment, Comment } from "@/domain/entities/comment";
+import type { AttachmentScope, Page, Repos } from "@/application/ports/repositories";
+import { InMemoryDeletionOutbox } from "./in-memory-outbox";
 import type { InMemoryStore } from "./in-memory-store";
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -18,7 +20,23 @@ function dropWhere<V>(map: Map<string, V>, predicate: (value: V) => boolean): vo
 }
 
 /** Fake repositories mirroring the Postgres semantics the real ones must honour (FK cascades, unique keys). */
-export function createInMemoryRepos(store: InMemoryStore): Repos {
+export function createInMemoryRepos(store: InMemoryStore, options: { now?: () => Date } = {}): Repos {
+  /** Mirrors the foreign keys: a comment dies with its task, an attachment with its comment or board. */
+  const dropCommentsWhere = (predicate: (comment: Comment) => boolean) => {
+    const doomed = new Set([...store.comments.values()].filter(predicate).map((c) => c.id));
+    dropWhere(store.comments, (c) => doomed.has(c.id));
+    dropWhere(store.attachments, (a) => a.commentId !== null && doomed.has(a.commentId));
+  };
+  const dropTasksWhere = (predicate: (task: Task) => boolean) => {
+    const doomed = new Set([...store.tasks.values()].filter(predicate).map((t) => t.id));
+    dropCommentsWhere((c) => doomed.has(c.taskId));
+    dropWhere(store.tasks, (t) => doomed.has(t.id));
+  };
+  const keysOfComments = (predicate: (comment: Comment) => boolean): string[] => {
+    const ids = new Set([...store.comments.values()].filter(predicate).map((c) => c.id));
+    return [...store.attachments.values()].filter((a) => a.commentId !== null && ids.has(a.commentId)).map((a) => a.storageKey);
+  };
+  const taskIdsWhere = (predicate: (task: Task) => boolean) => new Set([...store.tasks.values()].filter(predicate).map((t) => t.id));
   const memberKey = (boardId: string, userId: string) => `${boardId}:${userId}`;
   const assertSingleDoneStage = (stage: Stage) => {
     if (!stage.isDone) return;
@@ -65,7 +83,8 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         dropWhere(store.members, (m) => m.boardId === id);
         dropWhere(store.pipelines, (p) => p.boardId === id);
         dropWhere(store.stages, (s) => s.boardId === id);
-        dropWhere(store.tasks, (t) => t.boardId === id);
+        dropTasksWhere((t) => t.boardId === id);
+        dropWhere(store.attachments, (a) => a.boardId === id);
       },
     },
     members: {
@@ -111,7 +130,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       delete: async (id) => {
         store.pipelines.delete(id);
         dropWhere(store.stages, (s) => s.pipelineId === id);
-        dropWhere(store.tasks, (t) => t.pipelineId === id);
+        dropTasksWhere((t) => t.pipelineId === id);
       },
     },
     stages: {
@@ -132,7 +151,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
       },
       delete: async (id) => {
         store.stages.delete(id);
-        dropWhere(store.tasks, (t) => t.stageId === id);
+        dropTasksWhere((t) => t.stageId === id);
       },
     },
     tasks: {
@@ -145,7 +164,7 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         assertTaskParents(task);
         store.tasks.set(task.id, copy(task));
       },
-      delete: async (id) => void store.tasks.delete(id),
+      delete: async (id) => dropTasksWhere((t) => t.id === id),
       clearAssignee: async (boardId, userId) => {
         for (const task of store.tasks.values()) {
           if (task.boardId === boardId && task.assigneeId === userId) task.assigneeId = null;
@@ -162,5 +181,64 @@ export function createInMemoryRepos(store: InMemoryStore): Repos {
         return copies(slice(tasks, page));
       },
     },
+    comments: {
+      insert: async (comment) => {
+        if (store.tasks.get(comment.taskId)?.boardId !== comment.boardId) throw new NotFoundError();
+        store.comments.set(comment.id, copy(comment));
+      },
+      findById: async (id) => copy(store.comments.get(id) ?? null),
+      listByTask: async (taskId, page) =>
+        copies(
+          slice(
+            [...store.comments.values()]
+              .filter((c) => c.taskId === taskId)
+              .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || byText(a.id, b.id)),
+            page,
+          ),
+        ),
+      updateBody: async (id, body) => {
+        const comment = store.comments.get(id);
+        if (comment) comment.body = body;
+      },
+      delete: async (id) => dropCommentsWhere((c) => c.id === id),
+    },
+    attachments: {
+      insert: async (attachment: Attachment) => {
+        assertBoard(attachment.boardId);
+        if (attachment.commentId !== null && store.comments.get(attachment.commentId)?.boardId !== attachment.boardId) throw new NotFoundError();
+        if ([...store.attachments.values()].some((a) => a.storageKey === attachment.storageKey)) {
+          throw new Error("An attachment with this storage key already exists");
+        }
+        store.attachments.set(attachment.id, copy(attachment));
+      },
+      findById: async (id) => copy(store.attachments.get(id) ?? null),
+      findManyByIds: async (ids) => copies(ids.map((id) => store.attachments.get(id)).filter((a): a is Attachment => a !== undefined)),
+      confirm: async (id, link) => {
+        const attachment = store.attachments.get(id);
+        if (attachment) Object.assign(attachment, { commentId: link.commentId, size: link.size, status: "confirmed" });
+      },
+      listByComments: async (commentIds) =>
+        copies(
+          [...store.attachments.values()]
+            .filter((a) => a.status === "confirmed" && a.commentId !== null && commentIds.includes(a.commentId))
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || byText(a.id, b.id)),
+        ),
+      countByUploader: async (userId, pendingSince) =>
+        [...store.attachments.values()].filter(
+          (a) => a.uploaderId === userId && (a.status === "confirmed" || a.createdAt.getTime() >= pendingSince.getTime()),
+        ).length,
+      keysUnder: async (scope: AttachmentScope) => {
+        if ("boardId" in scope) return [...store.attachments.values()].filter((a) => a.boardId === scope.boardId).map((a) => a.storageKey);
+        if ("commentId" in scope) return keysOfComments((c) => c.id === scope.commentId);
+        const tasks =
+          "taskId" in scope
+            ? taskIdsWhere((t) => t.id === scope.taskId)
+            : "stageId" in scope
+              ? taskIdsWhere((t) => t.stageId === scope.stageId)
+              : taskIdsWhere((t) => t.pipelineId === scope.pipelineId);
+        return keysOfComments((c) => tasks.has(c.taskId));
+      },
+    },
+    outbox: new InMemoryDeletionOutbox(store, options.now ?? (() => new Date())),
   };
 }

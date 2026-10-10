@@ -19,11 +19,12 @@ export function sequentialIds(prefix = "0"): { next(): string } {
 export function createTestContext(): TestContext {
   const store = createStore();
   let current = new Date("2026-10-09T12:00:00.000Z");
+  const now = () => current;
   return {
     store,
-    repos: createInMemoryRepos(store),
-    uow: new FakeUnitOfWork(store),
-    clock: { now: () => current, set: (date) => void (current = date) },
+    repos: createInMemoryRepos(store, { now }),
+    uow: new FakeUnitOfWork(store, now),
+    clock: { now, set: (date) => void (current = date) },
     ids: sequentialIds(),
   };
 }

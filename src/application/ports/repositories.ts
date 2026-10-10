@@ -1,7 +1,9 @@
 import type { Board, BoardMember } from "@/domain/entities/board";
+import type { Attachment, Comment } from "@/domain/entities/comment";
 import type { Pipeline, Stage } from "@/domain/entities/pipeline";
 import type { Task } from "@/domain/entities/task";
 import type { BoardRole } from "@/domain/value-objects/board-role";
+import type { StorageDeletionOutbox } from "./services";
 
 export interface Page {
   limit: number;
@@ -100,6 +102,45 @@ export interface TaskRepo {
   listByPipeline(pipelineId: string, page: Page): Promise<Task[]>;
 }
 
+export interface CommentRepo {
+  /** Throws NotFoundError when the task does not exist on `comment.boardId` (composite foreign key). */
+  insert(comment: Comment): Promise<void>;
+  findById(id: string): Promise<Comment | null>;
+  /** Oldest first, then id; paginated (a snapshot read). */
+  listByTask(taskId: string, page: Page): Promise<Comment[]>;
+  updateBody(id: string, body: string): Promise<void>;
+  /** Cascades to the comment's attachments. */
+  delete(id: string): Promise<void>;
+}
+
+/** What a delete removes along the way, expressed by the row it targets. */
+export type AttachmentScope =
+  | { boardId: string }
+  | { pipelineId: string }
+  | { stageId: string }
+  | { taskId: string }
+  | { commentId: string };
+
+export interface AttachmentRepo {
+  /** A new upload starts `pending`, without a comment. Throws ConflictError on a duplicated storage key. */
+  insert(attachment: Attachment): Promise<void>;
+  findById(id: string): Promise<Attachment | null>;
+  /** Unknown ids are left out. Inside a transaction the rows are locked in primary-key order. */
+  findManyByIds(ids: readonly string[]): Promise<Attachment[]>;
+  /** Links a pending attachment to its comment and records the size the storage reported. */
+  confirm(id: string, link: { commentId: string; size: number }): Promise<void>;
+  /** Confirmed attachments of the given comments, oldest first, then id. */
+  listByComments(commentIds: readonly string[]): Promise<Attachment[]>;
+  /** Confirmed uploads of the user plus pending ones created at or after `pendingSince` (abandoned ones do not count). */
+  countByUploader(userId: string, pendingSince: Date): Promise<number>;
+  /**
+   * Storage keys of every attachment row that disappears when the scope is deleted (a board scope includes pending
+   * uploads, which have no comment). Inside a transaction it first locks the tasks below the scope, so a comment
+   * being created concurrently cannot attach an object this read missed; callers lock the scope's own row first.
+   */
+  keysUnder(scope: AttachmentScope): Promise<string[]>;
+}
+
 /** Repositories bound to the same transaction scope. */
 export interface Repos {
   boards: BoardRepo;
@@ -107,6 +148,10 @@ export interface Repos {
   pipelines: PipelineRepo;
   stages: StageRepo;
   tasks: TaskRepo;
+  comments: CommentRepo;
+  attachments: AttachmentRepo;
+  /** Bound to the transaction in a unit of work: enqueued keys exist only if the whole transaction commits. */
+  outbox: StorageDeletionOutbox;
 }
 
 /** Runs `work` atomically: any throw rolls back every write made through the given repos. */
