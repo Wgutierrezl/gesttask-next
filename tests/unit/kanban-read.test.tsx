@@ -137,6 +137,14 @@ describe("PipelinePage", () => {
     }
   });
 
+  it("offers task creation to owners and members, not to viewers", async () => {
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "member" });
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add a task");
+  });
+
   it("authorizes through getPipeline first and never reads the rest for a foreign pipeline", async () => {
     useCases.getPipeline.mockRejectedValue(new NotFoundError());
     await expect(PipelinePage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("404") });

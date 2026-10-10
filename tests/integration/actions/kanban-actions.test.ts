@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { SeededGuestSandbox, sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import * as schema from "@/infrastructure/db/schema";
 import { authFixture, cookieHeader } from "../support/auth";
 import { connectTestDb, resetDb } from "../support/db";
+import { drizzleDeps } from "../support/tx";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
@@ -37,6 +40,7 @@ const boards = await import("@/app/_actions/boards");
 const members = await import("@/app/_actions/members");
 const pipelines = await import("@/app/_actions/pipelines");
 const stages = await import("@/app/_actions/stages");
+const tasks = await import("@/app/_actions/tasks");
 const { getContainer } = await import("@/infrastructure/container");
 
 const handle = connectTestDb();
@@ -45,6 +49,7 @@ const form = (entries: Record<string, string>) => Object.entries(entries).reduce
 const as = (headers: Headers) => void (request.headers = headers);
 const redirected = (promise: Promise<unknown>) => promise.then(() => "", (e: { digest?: string }) => e.digest ?? String(e));
 const PAGE = "/boards/[boardId]/pipelines/[pipelineId]";
+const TASK_PAGE = "/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]";
 
 async function account(email: string) {
   const response = await auth.api.signUpEmail({ body: { email, password: "correct horse battery", name: email.split("@")[0]! }, returnHeaders: true });
@@ -63,6 +68,15 @@ async function owner(email: string) {
   return { ...user, boardId, pipelineId: pipeline!.id, todoId: byName("To do"), progressId: byName("In progress"), doneId: byName("Done") };
 }
 
+async function guest() {
+  const response = await auth.api.signInAnonymous({ returnHeaders: true });
+  const user = { userId: response.response!.user.id, isGuest: true };
+  const deps = drizzleDeps(handle);
+  await new SeededGuestSandbox(handle.db, { uow: deps.uow, ids: { next: randomUUID }, clock: deps.clock }).provision(user);
+  return { headers: cookieHeader(response.headers), boardId: sandboxBoardId(user.userId), userId: user.userId };
+}
+
+const taskRows = (pipelineId: string) => handle.db.select().from(schema.tasks).where(eq(schema.tasks.pipelineId, pipelineId));
 const stageRows = (pipelineId: string) => handle.db.select().from(schema.stages).where(eq(schema.stages.pipelineId, pipelineId));
 const names = async (pipelineId: string) => (await stageRows(pipelineId)).sort((a, b) => (a.position < b.position ? -1 : 1)).map((s) => s.name);
 const doneNames = async (pipelineId: string) => (await stageRows(pipelineId)).filter((s) => s.isDone).map((s) => s.name);
@@ -171,5 +185,103 @@ describe("stage actions on Postgres", () => {
     for (const digest of await Promise.all(attempts.map(redirected))) expect(digest).toContain("/login");
     expect(await doneNames(a.pipelineId)).toEqual(["Done"]);
     expect((await handle.db.select().from(schema.stages).where(and(eq(schema.stages.id, a.todoId)))).length).toBe(1);
+  });
+});
+
+describe("task actions on Postgres", () => {
+  const taskForm = (stageId: string, extra: Record<string, string> = {}) => form({ stageId, title: "Write docs", description: "", priority: "medium", dueDate: "", assigneeId: "", ...extra });
+
+  it("creates, edits and deletes a task, refreshing the right pages and returning to the Kanban", async () => {
+    const a = await owner("alice@example.com");
+    const bob = await account("bob@example.com");
+    await members.addMemberAction(undefined, form({ boardId: a.boardId, email: "bob@example.com", role: "member" }));
+    revalidatePath.mockClear();
+
+    expect(await tasks.createTaskAction(undefined, taskForm(a.todoId, { priority: "high", dueDate: "2026-12-01", assigneeId: bob.userId }))).toEqual({ ok: true, data: null });
+    expect(revalidatePath.mock.calls).toEqual([[PAGE, "page"]]);
+    const [created] = await taskRows(a.pipelineId);
+    expect(created).toMatchObject({ title: "Write docs", priority: "high", dueDate: "2026-12-01", assigneeId: bob.userId, stageId: a.todoId, completedAt: null });
+
+    revalidatePath.mockClear();
+    expect(await tasks.updateTaskAction(undefined, form({ taskId: created!.id, title: "Edited", description: "more", priority: "low", dueDate: "", assigneeId: "" }))).toEqual({ ok: true, data: null });
+    expect(revalidatePath.mock.calls.map(([path]) => path)).toEqual([PAGE, TASK_PAGE]);
+    expect((await taskRows(a.pipelineId))[0]).toMatchObject({ title: "Edited", priority: "low", dueDate: null, assigneeId: null });
+
+    const refused = await tasks.deleteTaskAction(undefined, form({ taskId: created!.id, boardId: a.boardId, pipelineId: a.pipelineId }));
+    expect(refused).toMatchObject({ code: "VALIDATION", fieldErrors: { confirm: [expect.any(String)] } });
+    expect(await taskRows(a.pipelineId)).toHaveLength(1);
+    const digest = await redirected(tasks.deleteTaskAction(undefined, form({ taskId: created!.id, boardId: a.boardId, pipelineId: a.pipelineId, confirm: "yes" })));
+    expect(digest).toContain(`/boards/${a.boardId}/pipelines/${a.pipelineId}`);
+    expect(await taskRows(a.pipelineId)).toHaveLength(0);
+  });
+
+  it("completes a task created in the done stage and rejects an assignee who is not on the board", async () => {
+    const a = await owner("alice@example.com");
+    const outsider = await account("outsider@example.com");
+    await tasks.createTaskAction(undefined, taskForm(a.doneId));
+    expect((await taskRows(a.pipelineId))[0]!.completedAt).toBeInstanceOf(Date);
+    expect(await tasks.createTaskAction(undefined, taskForm(a.todoId, { assigneeId: outsider.userId }))).toMatchObject({ ok: false, code: "VALIDATION", fieldErrors: { assigneeId: [expect.any(String)] } });
+    expect(await taskRows(a.pipelineId)).toHaveLength(1);
+  });
+
+  it("lets viewers read but not write: Forbidden, nothing changes", async () => {
+    const a = await owner("alice@example.com");
+    await tasks.createTaskAction(undefined, taskForm(a.todoId));
+    const [task] = await taskRows(a.pipelineId);
+    const viewer = await account("viewer@example.com");
+    await members.addMemberAction(undefined, form({ boardId: a.boardId, email: "viewer@example.com", role: "guest" }));
+    as(viewer.headers);
+    revalidatePath.mockClear();
+    for (const attempt of [
+      () => tasks.createTaskAction(undefined, taskForm(a.todoId)),
+      () => tasks.updateTaskAction(undefined, form({ taskId: task!.id, title: "x" })),
+      () => tasks.deleteTaskAction(undefined, form({ taskId: task!.id, confirm: "yes" })),
+    ]) expect(await attempt()).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await taskRows(a.pipelineId)).toEqual([task]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("answers NotFound when the owner of board B aims board A's ids at the task actions", async () => {
+    const a = await owner("alice@example.com");
+    await tasks.createTaskAction(undefined, taskForm(a.todoId));
+    const [task] = await taskRows(a.pipelineId);
+    const b = await owner("bob@example.com");
+    revalidatePath.mockClear();
+    for (const attempt of [
+      () => tasks.createTaskAction(undefined, taskForm(a.todoId)),
+      () => tasks.updateTaskAction(undefined, form({ taskId: task!.id, title: "pwned" })),
+      () => tasks.deleteTaskAction(undefined, form({ taskId: task!.id, boardId: b.boardId, pipelineId: b.pipelineId, confirm: "yes" })),
+    ]) expect(await attempt()).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await taskRows(a.pipelineId)).toEqual([task]);
+    expect(await taskRows(b.pipelineId)).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("stops a demo user at the task limit with a message that says what to do", async () => {
+    const g = await guest();
+    as(g.headers);
+    const [pipeline] = await handle.db.select().from(schema.pipelines).where(eq(schema.pipelines.boardId, g.boardId));
+    const [stage] = await stageRows(pipeline!.id);
+    const existing = (await taskRows(pipeline!.id)).length;
+    await handle.db.insert(schema.tasks).values(
+      Array.from({ length: 200 - existing }, (_v, i) => ({
+        id: randomUUID(), boardId: g.boardId, pipelineId: pipeline!.id, stageId: stage!.id, title: `Filler ${i}`, priority: "low" as const,
+        position: `z${String(i).padStart(4, "0")}`, createdAt: new Date(),
+      })),
+    );
+    revalidatePath.mockClear();
+    expect(await tasks.createTaskAction(undefined, taskForm(stage!.id))).toMatchObject({ ok: false, code: "CONFLICT", message: expect.stringContaining("Sign up to create more") });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("sends every task action to the login page without a session", async () => {
+    const a = await owner("alice@example.com");
+    as(new Headers());
+    const digests = await Promise.all([
+      redirected(tasks.createTaskAction(undefined, taskForm(a.todoId))),
+      redirected(tasks.updateTaskAction(undefined, form({ taskId: a.todoId, title: "x" }))),
+      redirected(tasks.deleteTaskAction(undefined, form({ taskId: a.todoId, confirm: "yes" }))),
+    ]);
+    for (const digest of digests) expect(digest).toContain("/login");
   });
 });
