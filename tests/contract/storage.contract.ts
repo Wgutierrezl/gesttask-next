@@ -26,8 +26,9 @@ const freshKey = (prefix = "boards/b1/attachments") => `${prefix}/${Date.now().t
  * Size and content-type limits are enforced by the BACKEND on the upload (the ticket carries them); the application
  * validates them first, so these tests prove the second line of defense.
  */
-export function runStorageContract(name: string, create: () => StorageHarness): void {
-  describe(`StoragePort contract: ${name}`, () => {
+export function runStorageContract(name: string, create: () => StorageHarness, options: { skip?: boolean } = {}): void {
+  // Skipped suites are reported as skipped, never as passed (REQ-STO-02).
+  describe.skipIf(options.skip)(`StoragePort contract: ${name}`, () => {
     const h = create();
     afterAll(() => h.close?.());
 
