@@ -71,8 +71,9 @@ lifecycle rule that aborts incomplete multipart uploads after one day.
 
 `LocalStorage` keeps objects on disk under `.local-storage/` (git-ignored). Names on disk are SHA-256 hashes of the
 key, so no key can address a path outside the root. Tickets and download URLs are HMAC-signed URLs with an expiry
-that point at the dev-only `/api/dev-storage` route (404 in production), which verifies the signature, the
-operation, the size range and the content type exactly like an S3 POST policy would.
+that point at the `/api/dev-storage` route (404 for every other driver; `STORAGE_DRIVER=local` is rejected as an
+environment error on Vercel), which verifies the signature, the operation, the size range and the content type exactly
+like an S3 POST policy would.
 
 ## Contract
 
