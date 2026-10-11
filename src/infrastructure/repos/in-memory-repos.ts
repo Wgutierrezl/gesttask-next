@@ -4,6 +4,7 @@ import type { Task } from "@/domain/entities/task";
 import type { Stage } from "@/domain/entities/pipeline";
 import type { Pipeline } from "@/domain/entities/pipeline";
 import type { Attachment, Comment } from "@/domain/entities/comment";
+import { addCounts, buildBoardDashboard, emptyCounts, type StageCountRow, type TaskCounts } from "@/domain/entities/dashboard";
 import type { AttachmentScope, Page, Repos } from "@/application/ports/repositories";
 import { InMemoryDeletionOutbox } from "./in-memory-outbox";
 import type { InMemoryStore } from "./in-memory-store";
@@ -17,6 +18,20 @@ const byPositionThenId = (a: { position: string; id: string }, b: { position: st
 
 function dropWhere<V>(map: Map<string, V>, predicate: (value: V) => boolean): void {
   for (const [key, value] of map) if (predicate(value)) map.delete(key);
+}
+
+/** The same buckets the SQL counts: priority, status, and overdue = dated before `today` and not completed. */
+function countTasks(tasks: Iterable<Task>, today: string): TaskCounts {
+  let counts = emptyCounts();
+  for (const t of tasks) {
+    const one = emptyCounts();
+    one.total = 1;
+    one.byPriority[t.priority] = 1;
+    one.byStatus[t.status] = 1;
+    one.overdue = t.dueDate !== null && t.completedAt === null && t.dueDate < today ? 1 : 0;
+    counts = addCounts(counts, one);
+  }
+  return counts;
 }
 
 /** Fake repositories mirroring the Postgres semantics the real ones must honour (FK cascades, unique keys). */
@@ -245,6 +260,30 @@ export function createInMemoryRepos(store: InMemoryStore, options: { now?: () =>
               ? taskIdsWhere((t) => t.stageId === scope.stageId)
               : taskIdsWhere((t) => t.pipelineId === scope.pipelineId);
         return keysOfComments((c) => tasks.has(c.taskId));
+      },
+    },
+    dashboard: {
+      forUser: async (userId, today) => {
+        const boardIds = new Set([...store.members.values()].filter((m) => m.userId === userId).map((m) => m.boardId));
+        const assigned = [...store.tasks.values()].filter((t) => t.assigneeId === userId && boardIds.has(t.boardId));
+        return { boards: boardIds.size, assigned: countTasks(assigned, today) };
+      },
+      forBoard: async (boardId, today) => {
+        if (!store.boards.has(boardId)) return null;
+        const members = [...store.members.values()].filter((m) => m.boardId === boardId).length;
+        const rows: StageCountRow[] = [...store.pipelines.values()]
+          .filter((p) => p.boardId === boardId)
+          .sort((a, b) => byText(a.name, b.name) || byText(a.id, b.id))
+          .flatMap((pipeline): StageCountRow[] => {
+            const own = [...store.stages.values()].filter((s) => s.pipelineId === pipeline.id).sort(byPositionThenId);
+            if (own.length === 0) return [{ pipelineId: pipeline.id, pipelineName: pipeline.name, stage: null }];
+            return own.map((stage) => ({
+              pipelineId: pipeline.id,
+              pipelineName: pipeline.name,
+              stage: { id: stage.id, name: stage.name, isDone: stage.isDone, tasks: countTasks([...store.tasks.values()].filter((t) => t.stageId === stage.id), today) },
+            }));
+          });
+        return buildBoardDashboard(boardId, members, rows);
       },
     },
     outbox: new InMemoryDeletionOutbox(store, options.now ?? (() => new Date())),
