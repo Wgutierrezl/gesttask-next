@@ -24,7 +24,7 @@ export function FormError({ failure, inlineFields }: { failure: ActionFailure | 
   const message = failure ? describeFailure(failure, inlineFields) : null;
   if (!message) return <div role="alert" aria-live="polite" />;
   return (
-    <div role="alert" aria-live="polite" className="rounded bg-red-50 px-3 py-2 text-sm text-red-800">
+    <div role="alert" aria-live="polite" className="rounded-control border border-danger-600/30 bg-danger-50 px-3 py-2 text-sm text-danger-700">
       {message}
     </div>
   );

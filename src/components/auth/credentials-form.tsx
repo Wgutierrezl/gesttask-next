@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { FormState } from "@/app/_actions/auth";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
 import { FormError } from "./form-error";
-import { FormField } from "./form-field";
 
 interface CredentialsFormProps {
   mode: "sign-in" | "sign-up";
@@ -25,20 +26,28 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      {signUp ? <FormField label="Name" name="name" autoComplete="name" errors={fields?.name} /> : null}
-      <FormField label="Email" name="email" type="email" autoComplete="email" errors={fields?.email} />
-      <FormField
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete={signUp ? "new-password" : "current-password"}
-        minLength={signUp ? MIN_PASSWORD_LENGTH : undefined}
-        errors={fields?.password}
-      />
+      {signUp ? (
+        <Field label="Name" required error={fields?.name?.join(" ")}>
+          <Input id="name" name="name" autoComplete="name" required />
+        </Field>
+      ) : null}
+      <Field label="Email" required error={fields?.email?.join(" ")}>
+        <Input id="email" name="email" type="email" autoComplete="email" required />
+      </Field>
+      <Field label="Password" required error={fields?.password?.join(" ")}>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete={signUp ? "new-password" : "current-password"}
+          minLength={signUp ? MIN_PASSWORD_LENGTH : undefined}
+          required
+        />
+      </Field>
       <FormError failure={state} inlineFields={signUp ? ["name", "email", "password"] : ["email", "password"]} />
-      <button type="submit" disabled={pending} className="rounded bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-60">
+      <Button type="submit" disabled={pending}>
         {pending ? COPY[mode].pending : COPY[mode].submit}
-      </button>
+      </Button>
     </form>
   );
 }

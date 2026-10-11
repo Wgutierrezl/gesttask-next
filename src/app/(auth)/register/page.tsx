@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signUpAction } from "@/app/_actions/auth";
 import { safeNext } from "@/app/_shared/safe-next";
 import { CredentialsForm } from "@/components/auth/credentials-form";
+import { AuthShell } from "@/components/shell/auth-shell";
 import { getContainer } from "@/infrastructure/container";
 
 export const metadata = { title: "Create account - GestTask" };
@@ -13,12 +14,11 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   const actor = await getContainer().session.getActor();
   if (actor && !actor.isGuest) redirect(next);
   return (
-    <main className="mx-auto flex max-w-sm flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Create your account</h1>
+    <AuthShell title="Create your account">
       <CredentialsForm mode="sign-up" action={signUpAction} next={next} />
       <p className="text-sm">
-        Already registered? <Link href="/login" className="underline">Sign in</Link>
+        Already registered? <Link href="/login" className="font-medium text-brand-700 underline">Sign in</Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }

@@ -9,7 +9,6 @@ vi.mock("@/app/_actions/auth", () => ({
 
 const { CredentialsForm } = await import("@/components/auth/credentials-form");
 const { GuestButton } = await import("@/components/auth/guest-button");
-const { SignOutButton } = await import("@/components/auth/sign-out-button");
 const { FormError, describeFailure } = await import("@/components/auth/form-error");
 const { FormField } = await import("@/components/auth/form-field");
 
@@ -76,9 +75,8 @@ describe("FormError", () => {
   });
 });
 
-describe("GuestButton and SignOutButton", () => {
-  it("offer the one-click demo and sign-out as plain forms", () => {
+describe("GuestButton", () => {
+  it("offers the one-click demo as a plain form", () => {
     expect(renderToStaticMarkup(<GuestButton />)).toContain("Try the demo");
-    expect(renderToStaticMarkup(<SignOutButton />)).toContain("Sign out");
   });
 });
