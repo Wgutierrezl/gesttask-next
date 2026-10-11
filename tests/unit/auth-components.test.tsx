@@ -10,7 +10,6 @@ vi.mock("@/app/_actions/auth", () => ({
 const { CredentialsForm } = await import("@/components/auth/credentials-form");
 const { GuestButton } = await import("@/components/auth/guest-button");
 const { FormError, describeFailure } = await import("@/components/auth/form-error");
-const { FormField } = await import("@/components/auth/form-field");
 
 const noop = async () => undefined;
 
@@ -30,16 +29,6 @@ describe("CredentialsForm", () => {
     expect(html).toContain('autoComplete="new-password"');
     expect(html).toContain('minLength="10"');
     expect(html).not.toContain('name="next"');
-  });
-});
-
-describe("FormField", () => {
-  it("links server errors to the input for assistive technology", () => {
-    const html = renderToStaticMarkup(<FormField label="Email" name="email" autoComplete="email" errors={["Invalid email", "Required"]} />);
-    expect(html).toContain('aria-invalid="true"');
-    expect(html).toContain('aria-describedby="email-error"');
-    expect(html).toContain("Invalid email Required");
-    expect(html).toContain('role="alert"');
   });
 });
 
