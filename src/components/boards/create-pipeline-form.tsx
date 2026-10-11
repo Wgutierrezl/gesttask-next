@@ -19,7 +19,7 @@ export function CreatePipelineForm({ boardId, onSuccess }: { boardId: string; on
           </Field>
           <p className="text-xs text-slate-600">A new pipeline starts with the stages To do, In progress and Done.</p>
           <div>
-            <SubmitButton pendingLabel="Creating...">Create pipeline</SubmitButton>
+            <SubmitButton pendingLabel="Creating...">Create</SubmitButton>
           </div>
         </>
       )}

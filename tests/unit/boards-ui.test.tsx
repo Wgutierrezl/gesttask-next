@@ -30,7 +30,7 @@ describe("CreateBoardForm", () => {
     render(<CreateBoardForm />);
     expect(screen.getByLabelText("Description")).toBeTruthy();
     await userEvent.type(screen.getByLabelText(/^Name/), "x");
-    await userEvent.click(screen.getByRole("button", { name: "Create board" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
     const name = await screen.findByLabelText(/^Name/);
     await waitFor(() => expect(name.getAttribute("aria-invalid")).toBe("true"));
     expect(screen.getByText("Name is required")).toBeTruthy();
@@ -53,10 +53,21 @@ describe("create dialogs", () => {
     render(<CreatePipelineDialog boardId="b1" />);
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
-    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create pipeline" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create" }));
     await waitFor(() => expect(createPipelineAction).toHaveBeenCalled());
     const sent = (createPipelineAction.mock.calls[0] as unknown as [unknown, FormData])[1];
     expect(sent.get("boardId")).toBe("b1");
     await waitFor(() => expect(screen.queryByLabelText(/^Name/)).toBeNull());
+  });
+
+  it("keeps the pipeline dialog open and shows the error inside it when the submit fails", async () => {
+    createPipelineAction.mockResolvedValueOnce(failure as never);
+    render(<CreatePipelineDialog boardId="b1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
+    await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+    expect(await within(dialog).findByText("Name is required")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "New pipeline" })).toBeTruthy();
   });
 });

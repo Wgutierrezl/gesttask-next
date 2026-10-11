@@ -66,7 +66,7 @@ describe("components", () => {
   it("CreateBoardForm has a live region for errors", () => {
     const html = renderToStaticMarkup(<CreateBoardForm />);
     expect(html).toContain('aria-live="polite"');
-    expect(html).toContain("Create board");
+    expect(html).toContain(">Create</button>");
   });
 
   it("GuestBanner explains the sandbox and links to sign-up", () => {

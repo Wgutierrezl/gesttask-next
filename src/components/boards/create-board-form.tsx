@@ -17,7 +17,7 @@ export function CreateBoardForm() {
             <Textarea name="description" rows={3} maxLength={2000} />
           </Field>
           <div>
-            <SubmitButton pendingLabel="Creating...">Create board</SubmitButton>
+            <SubmitButton pendingLabel="Creating...">Create</SubmitButton>
           </div>
         </>
       )}
