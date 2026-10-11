@@ -1,6 +1,6 @@
-# ADR 0004: Better Auth behind SessionPort and AuthPort (draft)
+# ADR 0004: Better Auth behind SessionPort and AuthPort
 
-Status: draft (spike 3.0, 2026-10-09). Finalized with the README in slice 9.
+Status: accepted (spike 3.0, 2026-10-09; finalized in slice 9). The demo sandbox and its cleanup are in [ADR 0018](0018-guest-sandbox-and-scheduled-maintenance.md).
 
 ## Decision
 
