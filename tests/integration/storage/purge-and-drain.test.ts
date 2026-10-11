@@ -158,3 +158,23 @@ describe("guest purge and storage drain (REQ-CAS-03, REQ-ATT-05)", () => {
     });
   });
 });
+
+describe("rate limiter housekeeping", () => {
+  it("purgeRateLimits deletes windows older than a day and keeps recent ones", async () => {
+    const at = (hours: number) => hoursAgo(hours);
+    await db.insert(schema.rateLimits).values([
+      { key: "old-a", windowStart: at(48), count: 5 },
+      { key: "old-b", windowStart: at(25), count: 1 },
+      { key: "recent", windowStart: at(23), count: 2 },
+      { key: "now", windowStart: at(0), count: 1 },
+    ]);
+    expect(await maintenance.purgeRateLimits()).toEqual({ purged: 2 });
+    const left = (await db.select().from(schema.rateLimits)).map((row) => row.key).sort();
+    expect(left).toEqual(["now", "recent"]);
+    expect(await maintenance.purgeRateLimits()).toEqual({ purged: 0 });
+  });
+
+  it("warmUp touches the database and resolves", async () => {
+    await expect(maintenance.warmUp()).resolves.toBeUndefined();
+  });
+});

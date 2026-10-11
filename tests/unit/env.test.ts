@@ -34,6 +34,20 @@ function errorOf(source: Record<string, string | undefined>): EnvError {
   throw new Error("expected parseEnv to throw");
 }
 
+describe("parseEnv: CRON_SECRET", () => {
+  it("is optional (the cron endpoint stays closed without it) and an empty value counts as unset", () => {
+    expect(parseEnv(localBase).CRON_SECRET).toBeUndefined();
+    expect(parseEnv({ ...localBase, CRON_SECRET: "" }).CRON_SECRET).toBeUndefined();
+  });
+
+  it("accepts a secret of at least 16 characters and refuses a weaker one, naming the key but never the value", () => {
+    expect(parseEnv({ ...localBase, CRON_SECRET: "0123456789abcdef" }).CRON_SECRET).toBe("0123456789abcdef");
+    const error = errorOf({ ...localBase, CRON_SECRET: "short-secret" });
+    expect(error.message).toContain("CRON_SECRET");
+    expect(error.message).not.toContain("short-secret");
+  });
+});
+
 describe("parseEnv", () => {
   it("accepts the local driver combination without any cloud credentials", () => {
     const env = parseEnv(localBase);

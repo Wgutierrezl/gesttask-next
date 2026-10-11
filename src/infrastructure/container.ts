@@ -23,7 +23,8 @@ import { transferGuestData } from "./auth/transfer-guest";
 import { getEnv } from "./config/env";
 import { createDb } from "./db/client";
 import { createLogger, type Logger } from "./logging/logger";
-import { createMaintenance, type Maintenance } from "./maintenance";
+import { isCronAuthorized } from "./cron-auth";
+import { createMaintenance, runScheduledMaintenance, type Maintenance, type ScheduledReport } from "./maintenance";
 import { PgRateLimiter } from "./ratelimit/pg-rate-limiter";
 import { createStorage } from "./storage/factory";
 import { createDrizzleRepos } from "./repos/drizzle-repos";
@@ -51,6 +52,8 @@ export interface Container {
   maintenance: Maintenance;
   /** What the REST API (`/api/v1`) needs besides the use cases: the origins it trusts as its own, whether `x-forwarded-proto` is ours to believe, and its rate limit. */
   api: { trustedOrigins: string[]; forwardedProtoHops: number; limit(kind: ApiRateKind, userId?: string): Promise<void> };
+  /** The scheduled maintenance route: who may trigger it, and the run itself. */
+  cron: { authorized(authorization: string | null): boolean; run(): Promise<ScheduledReport> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -106,6 +109,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       { users: new DrizzleUserDirectory(db), limiter, clientKey: async () => (await caller()).clientKey, storage },
     ),
   );
+  const maintenance = createMaintenance({ db, clock, storage, logger });
+  if (env.NODE_ENV === "production" && env.VERCEL && !env.CRON_SECRET) {
+    logger.warn("CRON_SECRET is not set: Vercel Cron cannot authenticate, so expired guests, abandoned uploads and queued storage deletions are only cleaned up by the post-delete hooks");
+  }
   const signInGuest = makeSignInGuest({ auth: authPort, session, sandbox, limiter });
   const signInEmail = makeSignInEmail({ auth: authPort, limiter });
   const signUp = makeSignUp({ auth: authPort, limiter });
@@ -114,7 +121,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     logger,
     session,
     useCases,
-    maintenance: createMaintenance({ db, clock, storage, logger }),
+    maintenance,
     auth: {
       signInGuest: async () => signInGuest(await caller()),
       signInEmail: async (input) => signInEmail(await caller(), input),
@@ -136,6 +143,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
         }
         for (const { key, rule } of apiRateChecks(kind, clientKey, userId)) await enforceRateLimit(limiter, key, rule);
       },
+    },
+    cron: {
+      authorized: (authorization) => isCronAuthorized(authorization, env.CRON_SECRET),
+      run: () => runScheduledMaintenance(maintenance, { logger, clock }),
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),
