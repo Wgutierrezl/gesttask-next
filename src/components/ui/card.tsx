@@ -6,7 +6,7 @@ export function Card({ interactive = false, className, ...rest }: ComponentProps
     <div
       className={cn(
         "rounded-card border border-slate-200 bg-white shadow-card",
-        interactive && "transition duration-base ease-out-soft hover:-translate-y-0.5 hover:shadow-pop",
+        interactive && "transition duration-[var(--duration-base)] ease-[var(--ease-out-soft)] hover:-translate-y-0.5 hover:shadow-pop",
         className,
       )}
       {...rest}

@@ -1,14 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens (ADR 0020). Light theme only: surfaces are CSS vars so a dark theme is an additive override of :root. */
-:root {
-  --surface: #fff;
-  --surface-muted: var(--color-slate-50);
-  --border: var(--color-slate-200);
-  --fg: var(--color-slate-900);
-  --fg-muted: var(--color-slate-600);
-}
-
+/* Design tokens (ADR 0020). Light theme only. */
 @theme {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
@@ -59,8 +51,9 @@
   }
 }
 
+/* Starts at brand-600 so white text keeps >= 4.5:1 on the whole gradient. */
 @utility bg-brand-gradient {
-  background-image: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
+  background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
 }
 
 @media (prefers-reduced-motion: reduce) {

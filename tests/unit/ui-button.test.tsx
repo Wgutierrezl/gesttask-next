@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { Button, LinkButton, buttonClasses } from "@/components/ui/button";
@@ -49,6 +49,7 @@ describe("SubmitButton", () => {
     const button = screen.getByRole("button", { name: "Remove Ana" });
     expect(button).toHaveProperty("type", "submit");
     expect(button).toHaveProperty("disabled", true);
+    expect(button.textContent).toBe("Remove");
   });
 
   it("renders enabled by default for every variant", () => {
@@ -65,6 +66,7 @@ describe("SubmitButton", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     const pending = await screen.findByRole("button", { name: "Saving..." });
     expect(pending).toHaveProperty("disabled", true);
-    finish();
+    await act(async () => finish());
+    expect(await screen.findByRole("button", { name: "Save" })).toHaveProperty("disabled", false);
   });
 });

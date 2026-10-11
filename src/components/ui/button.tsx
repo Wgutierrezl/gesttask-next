@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { cn } from "./cn";
 
 const VARIANTS = {
-  primary: "bg-brand-gradient text-white shadow-brand hover:brightness-110",
+  primary: "bg-brand-gradient text-white shadow-brand hover:brightness-95",
   secondary: "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
   ghost: "text-slate-700 hover:bg-slate-100",
   danger: "bg-danger-600 text-white hover:bg-danger-700",
@@ -23,7 +23,7 @@ export interface ButtonStyle {
 /** Class list shared by buttons and link-buttons, so both look identical. */
 export function buttonClasses({ variant = "primary", size = "md" }: ButtonStyle = {}): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-control font-medium transition duration-base ease-out-soft",
+    "inline-flex items-center justify-center gap-2 rounded-control font-medium transition duration-[var(--duration-fast)] ease-[var(--ease-out-soft)]",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60",
     VARIANTS[variant],
     SIZES[size],

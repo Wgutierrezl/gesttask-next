@@ -12,8 +12,7 @@ accessible names, roles and heading levels.
 
 - Tokens live in `src/app/globals.css` under Tailwind 4 `@theme`: a blue-to-indigo `brand` ramp, semantic
   `success`/`warning`/`danger` colors, radii, shadows, easing and two CSS-only animations. Neutrals use Tailwind slate.
-  Surface aliases (`--surface`, `--border`, `--fg`) are plain CSS vars on `:root`, so a dark theme later is an additive
-  override. Light theme only for now.
+  Light theme only for now; a dark theme is future work and would add semantic surface variables at that point.
 - Primitives (`Button`, `LinkButton`, `Card`, `Field`/`Input`/`Select`/`Textarea`/`Alert`, `Badge`, `EmptyState`,
   `Avatar`, `PageHeader`, `Dialog`) live in `src/components/ui` and import nothing from the domain, so dependency-cruiser
   stays green. `SubmitButton` keeps its API and is rebuilt on `Button`.
