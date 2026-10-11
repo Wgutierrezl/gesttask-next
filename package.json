@@ -24,6 +24,7 @@
     "db:down": "docker compose down",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "db:generate": "drizzle-kit generate",
+    "e2e": "tsx e2e/prepare-db.ts && playwright test",
     "db:seed": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/seed.ts"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@scalar/openapi-parser": "0.29.12",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/dom": "10.4.2",
