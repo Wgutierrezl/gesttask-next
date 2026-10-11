@@ -1,3 +1,4 @@
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import en from "./messages/en.json";
 import es from "./messages/es.json";
@@ -32,6 +33,14 @@ describe("message catalogs", () => {
 
   it("use the same ICU argument names and plural arms per key", () => {
     for (const key of Object.keys(flatEn)) expect(shape(flatEs[key] ?? ""), key).toBe(shape(flatEn[key] ?? ""));
+  });
+
+  it.each([["en", en], ["es", es]] as const)("compiles every %s message as valid ICU", (locale, messages) => {
+    const t = createTranslator({ locale, messages: messages as never, onError: (error) => { throw error; } }) as unknown as (key: string, values: Record<string, unknown>) => string;
+    for (const [key, message] of Object.entries(flatten(messages))) {
+      const values = Object.fromEntries([...message.matchAll(/\{(\w+)/g)].map((m) => [m[1], 1]));
+      expect(() => t(key, values), key).not.toThrow();
+    }
   });
 
   it("measures shape correctly", () => {

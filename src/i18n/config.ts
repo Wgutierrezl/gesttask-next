@@ -13,12 +13,18 @@ export function isLocale(value: unknown): value is Locale {
   return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
 }
 
-/** Cookie first, then the first supported primary subtag of Accept-Language, then English. Never throws. */
+/** Cookie first, then Accept-Language by descending q (ties keep header order, q=0 is "not acceptable"), then English. Never throws. */
 export function resolveLocale(cookie: string | undefined, acceptLanguage: string | null | undefined): Locale {
   if (isLocale(cookie)) return cookie;
-  for (const part of (acceptLanguage ?? "").split(",")) {
-    const primary = part.split(";")[0]?.trim().split("-")[0]?.toLowerCase();
-    if (isLocale(primary)) return primary;
-  }
-  return DEFAULT_LOCALE;
+  const ranked = (acceptLanguage ?? "")
+    .split(",")
+    .map((part, index) => {
+      const [tag = "", ...params] = part.split(";").map((piece) => piece.trim());
+      const q = Number(params.find((param) => param.startsWith("q="))?.slice(2) ?? 1);
+      return { primary: tag.split("-")[0]?.toLowerCase(), q: Number.isFinite(q) ? q : 1, index };
+    })
+    .filter(({ primary, q }) => q > 0 && isLocale(primary))
+    .sort((a, b) => b.q - a.q || a.index - b.index);
+  const best = ranked[0]?.primary;
+  return isLocale(best) ? best : DEFAULT_LOCALE;
 }

@@ -27,6 +27,14 @@ describe("resolveLocale", () => {
     expect(resolveLocale(undefined, "es-AR,es;q=0.9")).toBe("es");
     expect(resolveLocale(undefined, "fr-FR, es;q=0.8, en;q=0.5")).toBe("es");
   });
+  it("orders by q-value (stable for ties), drops q=0 and matches region tags", () => {
+    expect(resolveLocale(undefined, "en;q=0.5, es;q=0.9")).toBe("es");
+    expect(resolveLocale(undefined, "es;q=0, en")).toBe("en");
+    expect(resolveLocale(undefined, "es;q=0")).toBe("en");
+    expect(resolveLocale(undefined, "en-GB, es-CO")).toBe("en");
+    expect(resolveLocale(undefined, "fr, es-CO;q=0.4")).toBe("es");
+    expect(resolveLocale(undefined, "es;q=abc, en;q=0.1")).toBe("es");
+  });
   it("falls back to English for unsupported or absent headers", () => {
     expect(resolveLocale(undefined, "fr")).toBe("en");
     expect(resolveLocale(undefined, null)).toBe("en");

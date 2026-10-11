@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const set = vi.hoisted(() => vi.fn());
-vi.mock("next/headers", () => ({ cookies: async () => ({ set }) }));
+const proto = vi.hoisted(() => ({ value: null as string | null }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ set }),
+  headers: async () => ({ get: (name: string) => (name === "x-forwarded-proto" ? proto.value : null) }),
+}));
 
 const { setLocaleAction } = await import("@/app/_actions/preferences");
 
@@ -13,7 +17,7 @@ const form = (value?: string) => {
 
 beforeEach(() => {
   set.mockClear();
-  vi.unstubAllEnvs();
+  proto.value = null;
 });
 
 describe("setLocaleAction", () => {
@@ -22,10 +26,16 @@ describe("setLocaleAction", () => {
     expect(set).toHaveBeenCalledWith("locale", "es", { path: "/", sameSite: "lax", maxAge: 31_536_000, httpOnly: true, secure: false });
   });
 
-  it("marks the cookie secure in production", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it("marks the cookie secure only when the request came over HTTPS", async () => {
+    proto.value = "https";
     await setLocaleAction(form("en"));
-    expect(set).toHaveBeenCalledWith("locale", "en", expect.objectContaining({ secure: true }));
+    expect(set).toHaveBeenLastCalledWith("locale", "en", expect.objectContaining({ secure: true }));
+    proto.value = "https,http";
+    await setLocaleAction(form("en"));
+    expect(set).toHaveBeenLastCalledWith("locale", "en", expect.objectContaining({ secure: true }));
+    proto.value = "http";
+    await setLocaleAction(form("en"));
+    expect(set).toHaveBeenLastCalledWith("locale", "en", expect.objectContaining({ secure: false }));
   });
 
   it.each(["fr", "../x", ""])("leaves the cookie unchanged for %j", async (value) => {
