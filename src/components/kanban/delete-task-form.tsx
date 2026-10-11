@@ -2,12 +2,12 @@
 
 import { deleteTaskAction } from "@/app/_actions/tasks";
 import { MutationForm } from "@/components/ui/mutation-form";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { FormFooter } from "@/components/ui/form-footer";
 
 /** A required checkbox, so confirming also works without JavaScript. */
-export function DeleteTaskForm({ taskId }: { taskId: string }) {
+export function DeleteTaskForm({ taskId, onCancel }: { taskId: string; onCancel?: () => void }) {
   return (
-    <MutationForm action={deleteTaskAction} hidden={{ taskId }} inlineFields={["confirm"]} className="flex flex-col gap-2">
+    <MutationForm action={deleteTaskAction} hidden={{ taskId }} inlineFields={["confirm"]} className="flex flex-col gap-4">
       {(failure) => {
         const error = failure?.fieldErrors?.confirm;
         return (
@@ -17,9 +17,7 @@ export function DeleteTaskForm({ taskId }: { taskId: string }) {
               <span>I want to delete this task</span>
             </label>
             {error ? <p id="delete-task-error" className="text-sm text-danger-700">{error.join(" ")}</p> : null}
-            <div>
-              <SubmitButton variant="danger" pendingLabel="Deleting...">Delete task</SubmitButton>
-            </div>
+            <FormFooter submitLabel="Delete task" pendingLabel="Deleting..." variant="danger" onCancel={onCancel} />
           </>
         );
       }}
