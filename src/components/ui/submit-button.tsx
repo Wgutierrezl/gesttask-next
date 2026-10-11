@@ -1,18 +1,14 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-
-const STYLES = {
-  primary: "bg-gray-900 text-white",
-  secondary: "border border-gray-400 bg-white text-gray-900",
-  danger: "bg-red-700 text-white",
-} as const;
+import { Button, type ButtonStyle } from "./button";
 
 interface SubmitButtonProps {
   children: ReactNode;
   pendingLabel?: string;
-  variant?: keyof typeof STYLES;
+  variant?: Exclude<ButtonStyle["variant"], "ghost">;
   /** Accessible name when the visible text alone is ambiguous, e.g. one "Remove" button per row. */
   ariaLabel?: string;
   /** Keeps the button disabled for reasons outside its form's action, e.g. files still uploading. */
@@ -23,8 +19,9 @@ interface SubmitButtonProps {
 export function SubmitButton({ children, pendingLabel, variant = "primary", ariaLabel, disabled = false }: SubmitButtonProps) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending || disabled} aria-label={ariaLabel} className={`rounded px-4 py-2 text-sm disabled:opacity-60 ${STYLES[variant]}`}>
+    <Button type="submit" variant={variant} disabled={pending || disabled} aria-label={ariaLabel}>
+      {pending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
       {pending ? (pendingLabel ?? children) : children}
-    </button>
+    </Button>
   );
 }
