@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { render, type RenderOptions } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactElement, ReactNode } from "react";
 import en from "@/i18n/messages/en.json";
@@ -21,8 +22,14 @@ export function withIntl(ui: ReactNode, { locale = "en", messages = CATALOGS[loc
   );
 }
 
-/** `render` from Testing Library with the intl provider; the catalogs are the real ones, so tests assert real copy. */
-export function renderWithIntl(ui: ReactNode, options?: IntlOptions & Parameters<typeof render>[1]) {
-  const { locale, messages, ...renderOptions } = options ?? {};
-  return render(withIntl(ui, { locale, messages }), renderOptions);
+/** `render` from Testing Library inside the intl provider (as a wrapper, so `rerender` keeps it); copy is the real catalog. */
+export function renderWithIntl(ui: ReactNode, options?: IntlOptions & Omit<RenderOptions, "wrapper">) {
+  const { locale = "en", messages, ...renderOptions } = options ?? {};
+  const wrapper = ({ children }: { children: ReactNode }) => withIntl(children, { locale, messages });
+  return render(ui, { ...renderOptions, wrapper });
+}
+
+/** `renderToStaticMarkup` inside the intl provider, for the server-render assertions. */
+export function renderToStaticMarkupWithIntl(ui: ReactNode, options?: IntlOptions): string {
+  return renderToStaticMarkup(withIntl(ui, options));
 }

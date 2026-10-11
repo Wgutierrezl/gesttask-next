@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { CountsList } from "@/components/dashboard/counts-list";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Dashboard - GestTask" };
+export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   await requirePageActor();

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_COMMENT } from "@/application/attachment-policy";
 import type { UploadTicket } from "@/application/ports/services";
@@ -36,6 +37,7 @@ interface Pending {
  * The list lives in a ref as well as in state: two picks before a re-render still see each other, so the limit holds.
  */
 export function useAttachments(taskId: string) {
+  const t = useTranslations("auth.errors");
   const [files, setFiles] = useState<PickedFile[]>([]);
   const list = useRef<PickedFile[]>([]);
   const pending = useRef(new Map<number, Pending>());
@@ -64,7 +66,7 @@ export function useAttachments(taskId: string) {
         if (signal.aborted) return;
         if (!result.ok) {
           const retryable = result.code === "RATE_LIMITED" || result.code === "INTERNAL";
-          return patch(key, { status: "failed", retryable, message: describeFailure(result) ?? "The upload was refused." });
+          return patch(key, { status: "failed", retryable, message: describeFailure(result, [], t) ?? "The upload was refused." });
         }
         job.ticket = result.data.ticket;
         job.attachmentId = result.data.attachmentId;
@@ -79,7 +81,7 @@ export function useAttachments(taskId: string) {
         patch(key, { status: "failed", retryable: true, message: error instanceof UploadError ? error.message : "The upload failed. Try again." });
       }
     },
-    [taskId, patch],
+    [taskId, patch, t],
   );
 
   const add = useCallback(

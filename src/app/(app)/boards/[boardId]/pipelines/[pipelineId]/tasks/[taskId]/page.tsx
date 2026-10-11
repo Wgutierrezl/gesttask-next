@@ -5,7 +5,7 @@ import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { TaskActions } from "@/components/kanban/task-actions";
 import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata = { title: "Task - GestTask" };
+export const metadata = { title: "Task" };
 
 interface TaskPageProps {
   params: Promise<TaskRouteParams>;

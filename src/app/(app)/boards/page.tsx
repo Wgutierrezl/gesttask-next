@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Boards - GestTask" };
+export const metadata = { title: "Boards" };
 
 export default async function BoardsPage({ searchParams }: { searchParams: Promise<{ page?: string | string[] }> }) {
   await requirePageActor();

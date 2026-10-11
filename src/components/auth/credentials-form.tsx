@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/application/auth-policy";
 import type { FormState } from "@/app/_actions/auth";
@@ -14,12 +15,8 @@ interface CredentialsFormProps {
   next?: string;
 }
 
-const COPY = {
-  "sign-in": { submit: "Sign in", pending: "Signing in..." },
-  "sign-up": { submit: "Create account", pending: "Creating account..." },
-} as const;
-
 export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
+  const t = useTranslations("auth");
   const [state, formAction, pending] = useActionState(action, undefined);
   const fields = state && !state.ok ? state.fieldErrors : undefined;
   const signUp = mode === "sign-up";
@@ -27,14 +24,14 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
     <form action={formAction} className="flex flex-col gap-4">
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {signUp ? (
-        <Field label="Name" required error={fields?.name?.join(" ")}>
+        <Field label={t("name")} required error={fields?.name?.join(" ")}>
           <Input name="name" autoComplete="name" required />
         </Field>
       ) : null}
-      <Field label="Email" required error={fields?.email?.join(" ")}>
+      <Field label={t("email")} required error={fields?.email?.join(" ")}>
         <Input name="email" type="email" autoComplete="email" required />
       </Field>
-      <Field label="Password" required error={fields?.password?.join(" ")}>
+      <Field label={t("password")} required error={fields?.password?.join(" ")}>
         <Input
          
           name="password"
@@ -46,7 +43,7 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
       </Field>
       <FormError failure={state} inlineFields={signUp ? ["name", "email", "password"] : ["email", "password"]} />
       <Button type="submit" disabled={pending}>
-        {pending ? COPY[mode].pending : COPY[mode].submit}
+        {signUp ? (pending ? t("signUpPending") : t("signUpSubmit")) : pending ? t("signInPending") : t("signInSubmit")}
       </Button>
     </form>
   );

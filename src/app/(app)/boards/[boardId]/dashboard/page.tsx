@@ -5,7 +5,7 @@ import { CountsList } from "@/components/dashboard/counts-list";
 import { PipelineStats } from "@/components/dashboard/pipeline-stats";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board dashboard - GestTask" };
+export const metadata = { title: "Board dashboard" };
 
 export default async function BoardDashboardPage({ params }: { params: Promise<{ boardId: string }> }) {
   await requirePageActor();

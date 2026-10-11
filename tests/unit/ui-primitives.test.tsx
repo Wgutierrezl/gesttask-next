@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/components/ui/avatar";
@@ -147,6 +148,11 @@ describe("Dialog", () => {
     expect(showModal).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("dialog", { name: "Create board" })).toBeTruthy();
     expect(screen.getByText("content")).toBeTruthy();
+  });
+
+  it("names the Close button in the active locale", () => {
+    render(<Dialog title="T" open onClose={vi.fn()}>x</Dialog>, { locale: "es" });
+    expect(screen.getByRole("button", { name: "Cerrar", hidden: true })).toBeTruthy();
   });
 
   it("the Close button closes the dialog and reports it exactly once", async () => {

@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, ForbiddenError, RateLimitError, ValidationError } from "@/domain/errors";
 

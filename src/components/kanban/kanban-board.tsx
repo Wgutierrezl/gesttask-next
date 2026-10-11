@@ -3,10 +3,11 @@
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
-import { describeFailure } from "@/components/auth/form-error";
+import { describeFailure, type AuthErrors } from "@/components/auth/form-error";
 import { AddTaskButton } from "./add-task-button";
 import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
@@ -20,7 +21,7 @@ import type { ColumnView, MemberOption } from "./types";
 
 const FAILED = "The task could not be moved. Try again.";
 
-async function sendMove(request: MoveRequest): Promise<SendResult> {
+async function sendMove(request: MoveRequest, t: AuthErrors): Promise<SendResult> {
   const form = new FormData();
   form.set("taskId", request.taskId);
   form.set("toStageId", request.toStageId);
@@ -28,7 +29,7 @@ async function sendMove(request: MoveRequest): Promise<SendResult> {
   try {
     const result = await (request.toEnd ? moveTaskToEndAction : moveTaskAction)(undefined, form);
     if (result?.ok) return { ok: true };
-    return { ok: false, message: (result && describeFailure(result)) || FAILED };
+    return { ok: false, message: (result && describeFailure(result, [], t)) || FAILED };
   } catch {
     return { ok: false, message: FAILED };
   }
@@ -53,6 +54,8 @@ interface KanbanBoardProps {
  */
 export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members }: KanbanBoardProps) {
   const router = useRouter();
+  const tErrors = useTranslations("auth.errors");
+  const sendWithErrors = useCallback((request: MoveRequest) => sendMove(request, tErrors), [tErrors]);
   const [announcement, setAnnouncement] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStageId, setOverStageId] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
     if (result.ok) setCrossError(null);
   };
-  const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
+  const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendWithErrors, { refresh: router.refresh, onSettled });
   const pipelines = switcher && switcher.pipelines.length > 1 ? switcher.pipelines : [];
   /** Not optimistic: the card belongs to another page afterwards, so the server answers first and the page is re-read. */
   const moveAcross = async (request: MoveRequest, destination: string) => {
@@ -82,7 +85,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     setCrossError(null);
     setAnnouncement(`Moving ${title} to ${destination}`);
     // Queued behind any move still in flight inside this pipeline, so the server sees them in the order they were made.
-    const result = await queue(() => sendMove(request));
+    const result = await queue(() => sendWithErrors(request));
     setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title}`);
     if (!result.ok) setCrossError(result.message);
     router.refresh();

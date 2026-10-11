@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, ValidationError } from "@/domain/errors";
 
@@ -18,6 +18,7 @@ const getActor = vi.fn();
 const useCases = { listMyBoards: vi.fn(), listMyMemberships: vi.fn(), createBoard: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 
 const { PAGE_SIZE, parsePage, pageWindow, slicePage } = await import("@/app/_shared/pagination");
 const { BoardCard } = await import("@/components/boards/board-card");

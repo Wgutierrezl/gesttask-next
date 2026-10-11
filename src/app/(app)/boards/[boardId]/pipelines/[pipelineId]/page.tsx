@@ -16,7 +16,7 @@ function Notice({ children }: { children: ReactNode }) {
   return <Alert tone="warning">{children}</Alert>;
 }
 
-export const metadata = { title: "Pipeline - GestTask" };
+export const metadata = { title: "Pipeline" };
 
 interface PipelinePageProps {
   params: Promise<{ boardId: string; pipelineId: string }>;

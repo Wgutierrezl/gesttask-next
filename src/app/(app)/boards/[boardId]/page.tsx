@@ -8,7 +8,7 @@ import { PipelineList } from "@/components/boards/pipeline-list";
 import { Pager, hrefFor } from "@/components/boards/pager";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board - GestTask" };
+export const metadata = { title: "Board" };
 
 interface BoardPageProps {
   params: Promise<{ boardId: string }>;

@@ -5,7 +5,7 @@ import { loadTaskDetail, StagesTruncatedNotice, TaskComments, TaskDescription, T
 import { TaskActions } from "@/components/kanban/task-actions";
 import { RouteModal } from "@/components/ui/route-modal";
 
-export const metadata = { title: "Task - GestTask" };
+export const metadata = { title: "Task" };
 
 interface TaskModalProps {
   params: Promise<TaskRouteParams>;

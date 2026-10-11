@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "./cn";
 
@@ -29,6 +30,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
   const ref = useRef<HTMLDialogElement>(null);
   const pressedOnBackdrop = useRef(false);
   const titleId = useId();
+  const t = useTranslations("common");
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
@@ -74,7 +76,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
           {actions}
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t("close")}
             onClick={() => ref.current?.close()}
             className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-600"
           >

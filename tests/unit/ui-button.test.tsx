@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { Button, LinkButton, buttonClasses } from "@/components/ui/button";

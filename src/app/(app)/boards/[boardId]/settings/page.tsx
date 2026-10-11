@@ -11,7 +11,7 @@ import { MemberRow } from "@/components/boards/member-row";
 import { PastTheEnd, Pager } from "@/components/boards/pager";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board settings - GestTask" };
+export const metadata = { title: "Board settings" };
 
 interface SettingsPageProps {
   params: Promise<{ boardId: string }>;
