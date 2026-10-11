@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens (ADR 0020). Light theme only. */
+/* Design tokens (ADR 0020). Palette and elevation switch with the theme (ADR 0022). */
 @theme {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
@@ -30,8 +30,6 @@
   --radius-control: 0.75rem;
   --radius-pill: 9999px;
 
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 12px rgb(15 23 42 / 6%);
-  --shadow-pop: 0 8px 30px rgb(15 23 42 / 16%);
   --shadow-brand: 0 4px 14px rgb(79 70 229 / 25%);
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -53,6 +51,126 @@
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* Semantic colors resolve through the variables below, so a theme only has to redefine those. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-elevated: var(--elevated);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-link: var(--brand-link);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-fg: var(--warning-fg);
+  --color-success-soft: var(--success-soft);
+  --color-success-fg: var(--success-fg);
+  --color-backdrop: var(--backdrop);
+  --color-grid-line: var(--grid-line);
+  --color-hero-from: var(--hero-from);
+  --color-hero-via: var(--hero-via);
+  --color-hero-to: var(--hero-to);
+  --shadow-card: var(--elev-card);
+  --shadow-pop: var(--elev-pop);
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --elevated: #ffffff;
+  --fg: #0f172a;
+  --fg-muted: #475569;
+  --fg-subtle: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --ring: #4f46e5;
+  --brand-soft: #eef4ff;
+  --brand-link: #4338ca;
+  --danger-soft: #fef2f2;
+  --danger-fg: #b91c1c;
+  --warning-soft: #fffbeb;
+  --warning-fg: #b45309;
+  --success-soft: #ecfdf5;
+  --success-fg: #047857;
+  --backdrop: rgb(15 23 42 / 40%);
+  --grid-line: rgb(15 23 42 / 6%);
+  --hero-from: #eef4ff;
+  --hero-via: #ffffff;
+  --hero-to: #dbe7ff;
+  --elev-card: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 12px rgb(15 23 42 / 6%);
+  --elev-pop: 0 8px 30px rgb(15 23 42 / 16%);
+}
+
+/* The dark values exist twice on purpose: pinned by the cookie, and followed from the OS when nothing is pinned.
+   A unit test keeps the two blocks identical. Shadows get stronger because they barely read on dark surfaces. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0b1120;
+  --surface: #111a2e;
+  --surface-muted: #1a2540;
+  --elevated: #1e293b;
+  --fg: #f1f5f9;
+  --fg-muted: #cbd5e1;
+  --fg-subtle: #94a3b8;
+  --border: #263248;
+  --border-strong: #334155;
+  --ring: #628cff;
+  --brand-soft: #1b2650;
+  --brand-link: #bed3ff;
+  --danger-soft: #3b1218;
+  --danger-fg: #fca5a5;
+  --warning-soft: #3a2a0a;
+  --warning-fg: #fcd34d;
+  --success-soft: #0b2e22;
+  --success-fg: #6ee7b7;
+  --backdrop: rgb(0 0 0 / 60%);
+  --grid-line: rgb(255 255 255 / 8%);
+  --hero-from: #141d3a;
+  --hero-via: #0b1120;
+  --hero-to: #1b2650;
+  --elev-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+  --elev-pop: 0 8px 30px rgb(0 0 0 / 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --canvas: #0b1120;
+    --surface: #111a2e;
+    --surface-muted: #1a2540;
+    --elevated: #1e293b;
+    --fg: #f1f5f9;
+    --fg-muted: #cbd5e1;
+    --fg-subtle: #94a3b8;
+    --border: #263248;
+    --border-strong: #334155;
+    --ring: #628cff;
+    --brand-soft: #1b2650;
+    --brand-link: #bed3ff;
+    --danger-soft: #3b1218;
+    --danger-fg: #fca5a5;
+    --warning-soft: #3a2a0a;
+    --warning-fg: #fcd34d;
+    --success-soft: #0b2e22;
+    --success-fg: #6ee7b7;
+    --backdrop: rgb(0 0 0 / 60%);
+    --grid-line: rgb(255 255 255 / 8%);
+    --hero-from: #141d3a;
+    --hero-via: #0b1120;
+    --hero-to: #1b2650;
+    --elev-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+    --elev-pop: 0 8px 30px rgb(0 0 0 / 60%);
   }
 }
 
