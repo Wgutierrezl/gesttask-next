@@ -25,7 +25,7 @@ export function TaskFields({ prefix, members, defaults = {}, failure }: { prefix
       <Field label="Description" error={errors?.description?.join(" ")}>
         <Textarea id={`${prefix}-description`} name="description" rows={3} maxLength={5000} defaultValue={defaults.description} />
       </Field>
-      <PriorityPicker prefix={prefix} defaultValue={defaults.priority} error={errors?.priority?.join(" ")} />
+      <PriorityPicker defaultValue={defaults.priority} error={errors?.priority?.join(" ")} />
       <Field label="Due date" error={errors?.dueDate?.join(" ")}>
         <Input id={`${prefix}-due`} name="dueDate" type="date" defaultValue={defaults.dueDate ?? ""} />
       </Field>

@@ -11,37 +11,36 @@ const ACTIVE: Record<PriorityName, string> = {
 };
 
 interface PriorityPickerProps {
-  /** Prefix for the radios' ids, unique per form on the page. */
-  prefix: string;
   defaultValue?: PriorityName;
   error?: string;
 }
 
 /**
- * Priority as a segmented control. Underneath it is a plain radio group (name="priority"), so it submits without
- * JavaScript and keeps arrow-key navigation and screen-reader semantics.
+ * Priority as a segmented control. Underneath it is a plain radio group (name="priority") in a fieldset, so it
+ * submits without JavaScript and keeps arrow-key navigation and screen-reader semantics.
  */
-export function PriorityPicker({ prefix, defaultValue = "medium", error }: PriorityPickerProps) {
-  const labelId = useId();
-  const errorId = `${prefix}-priority-error`;
+export function PriorityPicker({ defaultValue = "medium", error }: PriorityPickerProps) {
+  const errorId = useId();
   return (
     <div className="flex flex-col gap-1">
-      <span id={labelId} className="text-sm font-medium text-slate-700">Priority</span>
-      <div role="radiogroup" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined} className="grid grid-cols-3 gap-2">
-        {(Object.keys(PRIORITY_LABELS) as PriorityName[]).map((value) => (
-          <label
-            key={value}
-            className={cn(
-              "flex cursor-pointer items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50",
-              "has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-brand-600",
-              ACTIVE[value],
-            )}
-          >
-            <input type="radio" id={`${prefix}-priority-${value}`} name="priority" value={value} defaultChecked={value === defaultValue} className="sr-only" />
-            {PRIORITY_LABELS[value]}
-          </label>
-        ))}
-      </div>
+      <fieldset role="radiogroup" aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined} className="m-0 flex min-w-0 flex-col gap-1 border-0 p-0">
+        <legend className="mb-1 p-0 text-sm font-medium text-slate-700">Priority</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {(Object.keys(PRIORITY_LABELS) as PriorityName[]).map((value) => (
+            <label
+              key={value}
+              className={cn(
+                "flex cursor-pointer items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50",
+                "has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-brand-600",
+                ACTIVE[value],
+              )}
+            >
+              <input type="radio" name="priority" value={value} defaultChecked={value === defaultValue} className="sr-only" />
+              {PRIORITY_LABELS[value]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       {error ? <p id={errorId} className="text-xs text-danger-700">{error}</p> : null}
     </div>
   );

@@ -49,6 +49,14 @@ describe("CreateTaskForm", () => {
     });
   });
 
+  it("names the priority group with a fieldset legend, which form semantics and no-CSS rendering rely on", () => {
+    render(<CreateTaskForm stages={STAGES} members={MEMBERS} />);
+    const group = screen.getByRole("radiogroup", { name: "Priority" });
+    expect(group.tagName).toBe("FIELDSET");
+    expect(group.querySelector("legend")?.textContent).toBe("Priority");
+    expect(group.querySelectorAll("input[type=radio]")).toHaveLength(3);
+  });
+
   it("lets the visitor change the priority back and forth, and shows a server error under the group", async () => {
     actions.createTaskAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { priority: ["Pick a priority"] } });
     const user = userEvent.setup();
