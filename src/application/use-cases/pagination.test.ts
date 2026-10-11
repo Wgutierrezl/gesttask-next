@@ -58,7 +58,7 @@ describe("paginated lists (default 50, max 200)", () => {
     expect(names(await makeListStages(ctx)(OWNER, { pipelineId, limit: 2, offset: 1 }))).toEqual(["y", "z"]);
   });
 
-  it.each([{ limit: 0 }, { limit: 201 }, { limit: "abc" }, { offset: -1 }, { limit: 1.5 }])(
+  it.each([{ limit: 0 }, { limit: 202 }, { limit: "abc" }, { offset: -1 }, { limit: 1.5 }])(
     "rejects invalid page %o on every list",
     async (page) => {
       const k = await seedKanban(ctx);

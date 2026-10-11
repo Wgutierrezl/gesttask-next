@@ -3,7 +3,7 @@ import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, Unauthent
 
 const useCases = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
-const api = vi.hoisted(() => ({ trustedOrigins: [] as string[], trustForwardedProto: false, limit: vi.fn() }));
+const api = vi.hoisted(() => ({ trustedOrigins: [] as string[], forwardedProtoHops: 0, limit: vi.fn() }));
 const session = vi.hoisted(() => ({ getActor: vi.fn() }));
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api, session }) }));
 
@@ -84,12 +84,17 @@ describe("handle: the thin adapter between a route and a use case", () => {
       expect((await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json()).nextCursor).toBeNull();
     });
 
-    it("at the largest page size the use case cannot be asked for one more, so a full page keeps its cursor", async () => {
-      useCases.listMyBoards = vi.fn().mockResolvedValue(Array.from({ length: 200 }, (_, i) => ({ id: String(i) })));
-      const page = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 200, offset: 0 });
-      expect(page.items).toHaveLength(200);
-      expect(typeof page.nextCursor).toBe("string");
+    it("at the largest page size it still peeks one row: an exactly full last page has no cursor, a longer one does", async () => {
+      const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i) }));
+      useCases.listMyBoards = vi.fn().mockResolvedValue(rows(200));
+      const exact = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 201, offset: 0 });
+      expect(exact.items).toHaveLength(200);
+      expect(exact.nextCursor).toBeNull(); // no cursor to an empty page
+      useCases.listMyBoards.mockResolvedValue(rows(201));
+      const more = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
+      expect(more.items).toHaveLength(200);
+      expect(typeof more.nextCursor).toBe("string");
     });
 
     it("stops handing out cursors at the offset cap, and refuses one beyond it", async () => {
@@ -141,13 +146,33 @@ describe("handle: the thin adapter between a route and a use case", () => {
     it("still rate limits an anonymous caller, by address only", async () => {
       session.getActor.mockResolvedValue(null);
       await call("listMyBoards");
-      expect(api.limit).toHaveBeenCalledWith("read", undefined);
+      expect(api.limit.mock.calls).toEqual([["read"]]);
     });
 
-    it("keys the limit of a signed-in caller by user as well as address", async () => {
+    it("throttles by address BEFORE the session lookup, then per user once known", async () => {
       useCases.listMyBoards = vi.fn().mockResolvedValue([]);
+      const order: string[] = [];
+      api.limit.mockImplementation(async (_kind: string, userId?: string) => void order.push(userId ? `limit:${userId}` : "limit:address"));
+      session.getActor.mockImplementation(async () => (order.push("session"), { userId: "user-1", isGuest: false }));
       await call("listMyBoards");
-      expect(api.limit).toHaveBeenCalledWith("read", "user-1");
+      expect(order).toEqual(["limit:address", "session", "limit:user-1"]);
+    });
+
+    it("never reaches the session lookup when the address is over its budget (junk cookies cost no database read)", async () => {
+      api.limit.mockRejectedValue(new RateLimitError(12));
+      const response = await call("listMyBoards");
+      expect(response.status).toBe(429);
+      expect(response.headers.get("retry-after")).toBe("12");
+      expect(session.getActor).not.toHaveBeenCalled();
+    });
+
+    it("answers 429 when the signed-in user is over their own budget even though the address is fine", async () => {
+      api.limit.mockImplementation(async (_kind: string, userId?: string) => {
+        if (userId) throw new RateLimitError(7);
+      });
+      useCases.listMyBoards = vi.fn();
+      expect((await call("listMyBoards")).status).toBe(429);
+      expect(useCases.listMyBoards).not.toHaveBeenCalled();
     });
   });
 
@@ -200,7 +225,7 @@ describe("handle: the thin adapter between a route and a use case", () => {
       useCases.createBoard = vi.fn().mockResolvedValue({ id: BOARD });
       await call("listMyBoards");
       await call("createBoard", { method: "POST", body: { name: "x" } });
-      expect(api.limit.mock.calls.map(([kind]) => kind)).toEqual(["read", "write"]);
+      expect(api.limit.mock.calls.map(([kind]) => kind)).toEqual(["read", "read", "write", "write"]); // address, then user, for each request
     });
 
     it("logs an unexpected failure (redacted by the logger) and tells the client nothing", async () => {

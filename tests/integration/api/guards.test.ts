@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { authFixture } from "../support/auth";
-import { apiCaller, expectError, signUpUser, type ApiUser } from "../support/api";
+import { apiCaller, expectError, signUpUser, withinOneRateWindow, type ApiUser } from "../support/api";
 import { connectTestDb, resetDb } from "../support/db";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
@@ -18,6 +18,7 @@ vi.mock("@/infrastructure/container", async (importOriginal) => {
         STORAGE_DRIVER: "local",
         BETTER_AUTH_SECRET: "integration-test-secret-0123456789abcdef",
         BETTER_AUTH_URL: "https://gesttask.example.org",
+        TRUSTED_PROXY_HOPS: "1", // the last x-forwarded-for entry is the client
       })),
   };
 });
@@ -91,6 +92,7 @@ describe("CSRF and request guards on the session cookie", () => {
 
 describe("per-client rate limit", () => {
   it("answers 429 with Retry-After once a client exceeds the write budget, while reads keep their own budget", async () => {
+    await withinOneRateWindow();
     for (let i = 0; i < API_RATE_WRITE.limit; i++) {
       const response = await call(boardsRoute.POST, "POST", owner, { body: { name: "" } });
       expect(response.status).toBe(422);
@@ -104,12 +106,50 @@ describe("per-client rate limit", () => {
   });
 
   it("gives every signed-in user their own budget even from one address, and anonymous calls another", async () => {
+    await withinOneRateWindow();
     const other = await signUpUser(auth, "other@example.com");
     for (let i = 0; i < API_RATE_WRITE.limit; i++) await call(boardsRoute.POST, "POST", owner, { body: { name: "" } });
     expect((await call(boardsRoute.POST, "POST", owner, { body: { name: "" } })).status).toBe(429);
     expect((await call(boardsRoute.POST, "POST", other, { body: { name: "" } })).status).toBe(422);
     expect((await call(boardsRoute.POST, "POST", null, { body: { name: "" } })).status).toBe(401);
   });
+});
+
+describe("address and per-user ceilings", () => {
+  const from = (ip: string) => ({ "x-forwarded-for": ip });
+
+  it("throttles an address before any session lookup: junk cookies cost no database read once it is over budget", async () => {
+    await withinOneRateWindow();
+    const { getContainer } = await import("@/infrastructure/container");
+    const junk = { headers: { ...from("203.0.113.9"), cookie: "better-auth.session_token=junk.junk" } };
+    const lookups = async () => {
+      const spy = vi.spyOn(getContainer().session, "getActor");
+      try {
+        const response = await call(boardsRoute.POST, "POST", null, { body: { name: "x" }, ...junk });
+        return { status: response.status, lookups: spy.mock.calls.length };
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    expect(await lookups()).toEqual({ status: 401, lookups: 1 }); // the lookup is real while the address is within budget
+    for (let i = 0; i < API_RATE_WRITE.limit * 5; i++) await call(boardsRoute.POST, "POST", null, { body: { name: "x" }, ...junk });
+    expect(await lookups()).toEqual({ status: 429, lookups: 0 });
+    // Another address is untouched.
+    expect((await call(boardsRoute.POST, "POST", null, { body: { name: "x" }, headers: from("203.0.113.10") })).status).toBe(401);
+  }, 60_000);
+
+  it("caps one user across addresses: rotating the address does not multiply their budget", async () => {
+    await withinOneRateWindow();
+    const perUser = API_RATE_WRITE.limit * 3;
+    for (let i = 0; i < perUser; i++) {
+      // 3 requests per address stay far below the per-address ceiling, so only the per-user bucket can stop them.
+      const response = await call(boardsRoute.POST, "POST", owner, { body: { name: "" }, headers: from(`198.51.100.${Math.floor(i / 3) % 250}`) });
+      expect(response.status).toBe(422);
+    }
+    expect((await call(boardsRoute.POST, "POST", owner, { body: { name: "" }, headers: from("192.0.2.77") })).status).toBe(429);
+    const other = await signUpUser(auth, "other-user@example.com");
+    expect((await call(boardsRoute.POST, "POST", other, { body: { name: "" }, headers: from("192.0.2.77") })).status).toBe(422);
+  }, 60_000);
 });
 
 describe("authentication comes before parsing", () => {

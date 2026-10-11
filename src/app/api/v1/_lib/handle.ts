@@ -5,7 +5,6 @@ import { toActionFailure } from "@/application/to-action-result";
 import { getContainer } from "@/infrastructure/container";
 import { operationById } from "@/openapi/operations";
 import { decodeCursor, encodeCursor, MAX_OFFSET } from "@/openapi/page-query";
-import { MAX_PAGE_SIZE } from "@/application/schemas/common";
 import { toHttp } from "@/app/_shared/to-http";
 import { assertSameOrigin, readJsonBody } from "./request-guard";
 
@@ -43,12 +42,15 @@ export function handle(operationId: string) {
     try {
       const container = getContainer();
       const reading = READ_METHODS.has(request.method);
-      assertSameOrigin(request, { origins: container.api.trustedOrigins, forwardedProto: container.api.trustForwardedProto });
+      assertSameOrigin(request, { origins: container.api.trustedOrigins, forwardedProtoHops: container.api.forwardedProtoHops });
+      const kind = reading ? "read" : "write";
+      // The address ceiling comes first: a flood of junk cookies is throttled before it costs a session lookup (a database read).
+      await container.api.limit(kind);
       // The session comes before anything in the request is parsed, so an anonymous caller always learns 401 and nothing else
-      // (no 404/422 telling a valid id or body from an invalid one). The ceiling is per client address, and per user once known.
+      // (no 404/422 telling a valid id or body from an invalid one). The user's own ceilings apply once known.
       const actor = await container.session.getActor();
-      await container.api.limit(reading ? "read" : "write", actor?.userId);
       if (!actor) throw new UnauthenticatedError();
+      await container.api.limit(kind, actor.userId);
 
       // A malformed id names no resource: same answer as a missing or foreign one (REQ-ISO-08).
       const params = operation.params ? parseParams(operation.params, await context.params) : {};
@@ -59,11 +61,11 @@ export function handle(operationId: string) {
       const body = operation.body ? await readJsonBody(request) : {};
       const paginated = operation.response.kind === "list" && operation.response.paginated;
       const offset = paginated ? offsetOf(cursor) : 0;
-      // One row more than the page tells whether another page exists, so the last page never has a cursor to an empty one.
-      // The use case cannot be asked for more than MAX_PAGE_SIZE: there a full page still keeps its cursor.
+      // One row more than the page tells whether another page exists, so the last page never has a cursor to an empty one
+      // (the use cases accept MAX_PAGE_SIZE + 1 for exactly this). Later sources win: a body cannot override the query,
+      // the paging computed here, or the path.
       const limit = paginated ? (query.limit as number) : 0;
-      const fetchLimit = limit < MAX_PAGE_SIZE ? limit + 1 : limit;
-      const input = { ...query, ...(paginated ? { limit: fetchLimit, offset } : {}), ...body, ...params };
+      const input = { ...body, ...query, ...(paginated ? { limit: limit + 1, offset } : {}), ...params };
 
       const result = await (container.useCases as unknown as Record<string, UseCase>)[operation.id]!(input);
       return respond(success(operation.response, result, paginated ? { limit, offset } : null), requestId);
@@ -99,7 +101,7 @@ function success(response: ReturnType<typeof operationById>["response"], result:
   const rows = result as unknown[];
   if (page === null) return Response.json({ items: rows, nextCursor: null });
   const next = page.offset + page.limit;
-  const more = page.limit < MAX_PAGE_SIZE ? rows.length > page.limit : rows.length === page.limit;
+  const more = rows.length > page.limit;
   return Response.json({ items: rows.slice(0, page.limit), nextCursor: more && next <= MAX_OFFSET ? encodeCursor(next) : null });
 }
 

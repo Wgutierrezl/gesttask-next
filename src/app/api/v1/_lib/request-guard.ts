@@ -12,14 +12,21 @@ function refuse(): never {
 export interface OriginTrust {
   /** Public origins of the app (scheme, host, port) when a proxy rewrites `Host`, e.g. from BETTER_AUTH_URL. */
   origins: readonly string[];
-  /** Whether `x-forwarded-proto` comes from a proxy of ours (Vercel, or TRUSTED_PROXY_HOPS >= 1) and says which scheme the browser used. */
-  forwardedProto: boolean;
+  /** How many proxies of ours append to `x-forwarded-proto` (Vercel: 1; otherwise TRUSTED_PROXY_HOPS); 0 means the header is never trusted. */
+  forwardedProtoHops: number;
+}
+
+/** The scheme the browser used: `hops` entries from the right, because each trusted proxy appends and anything left of that is the client's own claim. */
+function forwardedScheme(header: string | null, hops: number): string | undefined {
+  if (hops < 1 || header === null) return undefined;
+  const chain = header.split(",").map((entry) => entry.trim().toLowerCase());
+  return chain.length >= hops ? chain[chain.length - hops] : undefined;
 }
 
 /** The origin this request was addressed to, as the browser saw it. */
 function ownOrigin(request: Request, trust: OriginTrust): string {
   const url = new URL(request.url);
-  const forwarded = trust.forwardedProto ? request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase() : undefined;
+  const forwarded = forwardedScheme(request.headers.get("x-forwarded-proto"), trust.forwardedProtoHops);
   const scheme = forwarded === "http" || forwarded === "https" ? forwarded : url.protocol.slice(0, -1);
   return new URL(`${scheme}://${request.headers.get("host") ?? url.host}`).origin;
 }
