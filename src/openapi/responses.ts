@@ -110,6 +110,41 @@ export const attachmentDownloadResponse = z.strictObject({
   expiresInSeconds: z.number().int(),
 }).openapi("AttachmentDownload");
 
+const count = z.number().int().min(0);
+
+/** Every priority and status is always present: an empty board reads as zeros, never as a missing key (REQ-DSH-02). */
+export const taskCountsResponse = z.strictObject({
+  total: count,
+  byPriority: z.strictObject({ low: count, medium: count, high: count }),
+  byStatus: z.strictObject({ active: count, inactive: count }),
+  /** Past due and not completed; due dates are UTC calendar dates. */
+  overdue: count,
+}).openapi("TaskCounts");
+
+export const userDashboardResponse = z.strictObject({
+  /** Boards you are a member of. */
+  boards: count,
+  /** Tasks assigned to you on those boards. */
+  assigned: taskCountsResponse,
+}).openapi("UserDashboard");
+
+export const stageDashboardResponse = z.strictObject({ id, name: z.string(), isDone: z.boolean(), tasks: taskCountsResponse }).openapi("StageDashboard");
+
+export const pipelineDashboardResponse = z.strictObject({
+  id,
+  name: z.string(),
+  /** In board order, empty stages included. */
+  stages: z.array(stageDashboardResponse),
+  tasks: taskCountsResponse,
+}).openapi("PipelineDashboard");
+
+export const boardDashboardResponse = z.strictObject({
+  boardId: id,
+  members: count,
+  pipelines: z.array(pipelineDashboardResponse),
+  tasks: taskCountsResponse,
+}).openapi("BoardDashboard");
+
 /** The uniform error envelope (REQ-API-03). */
 export const errorResponse = z.strictObject({
   error: z.strictObject({
