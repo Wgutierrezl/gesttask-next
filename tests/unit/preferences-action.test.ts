@@ -7,7 +7,7 @@ vi.mock("next/headers", () => ({
   headers: async () => ({ get: (name: string) => (name === "x-forwarded-proto" ? proto.value : null) }),
 }));
 
-const { setLocaleAction } = await import("@/app/_actions/preferences");
+const { setLocaleAction, setThemeAction } = await import("@/app/_actions/preferences");
 
 const form = (value?: string) => {
   const data = new FormData();
@@ -45,6 +45,35 @@ describe("setLocaleAction", () => {
 
   it("leaves the cookie unchanged when the field is missing", async () => {
     await setLocaleAction(form());
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
+describe("setThemeAction", () => {
+  const themeForm = (value?: string) => {
+    const data = new FormData();
+    if (value !== undefined) data.set("theme", value);
+    return data;
+  };
+
+  it.each(["light", "dark", "system"])("stores %s with the same attributes as the locale cookie", async (value) => {
+    await setThemeAction(themeForm(value));
+    expect(set).toHaveBeenCalledWith("theme", value, { path: "/", sameSite: "lax", maxAge: 31_536_000, httpOnly: true, secure: false });
+  });
+
+  it("marks the cookie secure only when the request came over HTTPS", async () => {
+    proto.value = "https";
+    await setThemeAction(themeForm("dark"));
+    expect(set).toHaveBeenLastCalledWith("theme", "dark", expect.objectContaining({ secure: true }));
+  });
+
+  it.each(["auto", "../x", ""])("leaves the cookie unchanged for %j", async (value) => {
+    await setThemeAction(themeForm(value));
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("leaves the cookie unchanged when the field is missing", async () => {
+    await setThemeAction(themeForm());
     expect(set).not.toHaveBeenCalled();
   });
 });
