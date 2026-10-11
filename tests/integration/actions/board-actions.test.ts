@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SeededGuestSandbox, sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import * as schema from "@/infrastructure/db/schema";
