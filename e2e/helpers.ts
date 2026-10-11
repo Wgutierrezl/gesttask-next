@@ -28,3 +28,15 @@ export async function waitForHydration(page: Page): Promise<void> {
 
 /** The Kanban column (a labelled section) of a stage. */
 export const column = (page: Page, stage: string) => page.getByRole("region", { name: new RegExp(`^${stage}, \\d+ tasks?$`) });
+
+/** A title no other test or earlier run has used, so a test only ever touches the cards it created itself. */
+export const uniqueTitle = (prefix: string) => `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** Adds a task to the open pipeline through the "Add a task" form and waits until its card is on the board. */
+export async function addTask(page: Page, title: string, stage: string): Promise<void> {
+  await page.getByText("Add a task").click();
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Stage", { exact: true }).selectOption({ label: stage });
+  await page.getByRole("button", { name: "Add task" }).click();
+  await expect(column(page, stage).getByRole("heading", { name: title })).toBeVisible();
+}
