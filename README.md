@@ -77,7 +77,13 @@ curl -s -X POST -H "cookie: better-auth.session_token=<value>" -H "content-type:
 
 - **Auth** is the session cookie, as in the web app. A caller on a board it does not belong to gets `404`, exactly as for a
   board that does not exist; a member with too low a role gets `403`.
-- **Lists** answer `{ "items": [...], "nextCursor": "..." | null }`; pass `nextCursor` back as `cursor`.
+- **Failures before the use case** are 400 (the body is not a JSON object), 413 (body over 64 KB), 401 (checked before the
+  request is parsed), 422 (schema errors) and 503 (production cannot tell clients apart: set `TRUSTED_PROXY_HOPS`).
+- **Lists** answer `{ "items": [...], "nextCursor": "..." | null }`; pass `nextCursor` back as `cursor`. Paging goes no deeper than
+  item 10,000.
+- **Dashboards**: `GET /api/v1/dashboard` (your boards and the tasks assigned to you) and `GET /api/v1/boards/{boardId}/dashboard`
+  (members and counts by pipeline, stage, priority, status and overdue; empty stages show zeros). Each is one SQL
+  aggregation. The web pages are `/dashboard` and `/boards/{id}/dashboard`.
 - **Errors** answer `{ "error": { "code", "message", "details?", "requestId" } }` as `application/problem+json`.
 - **State-changing calls** must be `application/json` and, from a browser, come from the app's own origin; they are rate
   limited per client (429 with `Retry-After`).

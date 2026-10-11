@@ -16,6 +16,9 @@ export function BoardHeader({ board, role }: BoardHeaderProps) {
       <div className="flex items-center gap-3 text-xs">
         {board.status === "inactive" ? <span className="rounded bg-gray-200 px-2 py-0.5">Archived</span> : null}
         <span className="rounded bg-blue-100 px-2 py-0.5">{ROLE_LABEL[role]}</span>
+        <Link href={`/boards/${board.id}/dashboard`} className="text-sm underline">
+          Dashboard
+        </Link>
         {role === "owner" ? (
           <Link href={`/boards/${board.id}/settings`} className="text-sm underline">
             Settings

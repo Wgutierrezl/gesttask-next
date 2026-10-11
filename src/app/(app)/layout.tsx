@@ -15,6 +15,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <header className="mb-6 flex items-center justify-between">
         <Link href="/boards" className="font-semibold">GestTask</Link>
         <div className="flex items-center gap-4">
+          <Link href="/boards" className="text-sm underline">Boards</Link>
+          <Link href="/dashboard" className="text-sm underline">Dashboard</Link>
           <SignOutButton />
         </div>
       </header>
