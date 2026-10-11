@@ -56,10 +56,10 @@ describe("boards", () => {
     expect(got.role).toBe("owner");
   });
 
-  it("createBoard validates with field errors (422) and refuses a body that is not an object", async () => {
+  it("createBoard validates with field errors (422) and refuses a body that is not an object (400)", async () => {
     const invalid = await expectError(await call(boardsRoute.POST, "POST", owner, { body: { name: "" } }), 422, "VALIDATION");
     expect(invalid.error.details).toHaveProperty("name");
-    await expectError(await call(boardsRoute.POST, "POST", owner, { body: [1] }), 422, "VALIDATION");
+    await expectError(await call(boardsRoute.POST, "POST", owner, { body: [1] }), 400, "BAD_REQUEST");
   });
 
   it("listMyBoards lists only your boards, paginated with an opaque cursor, and [] when you have none", async () => {
@@ -75,6 +75,16 @@ describe("boards", () => {
     expect((await expectDocumented("listMyBoards", await call(boardsRoute.GET, "GET", rival))).items).toEqual([]);
     await expectError(await call(boardsRoute.GET, "GET", owner, { query: { limit: 0 } }), 422, "VALIDATION");
     await expectError(await call(boardsRoute.GET, "GET", owner, { query: { cursor: "***" } }), 422, "VALIDATION");
+  });
+
+  it("a list that ends exactly on a page boundary has no cursor to an empty page, and paging has a depth cap", async () => {
+    await createBoard(owner, "Second");
+    const exact = await expectDocumented("listMyBoards", await call(boardsRoute.GET, "GET", owner, { query: { limit: 2 } }));
+    expect(exact.items).toHaveLength(2);
+    expect(exact.nextCursor).toBeNull(); // two boards, page of two: nothing follows
+    const deep = Buffer.from("10001").toString("base64url");
+    const refused = await expectError(await call(boardsRoute.GET, "GET", owner, { query: { cursor: deep } }), 422, "VALIDATION");
+    expect(refused.error.details).toHaveProperty("cursor");
   });
 
   it("updateBoard and deleteBoard are owner-only: a member gets 403, the owner succeeds", async () => {

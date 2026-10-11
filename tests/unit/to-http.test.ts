@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, ValidationError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, StorageError, UnauthenticatedError, UnavailableError, ValidationError } from "@/domain/errors";
+import { badRequest, payloadTooLarge } from "@/app/_shared/http-errors";
 import { toHttp } from "@/app/_shared/to-http";
 
 describe("toHttp (REQ-API-03)", () => {
@@ -10,10 +11,21 @@ describe("toHttp (REQ-API-03)", () => {
     [new NotFoundError(), 404, "NOT_FOUND"],
     [new ConflictError("Taken"), 409, "CONFLICT"],
     [new StorageError(), 502, "STORAGE"],
+    [new UnavailableError(), 503, "UNAVAILABLE"],
   ])("maps %s to its status with the uniform error body", (error, status, code) => {
     const response = toHttp(error, "req-1");
     expect(response.status).toBe(status);
     expect(response.body.error).toMatchObject({ code, message: error.message, requestId: "req-1" });
+  });
+
+  it("maps the two request-level failures only the HTTP adapter has: 400 and 413", async () => {
+    const bad = toHttp(badRequest("The request body must be a JSON object"), "r");
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toEqual({ code: "BAD_REQUEST", message: "The request body must be a JSON object", requestId: "r" });
+    const large = toHttp(payloadTooLarge("The request body is too large"), "r");
+    expect(large.status).toBe(413);
+    expect(large.body.error.code).toBe("PAYLOAD_TOO_LARGE");
+    expect((await large.toResponse().json()).error.requestId).toBe("r");
   });
 
   it("carries field errors as details and Retry-After on rate limits", () => {

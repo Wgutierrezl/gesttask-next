@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { NotFoundError, ValidationError } from "@/application/errors";
+import { NotFoundError, UnauthenticatedError, ValidationError } from "@/application/errors";
 import { parseInput } from "@/application/schemas/parse";
+import { toActionFailure } from "@/application/to-action-result";
 import { getContainer } from "@/infrastructure/container";
 import { operationById } from "@/openapi/operations";
-import { decodeCursor, encodeCursor } from "@/openapi/page-query";
+import { decodeCursor, encodeCursor, MAX_OFFSET } from "@/openapi/page-query";
+import { MAX_PAGE_SIZE } from "@/application/schemas/common";
 import { toHttp } from "@/app/_shared/to-http";
 import { assertSameOrigin, readJsonBody } from "./request-guard";
 
@@ -41,8 +43,12 @@ export function handle(operationId: string) {
     try {
       const container = getContainer();
       const reading = READ_METHODS.has(request.method);
-      assertSameOrigin(request, container.api.trustedHosts);
-      await container.api.limit(reading ? "read" : "write");
+      assertSameOrigin(request, { origins: container.api.trustedOrigins, forwardedProto: container.api.trustForwardedProto });
+      // The session comes before anything in the request is parsed, so an anonymous caller always learns 401 and nothing else
+      // (no 404/422 telling a valid id or body from an invalid one). The ceiling is per client address, and per user once known.
+      const actor = await container.session.getActor();
+      await container.api.limit(reading ? "read" : "write", actor?.userId);
+      if (!actor) throw new UnauthenticatedError();
 
       // A malformed id names no resource: same answer as a missing or foreign one (REQ-ISO-08).
       const params = operation.params ? parseParams(operation.params, await context.params) : {};
@@ -53,17 +59,24 @@ export function handle(operationId: string) {
       const body = operation.body ? await readJsonBody(request) : {};
       const paginated = operation.response.kind === "list" && operation.response.paginated;
       const offset = paginated ? offsetOf(cursor) : 0;
-      const input = { ...query, ...(paginated ? { offset } : {}), ...body, ...params };
+      // One row more than the page tells whether another page exists, so the last page never has a cursor to an empty one.
+      // The use case cannot be asked for more than MAX_PAGE_SIZE: there a full page still keeps its cursor.
+      const limit = paginated ? (query.limit as number) : 0;
+      const fetchLimit = limit < MAX_PAGE_SIZE ? limit + 1 : limit;
+      const input = { ...query, ...(paginated ? { limit: fetchLimit, offset } : {}), ...body, ...params };
 
       const result = await (container.useCases as unknown as Record<string, UseCase>)[operation.id]!(input);
-      return respond(success(operation.response, result, paginated ? { limit: query.limit as number, offset } : null), requestId);
+      return respond(success(operation.response, result, paginated ? { limit, offset } : null), requestId);
     } catch (error) {
-      const response = toHttp(error, requestId);
+      const response = toHttp(operation.hidesExistence && refusesAccess(error) ? new NotFoundError() : error, requestId);
       if (response.status === 500) logUnexpected(error, requestId, operation.id);
       return respond(response.toResponse(), requestId);
     }
   };
 }
+
+/** Forbidden and invalid are what a stranger could tell apart from "missing"; they are answered as missing. */
+const refusesAccess = (error: unknown) => ["FORBIDDEN", "VALIDATION"].includes(toActionFailure(error).code);
 
 function parseParams(schema: NonNullable<ReturnType<typeof operationById>["params"]>, raw: Record<string, string>) {
   try {
@@ -76,16 +89,18 @@ function parseParams(schema: NonNullable<ReturnType<typeof operationById>["param
 function offsetOf(cursor: unknown): number {
   if (cursor === undefined) return 0;
   const offset = typeof cursor === "string" ? decodeCursor(cursor) : null;
-  if (offset === null) throw new ValidationError("Invalid input", { cursor: ["Invalid cursor"] });
+  if (offset === null) throw new ValidationError("Invalid input", { cursor: [`Invalid cursor, or beyond item ${MAX_OFFSET}: page no deeper and narrow the list instead`] });
   return offset;
 }
 
 function success(response: ReturnType<typeof operationById>["response"], result: unknown, page: { limit: number; offset: number } | null): Response {
   if (response.kind === "none") return new Response(null, { status: 204 });
   if (response.kind === "item") return Response.json(result, { status: response.status });
-  const items = result as unknown[];
-  const nextCursor = page !== null && items.length >= page.limit ? encodeCursor(page.offset + page.limit) : null;
-  return Response.json({ items, nextCursor });
+  const rows = result as unknown[];
+  if (page === null) return Response.json({ items: rows, nextCursor: null });
+  const next = page.offset + page.limit;
+  const more = page.limit < MAX_PAGE_SIZE ? rows.length > page.limit : rows.length === page.limit;
+  return Response.json({ items: rows.slice(0, page.limit), nextCursor: more && next <= MAX_OFFSET ? encodeCursor(next) : null });
 }
 
 function logUnexpected(error: unknown, requestId: string, operation: string): void {

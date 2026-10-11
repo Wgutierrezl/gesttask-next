@@ -1,4 +1,5 @@
 import { ForbiddenError, ValidationError } from "@/application/errors";
+import { badRequest, payloadTooLarge } from "@/app/_shared/http-errors";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Plenty for any documented body (the longest field is a 5000-character description); keeps the parser cheap. */
@@ -8,30 +9,44 @@ function refuse(): never {
   throw new ForbiddenError("Cross-origin requests are not allowed");
 }
 
+export interface OriginTrust {
+  /** Public origins of the app (scheme, host, port) when a proxy rewrites `Host`, e.g. from BETTER_AUTH_URL. */
+  origins: readonly string[];
+  /** Whether `x-forwarded-proto` comes from a proxy of ours (Vercel, or TRUSTED_PROXY_HOPS >= 1) and says which scheme the browser used. */
+  forwardedProto: boolean;
+}
+
+/** The origin this request was addressed to, as the browser saw it. */
+function ownOrigin(request: Request, trust: OriginTrust): string {
+  const url = new URL(request.url);
+  const forwarded = trust.forwardedProto ? request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase() : undefined;
+  const scheme = forwarded === "http" || forwarded === "https" ? forwarded : url.protocol.slice(0, -1);
+  return new URL(`${scheme}://${request.headers.get("host") ?? url.host}`).origin;
+}
+
 /**
  * CSRF guard for the session cookie (the cookie is SameSite=Lax already; this is the second wall). A browser always
  * labels a request it makes on behalf of another site, so any state change that says it is not from our own origin is
- * refused. Clients that are not browsers send neither header and are not a CSRF vector.
- * `trustedHosts` are the public hosts of the app when a proxy rewrites `Host`.
+ * refused. Origins are compared whole (scheme, host and port), so a plain-http page cannot act for the https app.
+ * Clients that are not browsers send neither header and are not a CSRF vector.
  */
-export function assertSameOrigin(request: Request, trustedHosts: readonly string[]): void {
+export function assertSameOrigin(request: Request, trust: OriginTrust): void {
   if (SAFE_METHODS.has(request.method)) return;
   const site = request.headers.get("sec-fetch-site");
   if (site !== null && site !== "same-origin" && site !== "none") refuse();
-  const origin = request.headers.get("origin");
-  if (origin === null) return;
-  let host: string;
+  const header = request.headers.get("origin");
+  if (header === null) return;
+  let origin: string;
   try {
-    host = new URL(origin).host;
+    origin = new URL(header).origin;
   } catch {
     return refuse();
   }
-  const own = request.headers.get("host") ?? new URL(request.url).host;
-  if (host !== own && !trustedHosts.includes(host)) refuse();
+  if (origin === "null" || (origin !== ownOrigin(request, trust) && !trust.origins.includes(origin))) refuse();
 }
 
-const notObject = () => new ValidationError("The request body must be a JSON object");
-const tooLarge = () => new ValidationError("The request body is too large");
+const notObject = () => badRequest("The request body must be a JSON object");
+const tooLarge = () => payloadTooLarge("The request body is too large");
 
 /** Reads at most MAX_BODY_BYTES: a declared or actual excess is refused without buffering the rest. */
 async function readText(request: Request): Promise<string> {

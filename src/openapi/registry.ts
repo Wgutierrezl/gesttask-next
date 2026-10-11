@@ -16,9 +16,12 @@ function failures(operation: Operation): ResponseMap {
   if (operation.method !== "get") responses[403] = problem("Your role on the board does not allow this (or the request came from another origin)");
   if (operation.params) responses[404] = problem("No such resource, or it belongs to a board you are not on: both read the same");
   if (operation.method !== "get") responses[409] = problem("The request conflicts with the current state (duplicate, last owner, stage with tasks, reused upload)");
+  if (operation.body) responses[400] = problem("The body is not a JSON object (malformed JSON, an array, a bare value)");
+  if (operation.body) responses[413] = problem("The body is larger than 64 KB");
   if (operation.body || operation.query) responses[422] = problem("Invalid input: `error.details` maps each field to its messages");
   responses[429] = problem("Too many requests: wait `Retry-After` seconds");
   if (operation.tag === "Attachments") responses[502] = problem("The file storage failed");
+  responses[503] = problem("The service cannot tell clients apart (deployment misconfigured): retry later, the operator has been told");
   responses[500] = problem("Unexpected error: quote `error.requestId` when reporting it");
   return responses;
 }

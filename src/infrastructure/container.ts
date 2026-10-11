@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import type { Actor } from "@/application/actor";
+import { UnavailableError } from "@/domain/errors";
 import { API_RATE_READ, API_RATE_WRITE, type ApiRateKind } from "@/application/api-policy";
 import type { SessionPort } from "@/application/ports/services";
 import { guardAll } from "@/application/require-actor";
@@ -14,7 +15,7 @@ import { DrizzleUserDirectory } from "./auth/drizzle-user-directory";
 import { BetterAuthPort } from "./auth/auth-port";
 import { createAuth } from "./auth/better-auth";
 import { sessionCookieConfig } from "./auth/cookie-config";
-import { clientKeyFrom } from "./auth/client-key";
+import { ClientAddressUnavailableError, clientKeyFrom } from "./auth/client-key";
 import { guardAuthHandler } from "./auth/http-guard";
 import { SeededGuestSandbox } from "./auth/guest-sandbox";
 import { BetterAuthSession } from "./auth/session";
@@ -48,8 +49,8 @@ export interface Container {
   useCases: GuardedUseCases;
   /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
   maintenance: Maintenance;
-  /** What the REST API (`/api/v1`) needs besides the use cases: the hosts it trusts as its own, and its per-client rate limit. */
-  api: { trustedHosts: string[]; limit(kind: ApiRateKind): Promise<void> };
+  /** What the REST API (`/api/v1`) needs besides the use cases: the origins it trusts as its own, whether `x-forwarded-proto` is ours to believe, and its rate limit. */
+  api: { trustedOrigins: string[]; trustForwardedProto: boolean; limit(kind: ApiRateKind, userId?: string): Promise<void> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -57,14 +58,17 @@ export interface Container {
   close(): Promise<void>;
 }
 
-/** The public host the app answers to when a proxy rewrites `Host` (BETTER_AUTH_URL), as CSRF checks compare it. */
-function publicHosts(appUrl: string | undefined): string[] {
+/** The public origin the app answers to when a proxy rewrites `Host` (BETTER_AUTH_URL), as CSRF checks compare it. */
+function publicOrigins(appUrl: string | undefined): string[] {
   try {
-    return appUrl ? [new URL(appUrl).host] : [];
+    return appUrl ? [new URL(appUrl).origin] : [];
   } catch {
     return [];
   }
 }
+
+/** One bucket per client address for anonymous calls, per user AND address once signed in (one account cannot spend another's budget). */
+const apiRateKey = (kind: ApiRateKind, clientKey: string, userId?: string) => (userId ? `api:${kind}:u:${userId}:${clientKey}` : `api:${kind}:${clientKey}`);
 
 export function buildContainer(source: Record<string, string | undefined> = process.env): Container {
   const env = getEnv(source);
@@ -87,6 +91,10 @@ export function buildContainer(source: Record<string, string | undefined> = proc
   const sandbox = new SeededGuestSandbox(db, { uow, ids, clock });
   const clientKeyOptions = { vercel: Boolean(env.VERCEL), trustedProxyHops: env.TRUSTED_PROXY_HOPS, production: env.NODE_ENV === "production" };
   const caller = async () => ({ clientKey: clientKeyFrom(await headers(), env.BETTER_AUTH_SECRET, clientKeyOptions) });
+
+  if (clientKeyOptions.production && !clientKeyOptions.vercel && clientKeyOptions.trustedProxyHops < 1) {
+    logger.warn("Production without Vercel and with TRUSTED_PROXY_HOPS=0: the client address is unknown, so sign-in and the REST API will answer 503; set TRUSTED_PROXY_HOPS to the number of reverse proxies in front of the app");
+  }
 
   const { storage, local } = createStorage(env, clock);
   // ADR 0009 allows the local driver in a production build (e2e and smoke runs off Vercel), but it is development storage.
@@ -117,8 +125,20 @@ export function buildContainer(source: Record<string, string | undefined> = proc
       signOut: () => signOut(),
     },
     api: {
-      trustedHosts: publicHosts(env.BETTER_AUTH_URL),
-      limit: async (kind) => enforceRateLimit(limiter, `api:${kind}:${(await caller()).clientKey}`, kind === "read" ? API_RATE_READ : API_RATE_WRITE),
+      trustedOrigins: publicOrigins(env.BETTER_AUTH_URL),
+      trustForwardedProto: Boolean(env.VERCEL) || env.TRUSTED_PROXY_HOPS >= 1,
+      limit: async (kind, userId) => {
+        let clientKey: string;
+        try {
+          clientKey = (await caller()).clientKey;
+        } catch (error) {
+          if (!(error instanceof ClientAddressUnavailableError)) throw error;
+          // A deployment problem, not the caller's: tell the operator exactly what to fix and the client that it is not their fault.
+          logger.error(error.message, { operation: "api rate limit" });
+          throw new UnavailableError();
+        }
+        await enforceRateLimit(limiter, apiRateKey(kind, clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE);
+      },
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,
     authHandler: guardAuthHandler((request) => auth.handler(request)),

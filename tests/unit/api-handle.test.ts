@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, NotFoundError, RateLimitError, UnauthenticatedError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, RateLimitError, UnauthenticatedError, ValidationError } from "@/domain/errors";
 
 const useCases = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
-const api = vi.hoisted(() => ({ trustedHosts: [] as string[], limit: vi.fn() }));
-vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api }) }));
+const api = vi.hoisted(() => ({ trustedOrigins: [] as string[], trustForwardedProto: false, limit: vi.fn() }));
+const session = vi.hoisted(() => ({ getActor: vi.fn() }));
+vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger, api, session }) }));
 
 const { handle } = await import("@/app/api/v1/_lib/handle");
+const { MAX_OFFSET } = await import("@/openapi/page-query");
 
 const BOARD = "5b0e0a53-3a9a-4c53-8d57-58b1d7b0b001";
 const call = (id: string, init: { method?: string; url?: string; headers?: Record<string, string>; body?: unknown; params?: Record<string, string> } = {}) => {
@@ -23,6 +25,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   for (const key of Object.keys(useCases)) delete useCases[key];
   api.limit.mockResolvedValue(undefined);
+  session.getActor.mockReset();
+  session.getActor.mockResolvedValue({ userId: "user-1", isGuest: false });
 });
 
 describe("handle: the thin adapter between a route and a use case", () => {
@@ -63,24 +67,48 @@ describe("handle: the thin adapter between a route and a use case", () => {
   });
 
   describe("lists", () => {
-    it("wraps a page as { items, nextCursor } and hands the next cursor out only when the page is full", async () => {
-      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]);
+    it("asks for one row more than the page to know whether a next page exists, and trims it", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
       const full = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json();
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 2, offset: 0 });
-      expect(full.items).toHaveLength(2);
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 3, offset: 0 });
+      expect(full.items).toEqual([{ id: "a" }, { id: "b" }]);
       expect(typeof full.nextCursor).toBe("string");
-      const next = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${full.nextCursor}` })).json();
-      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 2, offset: 2 });
-      expect(next.nextCursor).not.toBe(full.nextCursor);
       useCases.listMyBoards.mockResolvedValue([{ id: "c" }]);
+      const last = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${full.nextCursor}` })).json();
+      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 3, offset: 2 });
+      expect(last).toEqual({ items: [{ id: "c" }], nextCursor: null });
+    });
+
+    it("never invents an empty trailing page: an exactly full last page has no cursor", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]);
       expect((await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json()).nextCursor).toBeNull();
+    });
+
+    it("at the largest page size the use case cannot be asked for one more, so a full page keeps its cursor", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue(Array.from({ length: 200 }, (_, i) => ({ id: String(i) })));
+      const page = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 200, offset: 0 });
+      expect(page.items).toHaveLength(200);
+      expect(typeof page.nextCursor).toBe("string");
+    });
+
+    it("stops handing out cursors at the offset cap, and refuses one beyond it", async () => {
+      const at = (offset: number) => Buffer.from(String(offset)).toString("base64url");
+      useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
+      const reachable = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${at(MAX_OFFSET - 2)}` })).json();
+      expect(typeof reachable.nextCursor).toBe("string");
+      const edge = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${at(MAX_OFFSET - 1)}` })).json();
+      expect(edge.nextCursor).toBeNull(); // the next page would start past the cap
+      const beyond = await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?cursor=${at(MAX_OFFSET + 1)}` });
+      expect(beyond.status).toBe(422);
+      expect((await beyond.json()).error.details.cursor[0]).toMatch(/too far|beyond/i);
     });
 
     it("defaults the page size, rejects bad limits and cursors, and returns an empty page as []", async () => {
       useCases.listMyBoards = vi.fn().mockResolvedValue([]);
       const empty = await call("listMyBoards");
       expect(await empty.json()).toEqual({ items: [], nextCursor: null });
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 50, offset: 0 });
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 51, offset: 0 });
       expect((await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=201" })).status).toBe(422);
       const forged = await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?cursor=not*a*cursor" });
       expect(forged.status).toBe(422);
@@ -94,6 +122,33 @@ describe("handle: the thin adapter between a route and a use case", () => {
     useCases.listMyMemberships = vi.fn().mockResolvedValue([{ boardId: BOARD, userId: "u", role: "owner" }]);
     expect(await (await call("listMyMemberships")).json()).toEqual({ items: [{ boardId: BOARD, userId: "u", role: "owner" }], nextCursor: null });
     expect(useCases.listMyMemberships).toHaveBeenCalledWith({});
+  });
+
+  describe("authentication comes first", () => {
+    it("answers 401 to an anonymous caller whatever else is wrong with the request (no 404/422/413 oracle before the session)", async () => {
+      session.getActor.mockResolvedValue(null);
+      useCases.createBoard = vi.fn();
+      useCases.getBoard = vi.fn();
+      useCases.listMyBoards = vi.fn();
+      const garbage = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
+      expect((await handle("createBoard")(garbage, { params: Promise.resolve({}) })).status).toBe(401);
+      expect((await call("getBoard", { params: { boardId: "not-a-uuid" } })).status).toBe(401);
+      expect((await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=9999&cursor=***" })).status).toBe(401);
+      expect(useCases.createBoard).not.toHaveBeenCalled();
+      expect(useCases.getBoard).not.toHaveBeenCalled();
+    });
+
+    it("still rate limits an anonymous caller, by address only", async () => {
+      session.getActor.mockResolvedValue(null);
+      await call("listMyBoards");
+      expect(api.limit).toHaveBeenCalledWith("read", undefined);
+    });
+
+    it("keys the limit of a signed-in caller by user as well as address", async () => {
+      useCases.listMyBoards = vi.fn().mockResolvedValue([]);
+      await call("listMyBoards");
+      expect(api.limit).toHaveBeenCalledWith("read", "user-1");
+    });
   });
 
   describe("errors", () => {
@@ -115,6 +170,20 @@ describe("handle: the thin adapter between a route and a use case", () => {
     it("answers 401 when the use case says there is no session", async () => {
       useCases.listMyBoards = vi.fn().mockRejectedValue(new UnauthenticatedError());
       expect((await call("listMyBoards")).status).toBe(401);
+    });
+
+    it("answers the download of an attachment 404 for forbidden and invalid too, like the web route (nothing about existence leaks)", async () => {
+      const attachmentId = "5b0e0a53-3a9a-4c53-8d57-58b1d7b0b0aa";
+      for (const error of [new ForbiddenError(), new ValidationError("Invalid input", { attachmentId: ["bad"] }), new NotFoundError()]) {
+        useCases.getAttachmentUrl = vi.fn().mockRejectedValue(error);
+        const response = await call("getAttachmentUrl", { params: { attachmentId } });
+        expect(response.status).toBe(404);
+        expect((await response.json()).error).toMatchObject({ code: "NOT_FOUND", message: "Resource not found" });
+      }
+      useCases.getAttachmentUrl = vi.fn().mockRejectedValue(new ConflictError("x"));
+      expect((await call("getAttachmentUrl", { params: { attachmentId } })).status).toBe(409);
+      useCases.updateBoard = vi.fn().mockRejectedValue(new ForbiddenError());
+      expect((await call("updateBoard", { method: "PATCH", body: { name: "x" }, params: { boardId: BOARD } })).status).toBe(403); // other operations keep 403
     });
 
     it("answers 429 with Retry-After when the client is over the API limit, before running anything", async () => {
@@ -160,19 +229,26 @@ describe("handle: the thin adapter between a route and a use case", () => {
     });
 
     it("accepts a write from the configured public host", async () => {
-      api.trustedHosts = ["gesttask.example.org"];
+      api.trustedOrigins = ["https://gesttask.example.org"];
       useCases.createBoard = vi.fn().mockResolvedValue({ id: BOARD });
       const response = await call("createBoard", { method: "POST", body: { name: "x" }, headers: { origin: "https://gesttask.example.org" } });
       expect(response.status).toBe(201);
-      api.trustedHosts = [];
+      api.trustedOrigins = [];
     });
 
-    it("refuses a body that is not JSON, and malformed JSON", async () => {
+    it("refuses a body that is not JSON (422), malformed JSON (400) and an oversized body (413)", async () => {
       useCases.createBoard = vi.fn();
-      const form = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "text/plain" }, body: "name=x" });
-      expect((await handle("createBoard")(form, { params: Promise.resolve({}) })).status).toBe(422);
-      const broken = new Request("https://app.example.com/api/v1/boards", { method: "POST", headers: { "content-type": "application/json" }, body: "{" });
-      expect((await handle("createBoard")(broken, { params: Promise.resolve({}) })).status).toBe(422);
+      const post = (headers: Record<string, string>, body: string) =>
+        handle("createBoard")(new Request("https://app.example.com/api/v1/boards", { method: "POST", headers, body }), { params: Promise.resolve({}) });
+      const json = { "content-type": "application/json" };
+      expect((await post({ "content-type": "text/plain" }, "name=x")).status).toBe(422);
+      const broken = await post(json, "{");
+      expect(broken.status).toBe(400);
+      expect((await broken.json()).error.code).toBe("BAD_REQUEST");
+      expect((await post(json, "[1]")).status).toBe(400);
+      const large = await post(json, JSON.stringify({ name: "x".repeat(70_000) }));
+      expect(large.status).toBe(413);
+      expect((await large.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
       expect(useCases.createBoard).not.toHaveBeenCalled();
     });
 

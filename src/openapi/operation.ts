@@ -29,4 +29,6 @@ export interface Operation {
   query?: z.ZodObject;
   body?: z.ZodObject;
   response: OperationResponse;
+  /** Refusals other than "not authenticated" read as 404, as on the web route (the resource is a credential to a file). */
+  hidesExistence?: true;
 }
