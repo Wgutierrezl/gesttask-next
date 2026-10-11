@@ -11,6 +11,8 @@ import { makeCreateComment } from "@/application/use-cases/comments/create-comme
 import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
 import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
 import { makeListComments } from "@/application/use-cases/comments/list-comments";
+import { makeGetBoardDashboard } from "@/application/use-cases/dashboard/get-board-dashboard";
+import { makeGetUserDashboard } from "@/application/use-cases/dashboard/get-user-dashboard";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeAddMemberByEmail } from "@/application/use-cases/members/add-member-by-email";
 import { makeChangeMemberRole } from "@/application/use-cases/members/change-member-role";
@@ -73,6 +75,8 @@ export function buildUseCases(deps: AppDeps, ext: { users: UserDirectory; limite
     moveTask: makeMoveTask(deps),
     reorderTask: makeReorderTask(deps),
     updateTask: makeUpdateTask(deps),
+    getBoardDashboard: makeGetBoardDashboard(deps),
+    getUserDashboard: makeGetUserDashboard(deps),
     createComment: makeCreateComment(deps, ext),
     deleteComment: makeDeleteComment(deps),
     editComment: makeEditComment(deps),

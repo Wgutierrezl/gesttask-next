@@ -13,6 +13,8 @@ import { makeCreateComment } from "@/application/use-cases/comments/create-comme
 import { makeDeleteComment } from "@/application/use-cases/comments/delete-comment";
 import { makeEditComment } from "@/application/use-cases/comments/edit-comment";
 import { makeListComments } from "@/application/use-cases/comments/list-comments";
+import { makeGetBoardDashboard } from "@/application/use-cases/dashboard/get-board-dashboard";
+import { makeGetUserDashboard } from "@/application/use-cases/dashboard/get-user-dashboard";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeAddMemberByEmail } from "@/application/use-cases/members/add-member-by-email";
 import { makeChangeMemberRole } from "@/application/use-cases/members/change-member-role";
@@ -125,6 +127,7 @@ const RESOURCES: Record<string, Case> = {
   "attachments/get-attachment-url.ts": { action: "board:view", uses: ["attachmentId"], run: (d, a, i) => makeGetAttachmentUrl(d, { storage })(a, { attachmentId: i.attachmentId }) },
   "comments/edit-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeEditComment(d)(a, { commentId: i.commentId, body: "x" }) },
   "comments/delete-comment.ts": { action: "comment:moderate", uses: ["commentId"], run: (d, a, i) => makeDeleteComment(d)(a, { commentId: i.commentId }) },
+  "dashboard/get-board-dashboard.ts": { action: "board:view", uses: ["boardId"], run: (d, a, i) => makeGetBoardDashboard(d)(a, { boardId: i.boardId }) },
   "tasks/reorder-task.ts": { action: "task:write", uses: ["taskId", "anchorTodoId"], run: (d, a, i) => makeReorderTask(d)(a, { taskId: i.taskId, afterTaskId: i.anchorTodoId }) },
 };
 
@@ -136,6 +139,7 @@ const SELF_SCOPED: Record<string, SelfScoped> = {
   "boards/create-board.ts": { input: { name: "x" }, run: (d, a, input) => makeCreateBoard(d)(a, input) },
   "boards/list-my-boards.ts": { input: {}, run: (d, a, input) => makeListMyBoards(d)(a, input) },
   "members/list-my-memberships.ts": { input: undefined, run: (d, a) => makeListMyMemberships(d)(a) },
+  "dashboard/get-user-dashboard.ts": { input: undefined, run: (d, a) => makeGetUserDashboard(d)(a) },
 };
 
 const snapshot = (ctx: TestContext) => JSON.stringify(Object.values(ctx.store).map((table) => [...table]));
