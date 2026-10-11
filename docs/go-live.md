@@ -111,7 +111,10 @@ pnpm db:seed
 unset DATABASE_URL AWS_SECRET_ACCESS_KEY BETTER_AUTH_SECRET AWS_ACCESS_KEY_ID   # when you are done
 ```
 
-Run it twice if you like: the second run says "already exists".
+Run it twice if you like: the second run says "already exists". It is also how an existing production demo board gets
+new content: after deploying a release that adds to the demo (for example the second "Backlog" pipeline, which lets visitors
+try moving cards between pipelines), run `pnpm db:seed` again. It leaves what exists alone and adds only the missing
+"Backlog" pipeline, in one transaction, and prints "Backlog pipeline added to the demo board." (or "already present").
 
 ## 4. Vercel project and environment variables
 
