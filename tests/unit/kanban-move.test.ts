@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { announcementsFor } from "@/components/kanban/announcements";
-import { applyMove, neighborMoves, resolveDrop } from "@/components/kanban/move";
-import type { ColumnView, TaskCardView } from "@/components/kanban/types";
+import { applyMove, crossMoves, neighborMoves, pipelineTabId, resolveTabDrop, resolveDrop } from "@/components/kanban/move";
+import type { ColumnView, PipelineOption, TaskCardView } from "@/components/kanban/types";
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const task = (id: string, stageId: string, over: Partial<TaskCardView> = {}): TaskCardView => ({
@@ -134,5 +134,48 @@ describe("announcementsFor", () => {
     expect(say.onDragEnd({ active: { id: "a" }, over: { id: "column:doing" } } as never)).toBe("Dropped Task a on the In progress column.");
     expect(say.onDragEnd({ active: { id: "a" }, over: null } as never)).toBe("Task a was dropped outside the board and stays where it was.");
     expect(say.onDragCancel({ active: { id: "a" } } as never)).toBe("Move cancelled. Task a stays where it was.");
+  });
+});
+
+const pipelines: PipelineOption[] = [
+  { id: "p1", name: "Launch plan", taskCount: 4, stages: [{ id: "todo", name: "To do" }, { id: "done", name: "Done" }] },
+  { id: "p2", name: "Backlog", taskCount: 0, stages: [{ id: "ideas", name: "Ideas" }, { id: "ready", name: "Ready" }] },
+  { id: "p3", name: "Empty", taskCount: 0, stages: [] },
+];
+
+describe("cross-pipeline moves", () => {
+  it("drops on a pipeline tab go to the first stage of that pipeline, at the end", () => {
+    expect(resolveTabDrop(pipelines, "p1", board(), "a", pipelineTabId("p2"))).toEqual({
+      request: { taskId: "a", toStageId: "ideas", afterTaskId: null, toEnd: true },
+      pipelineName: "Backlog",
+      stageName: "Ideas",
+    });
+  });
+
+  it("ignores the current pipeline, a pipeline without stages, unknown tabs and cards that are not on the board", () => {
+    expect(resolveTabDrop(pipelines, "p1", board(), "a", pipelineTabId("p1"))).toBeNull();
+    expect(resolveTabDrop(pipelines, "p1", board(), "a", pipelineTabId("p3"))).toBeNull();
+    expect(resolveTabDrop(pipelines, "p1", board(), "a", pipelineTabId("zzz"))).toBeNull();
+    expect(resolveTabDrop(pipelines, "p1", board(), "a", "column:todo")).toBeNull();
+    expect(resolveTabDrop(pipelines, "p1", board(), "ghost", pipelineTabId("p2"))).toBeNull();
+  });
+
+  it("lists the stages of the other pipelines as end-of-stage moves, grouped by pipeline", () => {
+    expect(crossMoves(pipelines, "p1", "a")).toEqual([
+      {
+        pipelineId: "p2",
+        name: "Backlog",
+        stages: [
+          { stageId: "ideas", name: "Ideas", request: { taskId: "a", toStageId: "ideas", afterTaskId: null, toEnd: true } },
+          { stageId: "ready", name: "Ready", request: { taskId: "a", toStageId: "ready", afterTaskId: null, toEnd: true } },
+        ],
+      },
+    ]);
+  });
+
+  it("announces moves across pipelines by pipeline name", () => {
+    const say = announcementsFor(board(), pipelines);
+    expect(say.onDragOver({ active: { id: "a" }, over: { id: pipelineTabId("p2") } } as never)).toBe("Task a is over pipeline Backlog.");
+    expect(say.onDragEnd({ active: { id: "a" }, over: { id: pipelineTabId("p2") } } as never)).toBe("Dropped Task a on pipeline Backlog.");
   });
 });

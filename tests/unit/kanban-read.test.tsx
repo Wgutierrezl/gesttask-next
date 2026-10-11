@@ -11,7 +11,7 @@ const notFound = vi.fn(() => {
 vi.mock("next/navigation", () => ({ redirect, notFound, useRouter: () => ({ refresh: vi.fn() }) }));
 
 const getActor = vi.fn();
-const useCases = { getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn() };
+const useCases = { getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn(), getBoardDashboard: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
 
@@ -29,6 +29,11 @@ const task = (id: string, stageId: string, overrides: Record<string, unknown> = 
   id, boardId: BOARD_ID, pipelineId: PIPELINE_ID, stageId, title: `Task ${id}`, description: "", priority: "medium", status: "active",
   dueDate: null, assigneeId: null, completedAt: null, position: id, createdAt: new Date("2026-10-01T00:00:00Z"), overdue: false, ...overrides,
 });
+const counts = (total: number) => ({ total, byPriority: { low: 0, medium: total, high: 0 }, byStatus: { active: total, inactive: 0 }, overdue: 0 });
+const dashboardOf = (...pipelines: [string, string, number][]) => ({
+  members: 1, tasks: counts(0),
+  pipelines: pipelines.map(([id, name, total]) => ({ id, name, tasks: counts(total), stages: [{ id: `${id}-s1`, name: `${name} stage`, isDone: false, tasks: counts(total) }] })),
+});
 const params = (boardId = BOARD_ID, pipelineId = PIPELINE_ID) => Promise.resolve({ boardId, pipelineId });
 
 beforeEach(() => {
@@ -38,6 +43,23 @@ beforeEach(() => {
   useCases.listStages.mockResolvedValue([stage("s1", "To do"), stage("s2", "Done", true)]);
   useCases.listTasksByPipeline.mockResolvedValue([task("t1", "s1"), task("t2", "s2", { completedAt: new Date("2026-10-09T10:00:00Z") })]);
   useCases.listMemberProfiles.mockResolvedValue([{ userId: "u", role: "owner", name: "Olivia", email: null }]);
+  useCases.getBoardDashboard.mockResolvedValue(dashboardOf([PIPELINE_ID, "Sprint", 2]));
+});
+
+describe("PipelinePage tabs", () => {
+  it("links every pipeline of the board with its count, marking the one on screen", async () => {
+    useCases.getBoardDashboard.mockResolvedValue(dashboardOf(["p-other", "Backlog", 3], [PIPELINE_ID, "Sprint", 2]));
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(useCases.getBoardDashboard).toHaveBeenCalledWith({ boardId: BOARD_ID });
+    expect(html).toContain('aria-label="Pipelines"');
+    expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/p-other"`);
+    expect(html).toMatch(new RegExp(`aria-current="page"[^>]*href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"|href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"[^>]*aria-current="page"`));
+    expect(html).toContain("Backlog");
+  });
+
+  it("shows no tabs for a board with a single pipeline", async () => {
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain('aria-label="Pipelines"');
+  });
 });
 
 describe("buildColumns", () => {

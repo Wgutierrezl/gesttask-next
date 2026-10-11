@@ -3,7 +3,7 @@
 import { closestCorners, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
 import { describeFailure } from "@/components/auth/form-error";
@@ -11,7 +11,8 @@ import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
 import { KanbanColumn } from "./kanban-column";
-import { resolveDrop, stageOfDroppable, type MoveRequest } from "./move";
+import { PipelineTabs, type PipelineSwitcherData } from "./pipeline-tabs";
+import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
 import type { ColumnView } from "./types";
 
@@ -38,13 +39,15 @@ interface KanbanBoardProps {
   names: Record<string, string>;
   /** Task detail path without the task id, ending in a slash. */
   taskBase: string;
+  /** The board's pipelines, for the tabs and for moving cards between pipelines. Without it (or with one pipeline) the board is self-contained. */
+  switcher?: PipelineSwitcherData;
 }
 
 /**
  * The board. Writers can drag cards (pointer or keyboard) or use each card's Move menu; both go through one
  * optimistic path that rolls back and explains when the server refuses. Viewers get the same columns read-only.
  */
-export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardProps) {
+export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: KanbanBoardProps) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -61,7 +64,28 @@ export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardP
     setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
   };
   const { columns: shown, move: send, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
+  const pipelines = switcher && switcher.pipelines.length > 1 ? switcher.pipelines : [];
+  const [crossError, setCrossError] = useState<string | null>(null);
+  /** Not optimistic: the card belongs to another page afterwards, so the server answers first and the page is re-read. */
+  const moveAcross = async (request: MoveRequest, destination: string) => {
+    const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    setCrossError(null);
+    setAnnouncement(`Moving ${title} to ${destination}`);
+    const result = await sendMove(request);
+    setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title} \u2014 restored`);
+    if (!result.ok) setCrossError(result.message);
+    router.refresh();
+  };
+  const destinationOf = (stageId: string) => {
+    const pipeline = pipelines.find((candidate) => candidate.stages.some((stage) => stage.id === stageId));
+    const stage = pipeline?.stages.find((candidate) => candidate.id === stageId);
+    return pipeline && stage ? `${stage.name} in ${pipeline.name}` : "another pipeline";
+  };
   const move = (request: MoveRequest) => {
+    if (!shown.some((column) => column.stage.id === request.toStageId)) {
+      void moveAcross(request, destinationOf(request.toStageId));
+      return;
+    }
     send(request);
     refocus.current = request.taskId;
     handles.current.get(request.taskId)?.focus();
@@ -83,41 +107,61 @@ export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardP
   const onDragOver = ({ over }: DragOverEvent) => setOverStageId(over ? stageOfDroppable(shown, String(over.id)) : null);
   const onDragEnd = ({ active: dragged, over }: DragEndEvent) => {
     stopDragging();
-    const request = over ? resolveDrop(shown, String(dragged.id), String(over.id)) : null;
+    if (!over) return;
+    const tab = switcher ? resolveTabDrop(pipelines, switcher.pipelineId, shown, String(dragged.id), String(over.id)) : null;
+    if (tab) {
+      void moveAcross(tab.request, `${tab.stageName} in ${tab.pipelineName}`);
+      return;
+    }
+    const request = resolveDrop(shown, String(dragged.id), String(over.id));
     if (request) move(request);
   };
+  const messages = crossError === null ? errors : [...errors, crossError];
+  const status = (
+    <div role="status" aria-label="Board updates" className={messages.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
+      <span className="sr-only">{announcement}</span>
+      {messages.map((message, i) => (
+        <p key={i}>{message}</p>
+      ))}
+    </div>
+  );
+  const tabs = switcher && pipelines.length > 0 ? <PipelineTabs data={switcher} droppable={canWrite} dragging={activeId !== null} /> : null;
+  const scroller = (children: ReactNode) => (
+    <div
+      data-testid="board-scroller"
+      data-dragging={activeId !== null}
+      // Snapping and smooth scrolling fight the drag's own auto-scroll, so both are off while a card is held.
+      className={cn("flex gap-4 overflow-x-auto pb-3", activeId !== null ? "snap-none scroll-auto" : "snap-x snap-mandatory scroll-smooth motion-reduce:scroll-auto md:snap-none")}
+    >
+      {children}
+    </div>
+  );
+  if (!canWrite) {
+    return (
+      <>
+        {status}
+        {tabs}
+        {scroller(shown.map((column) => <KanbanColumn key={column.stage.id} column={column} nameOf={nameOf} taskHref={taskHref} />))}
+      </>
+    );
+  }
   return (
-    <>
-      <div role="status" aria-label="Board updates" className={errors.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
-        <span className="sr-only">{announcement}</span>
-        {errors.map((message, i) => (
-          <p key={i}>{message}</p>
-        ))}
-      </div>
-      <div
-        data-testid="board-scroller"
-        data-dragging={activeId !== null}
-        // Snapping and smooth scrolling fight the drag's own auto-scroll, so both are off while a card is held.
-        className={cn("flex gap-4 overflow-x-auto pb-3", activeId !== null ? "snap-none scroll-auto" : "snap-x snap-mandatory scroll-smooth motion-reduce:scroll-auto md:snap-none")}
-      >
-        {canWrite ? (
-          <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
-            {shown.map((column) => (
-              <DroppableColumn key={column.stage.id} column={column} columns={shown} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
-            ))}
-            <DragOverlay>
-              {/* A visual copy only: hidden from assistive tech so the card never appears twice. */}
-              {active ? (
-                <div aria-hidden="true">
-                  <TaskCard task={active} assigneeName={active.assigneeId ? nameOf(active.assigneeId) : null} lifted />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        ) : (
-          shown.map((column) => <KanbanColumn key={column.stage.id} column={column} nameOf={nameOf} taskHref={taskHref} />)
-        )}
-      </div>
-    </>
+    <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown, pipelines) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
+      {status}
+      {tabs}
+      {scroller(
+        shown.map((column) => (
+          <DroppableColumn key={column.stage.id} column={column} columns={shown} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
+        )),
+      )}
+      <DragOverlay>
+        {/* A visual copy only: hidden from assistive tech so the card never appears twice. */}
+        {active ? (
+          <div aria-hidden="true">
+            <TaskCard task={active} assigneeName={active.assigneeId ? nameOf(active.assigneeId) : null} lifted />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

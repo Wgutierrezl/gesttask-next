@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { loadPage } from "@/app/_shared/load-page";
-import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped, toStageView, toTaskCardView } from "@/app/_shared/kanban-data";
+import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped, toPipelineOptions, toStageView, toTaskCardView } from "@/app/_shared/kanban-data";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { Alert } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -27,18 +27,20 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
   await requirePageActor();
   const { boardId, pipelineId } = await params;
   const data = await loadPage(async () => {
-    const { getPipeline, listStages, listTasksByPipeline, listMemberProfiles } = getContainer().useCases;
+    const { getPipeline, listStages, listTasksByPipeline, listMemberProfiles, getBoardDashboard } = getContainer().useCases;
     // `getPipeline` goes first: it is the authorization check, and a foreign pipeline must not trigger the other reads.
     const detail = await getPipeline({ pipelineId });
     if (detail.pipeline.boardId !== boardId) return null;
-    const [stages, loaded, members] = await Promise.all([
+    const [stages, loaded, members, dashboard] = await Promise.all([
       loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
       loadCapped((page) => listTasksByPipeline({ pipelineId, ...page })),
       loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
+      // The board's pipelines with their counts and stages: the tabs, and where a card can be moved to.
+      getBoardDashboard({ boardId }),
     ]);
     // Names come from a lookup by id for the tasks on screen, so they do not depend on the capped member list.
     const names = await loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), loaded.items.map((task) => task.assigneeId));
-    return { ...detail, stages, loaded, members, names };
+    return { ...detail, stages, loaded, members, names, pipelines: toPipelineOptions(dashboard.pipelines) };
   });
   // A pipeline reached through the wrong board in the URL is indistinguishable from a missing one.
   if (!data) notFound();
@@ -62,7 +64,7 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
           </div>
         </details>
       ) : null}
-      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} />
+      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} switcher={{ boardId, pipelineId, pipelines: data.pipelines }} />
       {data.role === "owner" ? (
         <StageManager pipelineId={pipelineId} truncated={data.loaded.truncated} stages={columns.map(({ stage, tasks }) => ({ ...stage, taskCount: tasks.length }))} />
       ) : null}

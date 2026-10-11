@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { neighborMoves, type MoveRequest } from "./move";
-import type { ColumnView } from "./types";
+import { crossMoves, neighborMoves, type MoveRequest } from "./move";
+import type { ColumnView, PipelineOption } from "./types";
 
 /** A keyboard and screen-reader friendly alternative to dragging: up, down, or the end of another stage. */
-export function MoveMenu({ columns, taskId, title, onMove }: { columns: ColumnView[]; taskId: string; title: string; onMove: (request: MoveRequest) => void }) {
+export function MoveMenu({ columns, otherPipelines = [], taskId, title, onMove }: { columns: ColumnView[]; otherPipelines?: PipelineOption[]; taskId: string; title: string; onMove: (request: MoveRequest) => void }) {
   const [open, setOpen] = useState(false);
   const moves = open ? neighborMoves(columns, taskId) : null;
+  const groups = open ? crossMoves(otherPipelines, "", taskId) : [];
   const choose = (request: MoveRequest) => (event: { currentTarget: HTMLElement }) => {
     event.currentTarget.closest("details")?.removeAttribute("open");
     setOpen(false);
@@ -23,6 +24,13 @@ export function MoveMenu({ columns, taskId, title, onMove }: { columns: ColumnVi
           {moves.down ? <button type="button" className={button} onClick={choose(moves.down)}>{`Move ${title} down`}</button> : null}
           {moves.toStages.map((stage) => (
             <button key={stage.stageId} type="button" className={button} onClick={choose(stage.request)}>{`Move ${title} to ${stage.name}`}</button>
+          ))}
+          {groups.map((group) => (
+            <div key={group.pipelineId} role="group" aria-label={`${group.name} pipeline`} className="flex flex-col items-start gap-1">
+              {group.stages.map((stage) => (
+                <button key={stage.stageId} type="button" className={button} onClick={choose(stage.request)}>{`Move ${title} to ${group.name} / ${stage.name}`}</button>
+              ))}
+            </div>
           ))}
         </div>
       ) : null}

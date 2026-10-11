@@ -1,4 +1,4 @@
-import type { TaskCardView, StageView } from "@/components/kanban/types";
+import type { PipelineOption, TaskCardView, StageView } from "@/components/kanban/types";
 
 const PAGE = 200;
 /** Most tasks one Kanban page loads; beyond it the page says so instead of silently dropping the rest. */
@@ -22,6 +22,10 @@ export async function loadCapped<T>(list: (page: Page) => Promise<T[]>, cap = TA
 }
 
 export const toStageView = (stage: { id: string; name: string; isDone: boolean }): StageView => ({ id: stage.id, name: stage.name, isDone: stage.isDone });
+
+/** The board dashboard's pipelines (names in order, stages by position) as the switcher and move menus use them. */
+export const toPipelineOptions = (pipelines: { id: string; name: string; tasks: { total: number }; stages: { id: string; name: string }[] }[]): PipelineOption[] =>
+  pipelines.map((pipeline) => ({ id: pipeline.id, name: pipeline.name, taskCount: pipeline.tasks.total, stages: pipeline.stages.map(({ id, name }) => ({ id, name })) }));
 
 export function toTaskCardView(task: {
   id: string;

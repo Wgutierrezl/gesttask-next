@@ -212,3 +212,87 @@ describe("KanbanBoard for viewers", () => {
     expect(screen.getByRole("link", { name: "Task a" }).getAttribute("href")).toBe("/boards/b/pipelines/p/tasks/a");
   });
 });
+
+describe("KanbanBoard across pipelines", () => {
+  const switcher = {
+    boardId: "b",
+    pipelineId: "p1",
+    pipelines: [
+      { id: "p1", name: "Launch plan", taskCount: 3, stages: [{ id: "todo", name: "To do" }, { id: "done", name: "Done" }] },
+      { id: "p2", name: "Backlog", taskCount: 1, stages: [{ id: "ideas", name: "Ideas" }, { id: "ready", name: "Ready" }] },
+      { id: "p3", name: "Empty", taskCount: 0, stages: [] },
+    ],
+  };
+
+  it("links every pipeline with its count and marks the current one", () => {
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    const nav = screen.getByRole("navigation", { name: "Pipelines" });
+    expect(within(nav).getByRole("link", { name: "Launch plan, 3 tasks" }).getAttribute("aria-current")).toBe("page");
+    const backlog = within(nav).getByRole("link", { name: "Backlog, 1 task" });
+    expect(backlog.getAttribute("href")).toBe("/boards/b/pipelines/p2");
+    expect(backlog.getAttribute("aria-current")).toBeNull();
+  });
+
+  it("offers the stages of the other pipelines in the Move menu, under their own names, and keeps the same-pipeline names", async () => {
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await user.click(screen.getByLabelText("Move options for Task a"));
+    expect(screen.getByRole("button", { name: "Move Task a to Done" })).toBeTruthy();
+    const group = screen.getByRole("group", { name: "Backlog pipeline" });
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(["Move Task a to Backlog / Ideas", "Move Task a to Backlog / Ready"]);
+    expect(screen.queryByRole("group", { name: "Empty pipeline" })).toBeNull();
+  });
+
+  it("moves across pipelines through the server first, then refreshes the page and announces it", async () => {
+    const pending = deferred();
+    moveTaskToEndAction.mockReturnValue(pending.promise);
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await user.click(screen.getByLabelText("Move options for Task a"));
+    await user.click(screen.getByRole("button", { name: "Move Task a to Backlog / Ready" }));
+    expect(sent(0, moveTaskToEndAction)).toEqual({ taskId: "a", toStageId: "ready" });
+    expect(titles("To do")).toEqual(["Task a", "Task b"]); // not optimistic
+    expect(refresh).not.toHaveBeenCalled();
+    await act(async () => pending.resolve({ ok: true, data: null }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(status()).toBe("Moved Task a to Ready in Backlog");
+  });
+
+  it("dropping a card on another pipeline's tab moves it to that pipeline's first stage", async () => {
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
+    expect(sent(0, moveTaskToEndAction)).toEqual({ taskId: "a", toStageId: "ideas" });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(status()).toBe("Moved Task a to Ideas in Backlog");
+  });
+
+  it("ignores a drop on the current pipeline's tab or on a pipeline without stages", async () => {
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p1" } }));
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p3" } }));
+    expect(moveTaskToEndAction).not.toHaveBeenCalled();
+    expect(moveTaskAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the card, says why and re-reads the page when the server refuses", async () => {
+    moveTaskToEndAction.mockResolvedValue({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
+    expect(titles("To do")).toEqual(["Task a", "Task b"]);
+    expect(status()).toContain("Resource not found");
+    expect(status()).toContain("Couldn't move Task a — restored");
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives viewers plain links to the pipelines and no move controls", () => {
+    render(<KanbanBoard columns={columns()} canWrite={false} switcher={switcher} {...props} />);
+    expect(screen.getByRole("link", { name: "Backlog, 1 task" })).toBeTruthy();
+    expect(screen.queryByLabelText("Move options for Task a")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Drag/ })).toBeNull();
+  });
+
+  it("shows no tabs when the board has a single pipeline", () => {
+    render(<KanbanBoard columns={columns()} canWrite switcher={{ ...switcher, pipelines: [switcher.pipelines[0]!] }} {...props} />);
+    expect(screen.queryByRole("navigation", { name: "Pipelines" })).toBeNull();
+  });
+});

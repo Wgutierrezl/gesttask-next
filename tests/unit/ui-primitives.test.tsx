@@ -9,6 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
+import { TabLink, TabNav } from "@/components/ui/tabs";
 
 afterEach(cleanup);
 
@@ -181,5 +182,16 @@ describe("Dialog", () => {
     expect(onClose).not.toHaveBeenCalled();
     rerender(<Dialog title="T" open onClose={onClose}>x</Dialog>);
     expect(showModal).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("TabNav", () => {
+  it("is a labelled navigation whose current link carries aria-current", () => {
+    render(<TabNav label="Pipelines"><TabLink href="/a" current>A</TabLink><TabLink href="/b">B</TabLink></TabNav>);
+    const nav = screen.getByRole("navigation", { name: "Pipelines" });
+    expect(nav).toBeTruthy();
+    expect(screen.getByRole("link", { name: "A" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "B" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("link", { name: "B" }).getAttribute("href")).toBe("/b");
   });
 });

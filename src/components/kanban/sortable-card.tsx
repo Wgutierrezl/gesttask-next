@@ -6,20 +6,21 @@ import { CSS } from "@dnd-kit/utilities";
 import { MoveMenu } from "./move-menu";
 import type { MoveRequest } from "./move";
 import { TaskCard } from "./task-card";
-import type { ColumnView, TaskCardView } from "./types";
+import type { ColumnView, PipelineOption, TaskCardView } from "./types";
 
 interface SortableCardProps {
   task: TaskCardView;
   assigneeName: string | null;
   href: string;
   columns: ColumnView[];
+  otherPipelines?: PipelineOption[];
   onMove: (request: MoveRequest) => void;
   /** Lets the board find the handle again to put focus back after a move. */
   registerHandle: (taskId: string, element: HTMLElement | null) => void;
 }
 
 /** A card that can be dragged by its handle with the pointer or the keyboard (space, arrows, space), or moved from its menu. */
-export function SortableCard({ task, assigneeName, href, columns, onMove, registerHandle }: SortableCardProps) {
+export function SortableCard({ task, assigneeName, href, columns, otherPipelines, onMove, registerHandle }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const handle = (
     <button
@@ -46,7 +47,7 @@ export function SortableCard({ task, assigneeName, href, columns, onMove, regist
         controls={
           <>
             {handle}
-            <MoveMenu columns={columns} taskId={task.id} title={task.title} onMove={onMove} />
+            <MoveMenu columns={columns} otherPipelines={otherPipelines} taskId={task.id} title={task.title} onMove={onMove} />
           </>
         }
       />
