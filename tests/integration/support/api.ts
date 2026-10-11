@@ -76,3 +76,12 @@ export async function expectError(response: Response, status: number, code: stri
   expect(response.headers.get("content-type")).toBe("application/problem+json");
   return body;
 }
+
+/**
+ * Rate limits use fixed one-minute windows: a test that spends a budget must not straddle a window boundary, or the
+ * counter resets under it. Waits for the next window when fewer than `needMs` remain in the current one.
+ */
+export async function withinOneRateWindow(needMs = 15_000, windowMs = 60_000): Promise<void> {
+  const left = windowMs - (Date.now() % windowMs);
+  if (left < needMs) await new Promise((resolve) => setTimeout(resolve, left + 50));
+}

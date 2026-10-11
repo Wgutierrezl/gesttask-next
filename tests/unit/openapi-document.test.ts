@@ -8,7 +8,7 @@ import { OPERATIONS } from "@/openapi/operations";
 const doc = buildOpenApiDocument() as unknown as {
   openapi: string;
   servers: { url: string }[];
-  paths: Record<string, Record<string, { operationId: string; tags: string[]; parameters?: { name: string; in: string; required: boolean }[]; requestBody?: unknown; responses: Record<string, unknown>; security?: unknown[] }>>;
+  paths: Record<string, Record<string, { operationId: string; tags: string[]; parameters?: { name: string; in: string; required: boolean; description?: string }[]; requestBody?: unknown; responses: Record<string, { description?: string }>; security?: unknown[] }>>;
   components: { schemas: Record<string, unknown>; securitySchemes: Record<string, unknown> };
 };
 const routesRoot = fileURLToPath(new URL("../../src/app/api/v1/", import.meta.url));
@@ -83,6 +83,18 @@ describe("the OpenAPI document (REQ-API-02)", () => {
     const list = JSON.stringify(doc.paths["/boards"]!.get!.responses["200"]);
     expect(list).toContain("#/components/schemas/Board");
     expect(list).toContain("nextCursor");
+  });
+
+  it("documents the paging depth cap on the cursor of every paginated list and on its 200 and 422 answers", () => {
+    const paginated = OPERATIONS.filter((o) => o.response.kind === "list" && o.response.paginated);
+    expect(paginated.length).toBeGreaterThan(0);
+    for (const operation of paginated) {
+      const item = doc.paths[operation.path]![operation.method]!;
+      const cursor = item.parameters?.find((p) => p.name === "cursor");
+      expect(cursor?.description, operation.id).toMatch(/10,?000/);
+      expect(item.responses["200"]?.description, operation.id).toMatch(/10,?000/);
+      expect(item.responses["422"]?.description, operation.id).toMatch(/cursor/i);
+    }
   });
 
   it("never exposes storage keys or internal columns", () => {

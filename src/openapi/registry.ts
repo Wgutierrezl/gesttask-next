@@ -1,6 +1,7 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31, type RouteConfig } from "@asteasolutions/zod-to-openapi";
 import type { Operation } from "./operation";
 import { OPERATIONS } from "./operations";
+import { MAX_OFFSET } from "./page-query";
 import { pageOf, errorResponse } from "./responses";
 
 /** The name of the cookie Better Auth sets (`SessionCookieConfig.prefix` + `.session_token`); `__Secure-` is prepended over HTTPS. */
@@ -18,7 +19,12 @@ function failures(operation: Operation): ResponseMap {
   if (operation.method !== "get") responses[409] = problem("The request conflicts with the current state (duplicate, last owner, stage with tasks, reused upload)");
   if (operation.body) responses[400] = problem("The body is not a JSON object (malformed JSON, an array, a bare value)");
   if (operation.body) responses[413] = problem("The body is larger than 64 KB");
-  if (operation.body || operation.query) responses[422] = problem("Invalid input: `error.details` maps each field to its messages");
+  const paged = operation.response.kind === "list" && operation.response.paginated;
+  if (operation.body || operation.query) {
+    responses[422] = problem(
+      `Invalid input: \`error.details\` maps each field to its messages${paged ? `; also an invalid \`cursor\`, or one beyond item ${MAX_OFFSET.toLocaleString("en-US")}` : ""}`,
+    );
+  }
   responses[429] = problem("Too many requests: wait `Retry-After` seconds");
   if (operation.tag === "Attachments") responses[502] = problem("The file storage failed");
   responses[503] = problem("The service cannot tell clients apart (deployment misconfigured): retry later, the operator has been told");
@@ -33,7 +39,7 @@ function successOf(operation: Operation): ResponseMap {
   if (response.kind === "item") return { [response.status]: { description: response.status === 201 ? "Created" : "OK", content: json(response.schema) } };
   return {
     200: {
-      description: response.paginated ? "A page; pass `nextCursor` as `cursor` for the next one (null on the last page)" : "All items; `nextCursor` is always null",
+      description: response.paginated ? `A page; pass \`nextCursor\` as \`cursor\` for the next one (null on the last page, and past item ${MAX_OFFSET.toLocaleString("en-US")}, where paging stops)` : "All items; `nextCursor` is always null",
       content: json(pageOf(response.item)),
     },
   };

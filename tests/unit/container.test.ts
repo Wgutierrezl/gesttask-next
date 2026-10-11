@@ -33,15 +33,21 @@ describe("buildContainer", () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const withUrl = buildContainer({ ...valid, BETTER_AUTH_URL: "https://gesttask.example.com:8443/app" });
     expect(withUrl.api.trustedOrigins).toEqual(["https://gesttask.example.com:8443"]);
-    expect(withUrl.api.trustForwardedProto).toBe(false);
+    expect(withUrl.api.forwardedProtoHops).toBe(0);
     expect(typeof withUrl.api.limit).toBe("function");
     await withUrl.close();
     const without = buildContainer(valid);
     expect(without.api.trustedOrigins).toEqual([]);
     await without.close();
     const proxied = buildContainer({ ...valid, TRUSTED_PROXY_HOPS: "1" });
-    expect(proxied.api.trustForwardedProto).toBe(true); // the proxy we trust for the address is trusted for the scheme
+    expect(proxied.api.forwardedProtoHops).toBe(1); // the proxies we trust for the address are trusted for the scheme
     await proxied.close();
+    const twoProxies = buildContainer({ ...valid, TRUSTED_PROXY_HOPS: "2" });
+    expect(twoProxies.api.forwardedProtoHops).toBe(2);
+    await twoProxies.close();
+    const vercel = buildContainer({ ...valid, VERCEL: "1", STORAGE_DRIVER: "s3", S3_BUCKET: "b", AWS_REGION: "us-east-1", AWS_ACCESS_KEY_ID: "id", AWS_SECRET_ACCESS_KEY: "secret" });
+    expect(vercel.api.forwardedProtoHops).toBe(1); // the edge sets one entry
+    await vercel.close();
   }, 30_000);
 
   it("builds the storage driver and the background jobs from the environment", async () => {

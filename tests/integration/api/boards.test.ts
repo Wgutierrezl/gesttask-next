@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "@/infrastructure/db/schema";
 import { authFixture } from "../support/auth";
@@ -85,6 +86,26 @@ describe("boards", () => {
     const deep = Buffer.from("10001").toString("base64url");
     const refused = await expectError(await call(boardsRoute.GET, "GET", owner, { query: { cursor: deep } }), 422, "VALIDATION");
     expect(refused.error.details).toHaveProperty("cursor");
+  });
+
+  it("at the largest page size the last page still has no cursor when it ends exactly there, and has one when more follow", async () => {
+    const seed = async (count: number) => {
+      const rows = Array.from({ length: count }, (_, i) => ({ id: randomUUID(), name: `Bulk ${i}`, createdAt: new Date(Date.UTC(2030, 0, 1, 0, 0, i)) }));
+      await handle.db.insert(schema.boards).values(rows);
+      await handle.db.insert(schema.boardMembers).values(rows.map((row) => ({ boardId: row.id, userId: owner.userId, role: "owner" as const })));
+    };
+    await seed(198); // plus the board from beforeEach and the member's: the owner has 199
+    await createBoard(owner, "The 200th");
+    const exact = await expectDocumented("listMyBoards", await call(boardsRoute.GET, "GET", owner, { query: { limit: 200 } }));
+    expect(exact.items).toHaveLength(200);
+    expect(exact.nextCursor).toBeNull();
+    await seed(1);
+    const more = await expectDocumented("listMyBoards", await call(boardsRoute.GET, "GET", owner, { query: { limit: 200 } }));
+    expect(more.items).toHaveLength(200);
+    expect(more.nextCursor).toEqual(expect.any(String));
+    const rest = await expectDocumented("listMyBoards", await call(boardsRoute.GET, "GET", owner, { query: { limit: 200, cursor: more.nextCursor } }));
+    expect(rest.items).toHaveLength(1);
+    expect(rest.nextCursor).toBeNull();
   });
 
   it("updateBoard and deleteBoard are owner-only: a member gets 403, the owner succeeds", async () => {

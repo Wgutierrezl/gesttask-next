@@ -85,8 +85,10 @@ curl -s -X POST -H "cookie: better-auth.session_token=<value>" -H "content-type:
   (members and counts by pipeline, stage, priority, status and overdue; empty stages show zeros). Each is one SQL
   aggregation. The web pages are `/dashboard` and `/boards/{id}/dashboard`.
 - **Errors** answer `{ "error": { "code", "message", "details?", "requestId" } }` as `application/problem+json`.
-- **State-changing calls** must be `application/json` and, from a browser, come from the app's own origin; they are rate
-  limited per client (429 with `Retry-After`).
+- **State-changing calls** must be `application/json` and, from a browser, come from the app's own origin.
+- **Rate limits** (429 with `Retry-After`; reads and writes count separately): the client address is charged first, before the
+  session is looked up (so junk cookies cost no database read), then each signed-in user per address and per user across
+  addresses. Ceilings per minute: 600 reads / 120 writes per user and address; 3x that per user; 5x per address.
 - To add an endpoint: declare the operation in `src/openapi/operations/`, add the one-line route file, write its contract
   test. Unit tests fail if routes, operations, the document and the contract tests ever disagree.
   Design notes: [ADR 0015](docs/adr/0015-openapi.md).

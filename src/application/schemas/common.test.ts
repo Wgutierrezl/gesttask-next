@@ -13,7 +13,11 @@ describe("paginationSchema", () => {
     expect(parseInput(paginationSchema, { limit: "200", offset: "10" })).toEqual({ limit: 200, offset: 10 });
   });
 
-  it.each([{ limit: 201 }, { limit: 0 }, { offset: -1 }, { limit: 1.5 }])("rejects %o", (input) => {
+  it("accepts one row beyond the public maximum: the peek row the REST layer asks for to know whether another page exists", () => {
+    expect(parseInput(paginationSchema, { limit: "201" })).toEqual({ limit: 201, offset: 0 });
+  });
+
+  it.each([{ limit: 202 }, { limit: 0 }, { offset: -1 }, { limit: 1.5 }])("rejects %o", (input) => {
     expect(() => parseInput(paginationSchema, input)).toThrow(ValidationError);
   });
 });

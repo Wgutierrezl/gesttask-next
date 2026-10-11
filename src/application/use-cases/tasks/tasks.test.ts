@@ -146,7 +146,7 @@ describe("tasks CRUD", () => {
       expect(all.map((t) => t.title)).toEqual(["t0", "t1", "t2"]);
       const page = await makeListTasksByPipeline(ctx)(OWNER, { pipelineId: k.pipelineId, limit: 1, offset: 1 });
       expect(page.map((t) => t.title)).toEqual(["t1"]);
-      await expect(makeListTasksByPipeline(ctx)(OWNER, { pipelineId: k.pipelineId, limit: 201 })).rejects.toBeInstanceOf(
+      await expect(makeListTasksByPipeline(ctx)(OWNER, { pipelineId: k.pipelineId, limit: 202 })).rejects.toBeInstanceOf(
         ValidationError,
       );
     });

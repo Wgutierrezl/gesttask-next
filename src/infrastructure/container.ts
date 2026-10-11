@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import type { Actor } from "@/application/actor";
 import { UnavailableError } from "@/domain/errors";
-import { API_RATE_READ, API_RATE_WRITE, type ApiRateKind } from "@/application/api-policy";
+import { apiRateChecks, type ApiRateKind } from "@/application/api-policy";
 import type { SessionPort } from "@/application/ports/services";
 import { guardAll } from "@/application/require-actor";
 import { enforceRateLimit } from "@/application/use-cases/auth/_rate-limit";
@@ -50,7 +50,7 @@ export interface Container {
   /** Jobs without a signed-in user (storage drain, guest purge). Only trusted entry points call them: cron and post-delete hooks. */
   maintenance: Maintenance;
   /** What the REST API (`/api/v1`) needs besides the use cases: the origins it trusts as its own, whether `x-forwarded-proto` is ours to believe, and its rate limit. */
-  api: { trustedOrigins: string[]; trustForwardedProto: boolean; limit(kind: ApiRateKind, userId?: string): Promise<void> };
+  api: { trustedOrigins: string[]; forwardedProtoHops: number; limit(kind: ApiRateKind, userId?: string): Promise<void> };
   /** Serves `/api/dev-storage` when STORAGE_DRIVER=local (signed URLs only); null for every other driver. */
   devStorageHandler: ((request: Request) => Promise<Response>) | null;
   /** Serves `/api/auth/*` (session read and sign-out only); credential and guest flows go through `auth`. */
@@ -66,9 +66,6 @@ function publicOrigins(appUrl: string | undefined): string[] {
     return [];
   }
 }
-
-/** One bucket per client address for anonymous calls, per user AND address once signed in (one account cannot spend another's budget). */
-const apiRateKey = (kind: ApiRateKind, clientKey: string, userId?: string) => (userId ? `api:${kind}:u:${userId}:${clientKey}` : `api:${kind}:${clientKey}`);
 
 export function buildContainer(source: Record<string, string | undefined> = process.env): Container {
   const env = getEnv(source);
@@ -126,7 +123,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
     },
     api: {
       trustedOrigins: publicOrigins(env.BETTER_AUTH_URL),
-      trustForwardedProto: Boolean(env.VERCEL) || env.TRUSTED_PROXY_HOPS >= 1,
+      forwardedProtoHops: env.VERCEL ? 1 : env.TRUSTED_PROXY_HOPS,
       limit: async (kind, userId) => {
         let clientKey: string;
         try {
@@ -137,7 +134,7 @@ export function buildContainer(source: Record<string, string | undefined> = proc
           logger.error(error.message, { operation: "api rate limit" });
           throw new UnavailableError();
         }
-        await enforceRateLimit(limiter, apiRateKey(kind, clientKey, userId), kind === "read" ? API_RATE_READ : API_RATE_WRITE);
+        for (const { key, rule } of apiRateChecks(kind, clientKey, userId)) await enforceRateLimit(limiter, key, rule);
       },
     },
     devStorageHandler: local ? (request) => local.handle(request) : null,

@@ -1,14 +1,18 @@
 import { z } from "zod";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/application/schemas/common";
 
+/** How deep a client may page. OFFSET gets slower the further it goes, so the depth is bounded instead of letting a cursor name any row. */
+export const MAX_OFFSET = 10_000;
+
 /** Query of every paginated list: a page size and the opaque cursor a previous page returned as `nextCursor`. */
 export const pageQuery = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
-  cursor: z.string().max(32).optional(),
+  cursor: z
+    .string()
+    .max(32)
+    .optional()
+    .describe(`Opaque cursor: the \`nextCursor\` of the previous page. Paging stops at item ${MAX_OFFSET.toLocaleString("en-US")}: a deeper cursor is refused with 422, narrow the list instead.`),
 });
-
-/** How deep a client may page. OFFSET gets slower the further it goes, so the depth is bounded instead of letting a cursor name any row. */
-export const MAX_OFFSET = 10_000;
 
 const CURSOR_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 

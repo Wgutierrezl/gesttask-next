@@ -6,7 +6,7 @@ import { assertSameOrigin, readJsonBody } from "@/app/api/v1/_lib/request-guard"
 const request = (method: string, headers: Record<string, string> = {}, body?: string) =>
   new Request("https://app.example.com/api/v1/boards", { method, headers, body });
 
-const none = { origins: [] as string[], forwardedProto: false };
+const none = { origins: [] as string[], forwardedProtoHops: 0 };
 
 describe("assertSameOrigin (CSRF guard for cookie-authenticated mutations)", () => {
   it.each(["GET", "HEAD"])("never blocks %s: it does not change state", (method) => {
@@ -19,7 +19,7 @@ describe("assertSameOrigin (CSRF guard for cookie-authenticated mutations)", () 
 
   it("accepts the app's own origin, and a trusted public host behind a proxy", () => {
     expect(() => assertSameOrigin(request("POST", { origin: "https://app.example.com" }), none)).not.toThrow();
-    expect(() => assertSameOrigin(request("POST", { origin: "https://public.example.org" }), { origins: ["https://public.example.org"], forwardedProto: false })).not.toThrow();
+    expect(() => assertSameOrigin(request("POST", { origin: "https://public.example.org" }), { origins: ["https://public.example.org"], forwardedProtoHops: 0 })).not.toThrow();
   });
 
   it("compares the scheme too: an http page on the same host is not the https app", () => {
@@ -27,16 +27,30 @@ describe("assertSameOrigin (CSRF guard for cookie-authenticated mutations)", () 
     expect(() => assertSameOrigin(secure({ origin: "http://app.example.com" }), none)).toThrow(ForbiddenError);
     expect(() => assertSameOrigin(secure({ origin: "https://app.example.com" }), none)).not.toThrow();
     expect(() => assertSameOrigin(request("POST", { origin: "http://app.example.com" }), none)).toThrow(ForbiddenError); // app is https
-    expect(() => assertSameOrigin(request("POST", { origin: "http://public.example.org" }), { origins: ["https://public.example.org"], forwardedProto: false })).toThrow(ForbiddenError);
+    expect(() => assertSameOrigin(request("POST", { origin: "http://public.example.org" }), { origins: ["https://public.example.org"], forwardedProtoHops: 0 })).toThrow(ForbiddenError);
   });
 
   it("takes the scheme from x-forwarded-proto only when a trusted proxy sets it", () => {
     const behindProxy = (headers: Record<string, string>) => new Request("http://app.example.com/api/v1/boards", { method: "POST", headers });
     const headers = { origin: "https://app.example.com", "x-forwarded-proto": "https" };
-    expect(() => assertSameOrigin(behindProxy(headers), { origins: [], forwardedProto: true })).not.toThrow();
+    expect(() => assertSameOrigin(behindProxy(headers), { origins: [], forwardedProtoHops: 1 })).not.toThrow();
     expect(() => assertSameOrigin(behindProxy(headers), none)).toThrow(ForbiddenError); // header not trusted: the app sees http
-    expect(() => assertSameOrigin(behindProxy({ origin: "https://app.example.com" }), { origins: [], forwardedProto: true })).toThrow(ForbiddenError); // no header: http
-    expect(() => assertSameOrigin(behindProxy({ origin: "http://app.example.com", "x-forwarded-proto": "https" }), { origins: [], forwardedProto: true })).toThrow(ForbiddenError);
+    expect(() => assertSameOrigin(behindProxy({ origin: "https://app.example.com" }), { origins: [], forwardedProtoHops: 1 })).toThrow(ForbiddenError); // no header: http
+    expect(() => assertSameOrigin(behindProxy({ origin: "http://app.example.com", "x-forwarded-proto": "https" }), { origins: [], forwardedProtoHops: 1 })).toThrow(ForbiddenError);
+  });
+
+  it("counts x-forwarded-proto entries from the right like the client address: what a client prepends is ignored", () => {
+    const behindProxy = (headers: Record<string, string>) => new Request("http://app.example.com/api/v1/boards", { method: "POST", headers });
+    // One trusted proxy appended "http" (what it saw); the client forged a leading "https".
+    const forged = { origin: "https://app.example.com", "x-forwarded-proto": "https, http" };
+    expect(() => assertSameOrigin(behindProxy(forged), { origins: [], forwardedProtoHops: 1 })).toThrow(ForbiddenError);
+    expect(() => assertSameOrigin(behindProxy({ origin: "http://app.example.com", "x-forwarded-proto": "https, http" }), { origins: [], forwardedProtoHops: 1 })).not.toThrow();
+    // Two trusted proxies: the entry two from the right is the browser's scheme.
+    const twoHops = { origins: [], forwardedProtoHops: 2 };
+    expect(() => assertSameOrigin(behindProxy({ origin: "https://app.example.com", "x-forwarded-proto": "http, https, http" }), twoHops)).not.toThrow();
+    expect(() => assertSameOrigin(behindProxy({ origin: "http://app.example.com", "x-forwarded-proto": "http, https, http" }), twoHops)).toThrow(ForbiddenError);
+    // Fewer entries than trusted hops: the header cannot be the proxies' own, so the request's scheme stands.
+    expect(() => assertSameOrigin(behindProxy({ origin: "https://app.example.com", "x-forwarded-proto": "https" }), twoHops)).toThrow(ForbiddenError);
   });
 
   it("refuses an opaque origin and unparsable origins", () => {
