@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { BADGE, CARDS, CHECK, COLUMNS, MARK_FROM, MARK_TO } from "./logo-art";
 
 /** The fixed brand mark: it never changes with the theme, so its colors live here and not in the tokens. */
 export function LogoMark({ className, title }: { className?: string; title?: string }) {
@@ -15,25 +16,19 @@ export function LogoMark({ className, title }: { className?: string; title?: str
     >
       <defs>
         <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2563eb" />
-          <stop offset="1" stopColor="#4f46e5" />
+          <stop offset="0" stopColor={MARK_FROM} />
+          <stop offset="1" stopColor={MARK_TO} />
         </linearGradient>
       </defs>
       <rect width="64" height="64" rx="16" fill={`url(#${gradient})`} />
       <g fill="#fff" opacity=".22">
-        <rect x="11" y="13" width="12" height="38" rx="4" />
-        <rect x="26" y="13" width="12" height="38" rx="4" />
-        <rect x="41" y="13" width="12" height="38" rx="4" />
+        {COLUMNS.map((r) => <rect key={r.x} {...r} />)}
       </g>
       <g fill="#fff" opacity=".85">
-        <rect x="13" y="16" width="8" height="6" rx="2" />
-        <rect x="13" y="25" width="8" height="6" rx="2" />
-        <rect x="13" y="34" width="8" height="6" rx="2" />
-        <rect x="28" y="16" width="8" height="6" rx="2" />
-        <rect x="28" y="25" width="8" height="6" rx="2" />
+        {CARDS.map((r) => <rect key={`${r.x}-${r.y}`} {...r} />)}
       </g>
-      <circle cx="47" cy="22" r="6" fill="#fff" />
-      <path d="M44.2 22.2l2 2 3.8-4" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={BADGE.cx} cy={BADGE.cy} r={BADGE.r} fill="#fff" />
+      <path d={CHECK} fill="none" stroke={MARK_TO} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
