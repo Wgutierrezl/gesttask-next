@@ -60,15 +60,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
       <nav aria-label="Breadcrumb" className="text-sm">
         <Link href={`/boards/${boardId}/pipelines/${pipelineId}`} className="inline-flex items-center gap-1 rounded text-slate-600 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"><ChevronLeft aria-hidden="true" className="size-4" />Back to pipeline</Link>
       </nav>
-      <PageHeader
-        title={task.title}
-        actions={
-          <>
-            <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
-            {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
-          </>
-        }
-      />
+      <PageHeader title={task.title} />
       {data.stages.truncated ? <Alert tone="warning">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</Alert> : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
@@ -86,6 +78,11 @@ export default async function TaskPage({ params }: TaskPageProps) {
             <CardBody>
               <h2 className="mb-3 text-lg font-semibold text-slate-900">Details</h2>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                <dt className="font-medium text-slate-700">Stage</dt>
+                <dd className="flex flex-wrap items-center gap-1">
+                  <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
+                  {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
+                </dd>
                 <dt className="font-medium text-slate-700">Priority</dt>
                 <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
                 <dt className="font-medium text-slate-700">Assignee</dt>

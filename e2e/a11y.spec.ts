@@ -30,22 +30,33 @@ test.describe("accessibility basics (REQ-DS-04, REQ-DS-05)", () => {
     const move = page.getByLabel("Move to stage");
     await move.focus();
     await expect(move).toBeFocused();
-    // A visible focus ring: the outline is drawn, not removed.
-    expect(await move.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe("none");
+    // A visible focus ring drawn with the brand token: 2px wide and the colour of --color-brand-600.
+    const ring = await move.evaluate((el) => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--color-brand-600)";
+      document.body.append(probe);
+      const brand = getComputedStyle(probe).color;
+      probe.remove();
+      const { outlineStyle, outlineWidth, outlineColor } = getComputedStyle(el);
+      return { outlineStyle, outlineWidth, outlineColor, brand };
+    });
+    expect(ring.outlineStyle).toBe("solid");
+    expect(ring.outlineWidth).toBe("2px");
+    expect(ring.outlineColor).toBe(ring.brand);
     await expect(page.getByRole("complementary", { name: "Task details" })).toBeVisible();
   });
 
   test("with reduced motion requested, buttons do not animate", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openTask(page);
-    const seconds = await page.getByRole("button", { name: "Comment" }).evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
+    const seconds = await page.getByRole("button", { name: "Comment", exact: true }).evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
     expect(seconds).toBeLessThan(0.001 + Number.EPSILON);
   });
 
   test("with motion allowed, the same button keeps its transition", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await openTask(page);
-    const seconds = await page.getByRole("button", { name: "Comment" }).evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
+    const seconds = await page.getByRole("button", { name: "Comment", exact: true }).evaluate((el) => parseFloat(getComputedStyle(el).transitionDuration));
     expect(seconds).toBeGreaterThan(0.05);
   });
 });

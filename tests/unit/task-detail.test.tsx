@@ -69,7 +69,7 @@ describe("TaskPage layout", () => {
   it("keeps the task's content apart from a sidebar with its details and, for writers, the move and delete controls", async () => {
     const html = renderToStaticMarkup(await TaskPage({ params: params() }));
     const aside = asideOf(html);
-    for (const text of ["Priority", "High", "Assignee", "Olivia", "Due date", "Overdue", "Move to stage", "Delete task"]) expect(aside).toContain(text);
+    for (const text of ["Stage", "To do", "Priority", "High", "Assignee", "Olivia", "Due date", "Overdue", "Move to stage", "Delete task"]) expect(aside).toContain(text);
     for (const text of ["Cut the tag", "Comments (0)", "Edit task", "Add a comment"]) {
       expect(html).toContain(text);
       expect(aside).not.toContain(text);
@@ -90,6 +90,7 @@ describe("TaskPage layout", () => {
   it("gives a viewer the details but no controls in the sidebar", async () => {
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
     const aside = asideOf(renderToStaticMarkup(await TaskPage({ params: params() })));
+    expect(aside).toMatch(/<dt[^>]*>Stage<\/dt><dd[^>]*>.*To do/s);
     expect(aside).toContain("Priority");
     expect(aside).not.toContain("Move to stage");
     expect(aside).not.toContain("Delete task");

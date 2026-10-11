@@ -74,7 +74,7 @@ test.describe("moving cards between pipelines of a board", () => {
     await page.getByRole("button", { name: "Move task" }).click();
     await expect(page).not.toHaveURL(before);
     await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
-    await expect(page.getByRole("main").locator("header").getByText("Refined", { exact: true })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Task details" }).getByText("Refined", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Back to pipeline" }).click();
     await waitForHydration(page);
     await expect(page.getByRole("heading", { name: "Backlog", level: 1 })).toBeVisible();
