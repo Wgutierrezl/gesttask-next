@@ -34,3 +34,8 @@ anyone else. A global "reset the demo" job would overwrite concurrent visitors, 
 - Vercel Hobby is non-commercial use only; the README says so.
 - Sandboxes get the demo's comments without attachments (copying objects per visitor is not worth it); the shared board
   carries the attachments.
+- `pnpm db:seed` stores the two sample objects BEFORE the rows that point at them. If the run then fails (or loses a
+  race) it deletes the objects again, best effort: a failed deletion is logged with the keys and never replaces the
+  original error. In that rare case the objects stay in the bucket as orphans (no row points at them). They are small and
+  harmless, a rerun uses new keys, and nothing else cleans them: delete them by hand under `boards/{demo board id}/` if
+  they bother you.
