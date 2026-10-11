@@ -1,6 +1,6 @@
 "use client";
 
-import { closestCorners, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -11,7 +11,8 @@ import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
 import { KanbanColumn } from "./kanban-column";
-import { PipelineTabs, type PipelineSwitcherData } from "./pipeline-tabs";
+import { collideBoard } from "./collision";
+import { PipelineTabs, tabElementId, type PipelineSwitcherData } from "./pipeline-tabs";
 import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
 import type { ColumnView } from "./types";
@@ -58,23 +59,36 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
     else handles.current.delete(taskId);
   }, []);
   const refocus = useRef<string | null>(null);
+  const [crossError, setCrossError] = useState<string | null>(null);
+  const crossing = useRef(false);
+  const [crossPending, setCrossPending] = useState(false);
   const onSettled = (request: MoveRequest, result: SendResult) => {
     const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
     const stage = columns.find((column) => column.stage.id === request.toStageId)?.stage.name ?? "";
     setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
+    if (result.ok) setCrossError(null);
   };
-  const { columns: shown, move: send, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
+  const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
   const pipelines = switcher && switcher.pipelines.length > 1 ? switcher.pipelines : [];
-  const [crossError, setCrossError] = useState<string | null>(null);
   /** Not optimistic: the card belongs to another page afterwards, so the server answers first and the page is re-read. */
   const moveAcross = async (request: MoveRequest, destination: string) => {
+    if (crossing.current) return; // one move across at a time: a second drop would race the first one's refresh
+    crossing.current = true;
+    setCrossPending(true);
     const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
     setCrossError(null);
     setAnnouncement(`Moving ${title} to ${destination}`);
-    const result = await sendMove(request);
-    setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title} \u2014 restored`);
+    // Queued behind any move still in flight inside this pipeline, so the server sees them in the order they were made.
+    const result = await queue(() => sendMove(request));
+    setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title}`);
     if (!result.ok) setCrossError(result.message);
     router.refresh();
+    crossing.current = false;
+    setCrossPending(false);
+    // The card left this page: focus follows it to the tab of its new pipeline, or goes back to it when the move was refused.
+    const target = pipelines.find((pipeline) => pipeline.stages.some((stage) => stage.id === request.toStageId));
+    const next = result.ok && target ? document.getElementById(tabElementId(target.id)) : handles.current.get(request.taskId);
+    next?.focus();
   };
   const destinationOf = (stageId: string) => {
     const pipeline = pipelines.find((candidate) => candidate.stages.some((stage) => stage.id === stageId));
@@ -118,7 +132,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
   };
   const messages = crossError === null ? errors : [...errors, crossError];
   const status = (
-    <div role="status" aria-label="Board updates" className={messages.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
+    <div role="status" aria-label="Board updates" aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
       <span className="sr-only">{announcement}</span>
       {messages.map((message, i) => (
         <p key={i}>{message}</p>
@@ -146,7 +160,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
     );
   }
   return (
-    <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown, pipelines) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
+    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
       {status}
       {tabs}
       {scroller(

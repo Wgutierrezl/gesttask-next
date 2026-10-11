@@ -22,6 +22,9 @@ function TabLabel({ pipeline }: { pipeline: PipelineOption }) {
   );
 }
 
+/** The DOM id of a pipeline's tab link, so the board can put focus on it. */
+export const tabElementId = (pipelineId: string) => `pipeline-tab-${pipelineId}`;
+
 const hrefOf = (boardId: string, pipelineId: string) => `/boards/${boardId}/pipelines/${pipelineId}`;
 
 /** Must render inside a DndContext: dropping a card on another pipeline's tab moves it there. */
@@ -29,7 +32,7 @@ function DroppableTab({ boardId, pipeline, dragging }: { boardId: string; pipeli
   // A pipeline without stages has nowhere to put the card, so it is not a drop target.
   const { setNodeRef, isOver } = useDroppable({ id: pipelineTabId(pipeline.id), disabled: pipeline.stages.length === 0 });
   return (
-    <TabLink ref={setNodeRef} href={hrefOf(boardId, pipeline.id)} highlighted={dragging && isOver}>
+    <TabLink ref={setNodeRef} id={tabElementId(pipeline.id)} href={hrefOf(boardId, pipeline.id)} highlighted={dragging && isOver}>
       <TabLabel pipeline={pipeline} />
     </TabLink>
   );
@@ -41,13 +44,13 @@ export function PipelineTabs({ data, droppable, dragging = false }: { data: Pipe
     <TabNav label="Pipelines">
       {data.pipelines.map((pipeline) =>
         pipeline.id === data.pipelineId ? (
-          <TabLink key={pipeline.id} href={hrefOf(data.boardId, pipeline.id)} current>
+          <TabLink key={pipeline.id} id={tabElementId(pipeline.id)} href={hrefOf(data.boardId, pipeline.id)} current>
             <TabLabel pipeline={pipeline} />
           </TabLink>
         ) : droppable ? (
           <DroppableTab key={pipeline.id} boardId={data.boardId} pipeline={pipeline} dragging={dragging} />
         ) : (
-          <TabLink key={pipeline.id} href={hrefOf(data.boardId, pipeline.id)}>
+          <TabLink key={pipeline.id} id={tabElementId(pipeline.id)} href={hrefOf(data.boardId, pipeline.id)}>
             <TabLabel pipeline={pipeline} />
           </TabLink>
         ),

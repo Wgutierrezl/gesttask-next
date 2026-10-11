@@ -45,5 +45,11 @@ export function useOptimisticMove(columns: ColumnView[], send: (request: MoveReq
     },
     [apply, send, refresh, onSettled],
   );
-  return { columns: shown, move, errors, pending };
+  /** Runs `work` after every move already sent has settled, and before any later one: for sends that are not optimistic. */
+  const queue = useCallback(<R,>(work: () => Promise<R>): Promise<R> => {
+    const run = tail.current.then(work);
+    tail.current = run;
+    return run;
+  }, []);
+  return { columns: shown, move, queue, errors, pending };
 }

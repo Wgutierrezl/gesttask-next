@@ -280,8 +280,58 @@ describe("KanbanBoard across pipelines", () => {
     await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
     expect(titles("To do")).toEqual(["Task a", "Task b"]);
     expect(status()).toContain("Resource not found");
-    expect(status()).toContain("Couldn't move Task a — restored");
+    expect(status()).toContain("Couldn't move Task a");
+    expect(status()).not.toContain("restored"); // nothing was shown optimistically, so nothing is put back
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a second drop while a move across pipelines is in flight, and says the board is busy", async () => {
+    const pending = deferred();
+    moveTaskToEndAction.mockReturnValue(pending.promise);
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    const busy = () => screen.getByRole("status", { name: "Board updates" }).getAttribute("aria-busy");
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "b" }, over: { id: "pipeline:p2" } }));
+    expect(moveTaskToEndAction).toHaveBeenCalledTimes(1);
+    expect(busy()).toBe("true");
+    await act(async () => pending.resolve({ ok: true, data: null }));
+    expect(busy()).toBeNull();
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "b" }, over: { id: "pipeline:p2" } }));
+    expect(moveTaskToEndAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for a pending move inside the pipeline before sending a move across", async () => {
+    const first = deferred();
+    moveTaskToEndAction.mockReturnValueOnce(first.promise).mockResolvedValue({ ok: true, data: null });
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await user.click(screen.getByLabelText("Move options for Task a"));
+    await user.click(screen.getByRole("button", { name: "Move Task a to Done" }));
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "b" }, over: { id: "pipeline:p2" } }));
+    expect(moveTaskToEndAction).toHaveBeenCalledTimes(1); // the cross move is queued behind it
+    await act(async () => first.resolve({ ok: true, data: null }));
+    await waitFor(() => expect(moveTaskToEndAction).toHaveBeenCalledTimes(2));
+    expect(sent(1, moveTaskToEndAction)).toEqual({ taskId: "b", toStageId: "ideas" });
+  });
+
+  it("puts focus on the destination tab after a move across, and back on the card when it was refused", async () => {
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Backlog, 1 task" }));
+    moveTaskToEndAction.mockResolvedValue({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "b" }, over: { id: "pipeline:p2" } }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Drag Task b" }));
+  });
+
+  it("drops the old refusal from the status once a later move succeeds", async () => {
+    moveTaskToEndAction.mockResolvedValueOnce({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite switcher={switcher} {...props} />);
+    await act(async () => dnd.props!.onDragEnd({ active: { id: "a" }, over: { id: "pipeline:p2" } }));
+    expect(status()).toContain("Resource not found");
+    await user.click(screen.getByLabelText("Move options for Task b"));
+    await user.click(screen.getByRole("button", { name: "Move Task b up" }));
+    await waitFor(() => expect(status()).not.toContain("Resource not found"));
   });
 
   it("gives viewers plain links to the pipelines and no move controls", () => {
