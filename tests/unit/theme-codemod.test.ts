@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { migrateTheme } from "../../scripts/lib/theme-codemod";
+import { codemodWarnings, migrateTheme } from "../../scripts/lib/theme-codemod";
 
 describe("migrateTheme", () => {
   it.each([
     ["text-slate-900", "text-fg"],
-    ["text-slate-800", "text-fg"],
+    ["text-slate-800", "text-fg-secondary"],
     ["text-slate-700", "text-fg-strong"],
     ["text-slate-600", "text-fg-muted"],
     ["text-slate-500", "text-fg-subtle"],
@@ -32,7 +32,6 @@ describe("migrateTheme", () => {
     ["bg-success-50", "bg-success-soft"],
     ["text-success-700", "text-success-fg"],
     ["focus-visible:outline-brand-600", "focus-visible:outline-ring"],
-    ["backdrop:bg-slate-900/40", "backdrop:bg-backdrop"],
   ])("maps %s to %s", (from, to) => {
     expect(migrateTheme(`<div className="${from}" />`)).toBe(`<div className="${to}" />`);
   });
@@ -50,5 +49,55 @@ describe("migrateTheme", () => {
   it("is idempotent", () => {
     const once = migrateTheme('className="text-slate-600 hover:bg-slate-50 bg-white"');
     expect(migrateTheme(once)).toBe(once);
+  });
+
+  it.each(["hover", "focus", "focus-visible", "focus-within", "active", "group-hover", "peer-focus", "group-focus-visible", "has-[:hover]", "md:hover", "dark:group-hover"])(
+    "treats bg-slate-50 under %s: as a highlight, not the canvas",
+    (variant) => {
+      expect(migrateTheme(`"${variant}:bg-slate-50"`)).toBe(`"${variant}:bg-surface-hover"`);
+    },
+  );
+
+  it.each(["bg-slate-50", "md:bg-slate-50", "first:bg-slate-50", "group-has-[a]:bg-slate-50"])("keeps bg-slate-50 as the canvas under %s", (cls) => {
+    expect(migrateTheme(`"${cls}"`)).toBe(`"${cls.replace("bg-slate-50", "bg-canvas")}"`);
+  });
+
+  describe("only class contexts are rewritten", () => {
+    it("leaves line, block and JSX comments untouched", () => {
+      const source = [
+        "// was text-slate-600 before the migration",
+        "/* bg-white and text-slate-900 */",
+        '<p className="text-slate-600">x</p>{/* text-slate-600 */}',
+      ].join("\n");
+      expect(migrateTheme(source)).toBe(source.replace('className="text-slate-600"', 'className="text-fg-muted"'));
+    });
+
+    it("rewrites class maps in plain .ts sources and cn()/clsx() arguments", () => {
+      const source = 'const tones = { a: "bg-white text-slate-700", b: cn("border-slate-200", open && "bg-slate-100") };';
+      expect(migrateTheme(source)).toBe('const tones = { a: "bg-surface text-fg-strong", b: cn("border-border", open && "bg-surface-muted") };');
+    });
+
+    it("rewrites template literals in className, including the text around a ${} placeholder", () => {
+      expect(migrateTheme("className={`p-2 ${open ? 'bg-white' : 'bg-slate-100'} text-slate-600`}")).toBe(
+        "className={`p-2 ${open ? 'bg-surface' : 'bg-surface-muted'} text-fg-muted`}",
+      );
+    });
+
+    it("leaves prose strings that merely mention a class", () => {
+      const source = 'const note = "Use text-slate-600 for body copy"; throw new Error("bg-white is gone");';
+      expect(migrateTheme(source)).toBe(source);
+    });
+  });
+
+  describe("scrims", () => {
+    it.each(["backdrop:bg-slate-900/40", "backdrop:bg-slate-900/50", "bg-slate-900/40"])("leaves %s untouched and warns", (cls) => {
+      const source = `className="${cls}"`;
+      expect(migrateTheme(source)).toBe(source);
+      expect(codemodWarnings(source)).toEqual([expect.stringContaining(cls)]);
+    });
+
+    it("does not warn about classes it maps", () => {
+      expect(codemodWarnings('className="bg-white text-slate-600"')).toEqual([]);
+    });
   });
 });

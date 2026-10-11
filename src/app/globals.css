@@ -79,6 +79,7 @@
   --color-hero-from: var(--hero-from);
   --color-hero-via: var(--hero-via);
   --color-hero-to: var(--hero-to);
+  --color-fg-secondary: var(--fg-secondary);
   --color-fg-strong: var(--fg-strong);
   --color-surface-hover: var(--surface-hover);
   --color-border-subtle: var(--border-subtle);
@@ -115,6 +116,7 @@
   --warning-fg: #b45309;
   --success-soft: #ecfdf5;
   --success-fg: #047857;
+  --fg-secondary: #1e293b;
   --fg-strong: #334155;
   --surface-hover: #f8fafc;
   --border-subtle: #f1f5f9;
@@ -158,6 +160,7 @@
   --warning-fg: #fcd34d;
   --success-soft: #0b2e22;
   --success-fg: #6ee7b7;
+  --fg-secondary: #eaeff5;
   --fg-strong: #e2e8f0;
   --surface-hover: #18223a;
   --border-subtle: #1c2639;
@@ -200,7 +203,8 @@
     --warning-fg: #fcd34d;
     --success-soft: #0b2e22;
     --success-fg: #6ee7b7;
-    --fg-strong: #e2e8f0;
+    --fg-secondary: #eaeff5;
+  --fg-strong: #e2e8f0;
     --surface-hover: #18223a;
     --border-subtle: #1c2639;
     --border-control: #66779a;
