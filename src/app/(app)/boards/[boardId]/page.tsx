@@ -44,7 +44,7 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
       <BoardHeader board={board} role={role} />
       <section aria-labelledby="pipelines-heading">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="pipelines-heading" className="text-lg font-semibold text-slate-900">{t("heading")}</h2>
+          <h2 id="pipelines-heading" className="text-lg font-semibold text-fg">{t("heading")}</h2>
           {role === "owner" ? <CreatePipelineDialog boardId={board.id} /> : null}
         </div>
         <PipelineList boardId={board.id} pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />

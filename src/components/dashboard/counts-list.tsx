@@ -19,8 +19,8 @@ export function CountsList({ label, counts }: { label: string; counts: Counts })
     <dl aria-label={label} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {rows.map(([key, name, value, alert]) => (
         <Card key={key} className="p-4">
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">{name}</dt>
-          <dd className={`mt-1 text-3xl font-semibold tracking-tight ${alert ? "text-danger-700" : "text-slate-900"}`}>{format.number(value)}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-fg-muted">{name}</dt>
+          <dd className={`mt-1 text-3xl font-semibold tracking-tight ${alert ? "text-danger-fg" : "text-fg"}`}>{format.number(value)}</dd>
         </Card>
       ))}
     </dl>

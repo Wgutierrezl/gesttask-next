@@ -45,7 +45,7 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
       </section>
       <section aria-labelledby="members-heading" className="flex flex-col gap-4">
         <h2 id="members-heading" className="text-lg font-medium">{t("members")}</h2>
-        <ul className="divide-y divide-slate-100 rounded-card border border-slate-200 bg-white">
+        <ul className="divide-y divide-border-subtle rounded-card border border-border bg-surface">
           {members.items.map((member) => (
             <MemberRow key={member.userId} boardId={board.id} member={member} isSelf={member.userId === actor.userId} />
           ))}
@@ -58,8 +58,8 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
         <h2 id="status-heading" className="mb-3 text-lg font-medium">{t("settingsPage.status")}</h2>
         <ArchiveBoardForm board={{ id: board.id, status: board.status }} />
       </section>
-      <section aria-labelledby="danger-heading" className="rounded-card border border-danger-600/30 bg-white p-4">
-        <h2 id="danger-heading" className="mb-3 text-lg font-medium text-danger-700">{t("settingsPage.delete")}</h2>
+      <section aria-labelledby="danger-heading" className="rounded-card border border-danger-600/30 bg-surface p-4">
+        <h2 id="danger-heading" className="mb-3 text-lg font-medium text-danger-fg">{t("settingsPage.delete")}</h2>
         <DeleteBoardForm board={{ id: board.id, name: board.name }} />
       </section>
     </main>

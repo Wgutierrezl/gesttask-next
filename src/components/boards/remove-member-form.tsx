@@ -39,7 +39,7 @@ export function RemoveMemberForm({ boardId, userId, name, isSelf }: RemoveMember
         <span>{isSelf ? t("loseAccessSelf") : t("loseAccess", { name })}</span>
       </label>
       {confirmError ? (
-        <p id={errorId} role="alert" className="text-xs text-danger-700">
+        <p id={errorId} role="alert" className="text-xs text-danger-fg">
           {confirmError.join(" ")}
         </p>
       ) : null}

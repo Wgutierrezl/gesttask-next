@@ -21,7 +21,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
     <AuthShell title={t("signUpTitle")}>
       <CredentialsForm mode="sign-up" action={signUpAction} next={next} />
       <p className="text-sm">
-        {t("alreadyRegistered")} <Link href="/login" className="font-medium text-brand-700 underline">{t("signInLink")}</Link>
+        {t("alreadyRegistered")} <Link href="/login" className="font-medium text-brand-link underline">{t("signInLink")}</Link>
       </p>
     </AuthShell>
   );

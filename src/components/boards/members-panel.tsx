@@ -17,17 +17,17 @@ export function MembersPanel({ members, pastTheEndHref }: { members: MemberView[
   const t = useTranslations();
   return (
     <section aria-label={t("board.members")}>
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">{t("board.members")}</h2>
+      <h2 className="mb-3 text-lg font-semibold text-fg">{t("board.members")}</h2>
       {members.length === 0 && pastTheEndHref ? <PastTheEnd what="members" href={pastTheEndHref} /> : null}
       <Card>
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-border-subtle">
           {members.map((member) => (
             <li key={member.userId} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
               <span className="flex min-w-0 items-center gap-3">
                 <Avatar name={member.name} />
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-slate-900">{member.name}</span>
-                  {member.email ? <span className="block truncate text-slate-600">{member.email}</span> : null}
+                  <span className="block truncate font-medium text-fg">{member.name}</span>
+                  {member.email ? <span className="block truncate text-fg-muted">{member.email}</span> : null}
                 </span>
               </span>
               <Badge>{t(`common.roles.${member.role}`)}</Badge>

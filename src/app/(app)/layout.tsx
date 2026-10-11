@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations("shell");
   return (
     <>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-40 focus:rounded-control focus:bg-white focus:px-4 focus:py-2 focus:shadow-pop">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-40 focus:rounded-control focus:bg-surface focus:px-4 focus:py-2 focus:shadow-pop">
         {t("skipToContent")}
       </a>
       <AppHeader />

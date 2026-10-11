@@ -3,7 +3,22 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const src = fileURLToPath(new URL("../../src/", import.meta.url));
-const MIGRATED = ["components/ui", "components/shell", "app/page.tsx", "app/layout.tsx"];
+const MIGRATED = [
+  "components/ui",
+  "components/shell",
+  "components/boards",
+  "components/dashboard",
+  "components/auth",
+  "app/page.tsx",
+  "app/layout.tsx",
+  "app/(app)/layout.tsx",
+  "app/(app)/dashboard",
+  "app/(app)/boards/page.tsx",
+  "app/(app)/boards/[boardId]/page.tsx",
+  "app/(app)/boards/[boardId]/settings",
+  "app/(app)/boards/[boardId]/dashboard",
+  "app/(auth)",
+];
 
 // Fixed light-theme colors do not follow `data-theme`, so migrated code names a role (`bg-surface`) instead.
 // Allowed on purpose: `text-white` and `bg-danger-600/700` (theme-independent fills), `bg-brand-gradient`.
@@ -27,9 +42,9 @@ function files(path: string): string[] {
   return readdirSync(full, { recursive: true, encoding: "utf8" }).filter((name) => /\.tsx?$/.test(name)).map((name) => `${full}/${name}`);
 }
 
-describe("theme migration of the primitives, shell and landing", () => {
+describe("theme migration of the primitives, shell, landing, auth, boards and dashboards", () => {
   it("finds the files it is meant to guard", () => {
-    expect(MIGRATED.flatMap(files).length).toBeGreaterThan(20);
+    expect(MIGRATED.flatMap(files).length).toBeGreaterThan(50);
   });
 
   it.each(MIGRATED.flatMap(files))("%s uses semantic tokens only", (file) => {

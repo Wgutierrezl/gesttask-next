@@ -19,7 +19,7 @@ export function CreatePipelineForm({ boardId, onSuccess, onCancel }: { boardId: 
           <Field label={t("boards.descriptionField")} error={failure?.fieldErrors?.description?.join(" ")}>
             <Textarea name="description" rows={3} maxLength={2000} />
           </Field>
-          <p className="text-xs text-slate-600">{t("pipeline.defaultStages")}</p>
+          <p className="text-xs text-fg-muted">{t("pipeline.defaultStages")}</p>
           <FormFooter submitLabel={t("boards.submit")} pendingLabel={t("boards.submitting")} onCancel={onCancel} />
         </>
       )}

@@ -14,7 +14,7 @@ export function RoleSelect({ id, label, defaultValue, hideLabel }: RoleSelectPro
   const t = useTranslations("common.roles");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className={hideLabel ? "sr-only" : "text-sm font-medium text-slate-700"}>
+      <label htmlFor={id} className={hideLabel ? "sr-only" : "text-sm font-medium text-fg-strong"}>
         {label}
       </label>
       <Select id={id} name="role" defaultValue={defaultValue}>

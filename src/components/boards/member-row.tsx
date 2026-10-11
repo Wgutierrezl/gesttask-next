@@ -8,7 +8,7 @@ export function MemberRow({ boardId, member, isSelf }: { boardId: string; member
     <li className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm">
       <span>
         <span className="font-medium">{member.name}</span>
-        {member.email ? <span className="ml-2 text-slate-600">{member.email}</span> : null}
+        {member.email ? <span className="ml-2 text-fg-muted">{member.email}</span> : null}
       </span>
       <span className="flex flex-wrap items-start gap-3">
         <ChangeRoleForm boardId={boardId} member={member} />

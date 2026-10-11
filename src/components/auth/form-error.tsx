@@ -30,7 +30,7 @@ export function FormError({ failure, inlineFields = [] }: { failure: ActionFailu
   const message = failure ? (describeFailure(failure, inlineFields, t) ?? (hasInlineErrors ? t("fixFields") : null)) : null;
   if (!message) return <div role="alert" aria-live="polite" />;
   return (
-    <div role="alert" aria-live="polite" className="rounded-control border border-danger-600/30 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+    <div role="alert" aria-live="polite" className="rounded-control border border-danger-600/30 bg-danger-soft px-3 py-2 text-sm text-danger-fg">
       {message}
     </div>
   );

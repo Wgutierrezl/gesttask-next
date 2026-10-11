@@ -15,7 +15,7 @@ export function DeleteBoardForm({ board }: { board: { id: string; name: string }
   return (
     <form action={formAction} className="flex max-w-md flex-col gap-3">
       <input type="hidden" name="boardId" value={board.id} />
-      <p className="text-sm text-slate-700">
+      <p className="text-sm text-fg-strong">
         {t.rich("warning", { name: board.name, strong: (chunks) => <strong key="board-name">{chunks}</strong> })}
       </p>
       <label className="flex items-start gap-2 text-sm">
@@ -31,7 +31,7 @@ export function DeleteBoardForm({ board }: { board: { id: string; name: string }
         <span>{t("confirmText")}</span>
       </label>
       {confirmError ? (
-        <p id="confirm-error" role="alert" className="text-sm text-danger-700">
+        <p id="confirm-error" role="alert" className="text-sm text-danger-fg">
           {confirmError.join(" ")}
         </p>
       ) : null}

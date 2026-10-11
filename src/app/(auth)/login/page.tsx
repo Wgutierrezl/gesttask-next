@@ -22,9 +22,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <AuthShell title={t("signInTitle")}>
       <CredentialsForm mode="sign-in" action={signInEmailAction} next={next} />
       <p className="text-sm">
-        {t("noAccount")} <Link href="/register" className="font-medium text-brand-700 underline">{t("createOne")}</Link>
+        {t("noAccount")} <Link href="/register" className="font-medium text-brand-link underline">{t("createOne")}</Link>
       </p>
-      <hr className="border-slate-200" />
+      <hr className="border-border" />
       <GuestButton variant="secondary" />
     </AuthShell>
   );

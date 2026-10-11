@@ -17,15 +17,15 @@ export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName
   return (
     <li>
       <Card interactive className="h-full">
-        <Link href={`/boards/${board.id}`} className="flex h-full flex-col gap-2 rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+        <Link href={`/boards/${board.id}`} className="flex h-full flex-col gap-2 rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           <span className="flex items-start justify-between gap-2">
-            <span className="font-semibold text-slate-900">{board.name}</span>
+            <span className="font-semibold text-fg">{board.name}</span>
             <span className="flex shrink-0 gap-1.5">
               {board.status === "inactive" ? <Badge>{t("archived")}</Badge> : null}
               {role ? <Badge tone="brand">{t(`roles.${role}`)}</Badge> : null}
             </span>
           </span>
-          {board.description ? <span className="line-clamp-2 text-sm text-slate-600">{board.description}</span> : null}
+          {board.description ? <span className="line-clamp-2 text-sm text-fg-muted">{board.description}</span> : null}
         </Link>
       </Card>
     </li>
