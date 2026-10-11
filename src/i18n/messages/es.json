@@ -12,7 +12,11 @@
     "preferences": "Preferencias",
     "language": "Idioma",
     "languageEnglish": "English",
-    "languageSpanish": "Español"
+    "languageSpanish": "Español",
+    "theme": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeSystem": "Sistema"
   },
   "landing": {
     "tagline": "Tableros Kanban para equipos pequeños.",

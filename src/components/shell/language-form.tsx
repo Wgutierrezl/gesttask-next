@@ -13,7 +13,7 @@ export function LanguageForm() {
   ];
   return (
     <form action={setLocaleAction} aria-label={t("language")} className="flex flex-col gap-1">
-      <span aria-hidden="true" className="px-1 text-xs font-medium uppercase tracking-wide text-slate-500">{t("language")}</span>
+      <span aria-hidden="true" className="px-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t("language")}</span>
       <div className="flex gap-1">
         {options.map(({ locale, label }) => (
           <Button

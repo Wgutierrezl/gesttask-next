@@ -12,7 +12,11 @@
     "preferences": "Preferences",
     "language": "Language",
     "languageEnglish": "English",
-    "languageSpanish": "Español"
+    "languageSpanish": "Español",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
   },
   "landing": {
     "tagline": "Kanban boards for small teams.",
