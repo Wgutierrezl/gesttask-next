@@ -1,0 +1,64 @@
+{
+  "common": {
+    "close": "Cerrar"
+  },
+  "shell": {
+    "skipToContent": "Saltar al contenido",
+    "brand": "GestTask",
+    "mainNav": "Principal",
+    "boards": "Tableros",
+    "dashboard": "Panel",
+    "signOut": "Cerrar sesión",
+    "preferences": "Preferencias",
+    "language": "Idioma",
+    "languageEnglish": "English",
+    "languageSpanish": "Español"
+  },
+  "landing": {
+    "tagline": "Tableros Kanban para equipos pequeños.",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "featuresHeading": "Todo lo que necesitas para entregar en equipo",
+    "features": {
+      "pipelines": {
+        "title": "Flujos flexibles",
+        "text": "Da forma a tu flujo de trabajo con etapas que se ajustan a cómo trabaja realmente tu equipo."
+      },
+      "teams": {
+        "title": "Pensado para equipos",
+        "text": "Invita a miembros con roles de propietario, editor y lector en cada tablero."
+      },
+      "sandbox": {
+        "title": "Seguro para explorar",
+        "text": "Prueba un tablero de ejemplo con un clic, sin necesidad de cuenta."
+      }
+    }
+  },
+  "auth": {
+    "signInTitle": "Iniciar sesión",
+    "signUpTitle": "Crea tu cuenta",
+    "signInSubmit": "Iniciar sesión",
+    "signInPending": "Iniciando sesión...",
+    "signUpSubmit": "Crear cuenta",
+    "signUpPending": "Creando cuenta...",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "noAccount": "¿No tienes cuenta?",
+    "createOne": "Crea una",
+    "alreadyRegistered": "¿Ya tienes cuenta?",
+    "signInLink": "Inicia sesión",
+    "tryDemo": "Probar la demo",
+    "preparingDemo": "Preparando tu demo...",
+    "errors": {
+      "rateLimited": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
+      "internal": "Algo salió mal. Inténtalo de nuevo.",
+      "fixFields": "Corrige los campos resaltados."
+    }
+  },
+  "meta": {
+    "description": "Gestión de tareas Kanban",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta"
+  }
+}

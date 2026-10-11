@@ -1,0 +1,64 @@
+{
+  "common": {
+    "close": "Close"
+  },
+  "shell": {
+    "skipToContent": "Skip to content",
+    "brand": "GestTask",
+    "mainNav": "Main",
+    "boards": "Boards",
+    "dashboard": "Dashboard",
+    "signOut": "Sign out",
+    "preferences": "Preferences",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageSpanish": "Español"
+  },
+  "landing": {
+    "tagline": "Kanban boards for small teams.",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "featuresHeading": "Everything you need to ship together",
+    "features": {
+      "pipelines": {
+        "title": "Flexible pipelines",
+        "text": "Shape your workflow with stages that fit how your team really works."
+      },
+      "teams": {
+        "title": "Built for teams",
+        "text": "Invite members with owner, editor and viewer roles on every board."
+      },
+      "sandbox": {
+        "title": "Safe to explore",
+        "text": "Try a ready-made sandbox board in one click, no account needed."
+      }
+    }
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "signUpTitle": "Create your account",
+    "signInSubmit": "Sign in",
+    "signInPending": "Signing in...",
+    "signUpSubmit": "Create account",
+    "signUpPending": "Creating account...",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "noAccount": "No account?",
+    "createOne": "Create one",
+    "alreadyRegistered": "Already registered?",
+    "signInLink": "Sign in",
+    "tryDemo": "Try the demo",
+    "preparingDemo": "Preparing your demo...",
+    "errors": {
+      "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "internal": "Something went wrong. Please try again.",
+      "fixFields": "Please fix the highlighted fields."
+    }
+  },
+  "meta": {
+    "description": "Kanban task management",
+    "signIn": "Sign in",
+    "createAccount": "Create account"
+  }
+}
