@@ -2,7 +2,7 @@ import { loadPage } from "@/app/_shared/load-page";
 import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { BoardHeader } from "@/components/boards/board-header";
-import { CreatePipelineForm } from "@/components/boards/create-pipeline-form";
+import { CreatePipelineDialog } from "@/components/boards/create-dialogs";
 import { MembersPanel } from "@/components/boards/members-panel";
 import { PipelineList } from "@/components/boards/pipeline-list";
 import { Pager, hrefFor } from "@/components/boards/pager";
@@ -36,19 +36,16 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
   const membersLink = { basePath: base, param: "membersPage", preserve: keep("pipelinesPage", pipelinesPage) };
   const pipelinesLink = { basePath: base, param: "pipelinesPage", preserve: keep("membersPage", membersPage) };
   return (
-    <main className="flex flex-col gap-8">
+    <main className="flex flex-col gap-6">
       <BoardHeader board={board} role={role} />
       <section aria-labelledby="pipelines-heading">
-        <h2 id="pipelines-heading" className="mb-3 text-lg font-medium">Pipelines</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id="pipelines-heading" className="text-lg font-semibold text-slate-900">Pipelines</h2>
+          {role === "owner" ? <CreatePipelineDialog boardId={board.id} /> : null}
+        </div>
         <PipelineList boardId={board.id} pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />
         <Pager page={pipelinesPage} hasNext={pipelines.hasNext} {...pipelinesLink} />
       </section>
-      {role === "owner" ? (
-        <section aria-labelledby="new-pipeline-heading">
-          <h2 id="new-pipeline-heading" className="mb-3 text-lg font-medium">Create pipeline</h2>
-          <CreatePipelineForm boardId={board.id} />
-        </section>
-      ) : null}
       <MembersPanel members={members.items} pastTheEndHref={membersPage > 1 ? hrefFor(membersLink, 1) : undefined} />
       <Pager page={membersPage} hasNext={members.hasNext} {...membersLink} />
     </main>

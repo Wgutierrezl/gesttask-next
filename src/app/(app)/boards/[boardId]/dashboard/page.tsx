@@ -19,17 +19,17 @@ export default async function BoardDashboardPage({ params }: { params: Promise<{
   return (
     <main className="flex flex-col gap-6">
       <header>
-        <Link href={`/boards/${board.id}`} className="text-sm underline">Back to the board</Link>
-        <h1 className="mt-1 text-xl font-semibold">{board.name}</h1>
-        <p className="text-sm text-gray-600">{dashboard.members} {dashboard.members === 1 ? "member" : "members"}</p>
+        <Link href={`/boards/${board.id}`} className="text-sm font-medium text-brand-700 underline">Back to the board</Link>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{board.name}</h1>
+        <p className="text-sm text-slate-600">{dashboard.members} {dashboard.members === 1 ? "member" : "members"}</p>
       </header>
       <section aria-labelledby="tasks-heading" className="flex flex-col gap-3">
-        <h2 id="tasks-heading" className="text-lg font-medium">Tasks on the board</h2>
+        <h2 id="tasks-heading" className="text-lg font-semibold text-slate-900">Tasks on the board</h2>
         <CountsList label="Tasks on the board" counts={dashboard.tasks} />
       </section>
       <section aria-labelledby="pipelines-heading" className="flex flex-col gap-6">
-        <h2 id="pipelines-heading" className="text-lg font-medium">By pipeline and stage</h2>
-        {dashboard.pipelines.length === 0 ? <p className="text-sm text-gray-600">No pipelines yet, so there is nothing to count.</p> : null}
+        <h2 id="pipelines-heading" className="text-lg font-semibold text-slate-900">By pipeline and stage</h2>
+        {dashboard.pipelines.length === 0 ? <p className="text-sm text-slate-600">No pipelines yet, so there is nothing to count.</p> : null}
         {dashboard.pipelines.map((pipeline) => (
           <PipelineStats key={pipeline.id} pipeline={pipeline} boardId={board.id} />
         ))}
