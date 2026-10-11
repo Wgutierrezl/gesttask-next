@@ -5,6 +5,7 @@ import { requireBoardAccess } from "../../authorize";
 import type { AppDeps } from "../../deps";
 import type { UserDirectory } from "../../ports/services";
 import { listMemberProfilesSchema } from "../../schemas/board";
+import { pageWindow } from "../../schemas/common";
 import { parseInput } from "../../schemas/parse";
 
 export interface MemberProfile {
@@ -26,7 +27,7 @@ export function makeListMemberProfiles(deps: AppDeps, users: UserDirectory) {
     // By id: only the people on screen, so a board with more members than a page still labels everyone correctly.
     const members = userIds
       ? (await Promise.all([...new Set(userIds)].map((userId) => deps.repos.members.find(boardId, userId)))).filter((m) => m !== null)
-      : await deps.repos.members.listByBoard(boardId, page);
+      : await deps.repos.members.listByBoard(boardId, pageWindow(page));
     const profiles = new Map((await users.findByIds(members.map((m) => m.userId))).map((p) => [p.id, p]));
     return members.map(({ userId, role }) => {
       const profile = profiles.get(userId);

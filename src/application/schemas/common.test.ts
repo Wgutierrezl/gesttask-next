@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ValidationError } from "@/domain/errors";
-import { paginationSchema } from "./common";
+import { pageWindow, paginationSchema } from "./common";
 import { parseInput } from "./parse";
 
 describe("paginationSchema", () => {
@@ -13,12 +13,25 @@ describe("paginationSchema", () => {
     expect(parseInput(paginationSchema, { limit: "200", offset: "10" })).toEqual({ limit: 200, offset: 10 });
   });
 
-  it("accepts one row beyond the public maximum: the peek row the REST layer asks for to know whether another page exists", () => {
-    expect(parseInput(paginationSchema, { limit: "201" })).toEqual({ limit: 201, offset: 0 });
+  it("keeps the public maximum at 200: the peek row is a flag, not a wider limit", () => {
+    expect(() => parseInput(paginationSchema, { limit: "201" })).toThrow(ValidationError);
+    expect(parseInput(paginationSchema, { limit: "200", peek: true })).toEqual({ limit: 200, offset: 0, peek: true });
   });
 
-  it.each([{ limit: 202 }, { limit: 0 }, { offset: -1 }, { limit: 1.5 }])("rejects %o", (input) => {
+  it.each([{ limit: 202 }, { limit: 201 }, { limit: 0 }, { offset: -1 }, { limit: 1.5 }, { peek: "yes" }])("rejects %o", (input) => {
     expect(() => parseInput(paginationSchema, input)).toThrow(ValidationError);
+  });
+});
+
+describe("pageWindow", () => {
+  it("is the page as asked when there is no peek", () => {
+    expect(pageWindow({ limit: 200, offset: 10 })).toEqual({ limit: 200, offset: 10 });
+    expect(pageWindow({ limit: 7, offset: 0, peek: false })).toEqual({ limit: 7, offset: 0 });
+  });
+
+  it("asks the repository for one row more when peeking, and never leaks the flag", () => {
+    expect(pageWindow({ limit: 200, offset: 10, peek: true })).toEqual({ limit: 201, offset: 10 });
+    expect(pageWindow({ limit: 3, offset: 0, peek: true })).toEqual({ limit: 4, offset: 0 });
   });
 });
 

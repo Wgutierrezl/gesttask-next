@@ -6,6 +6,7 @@ import { requireBoardAccess } from "../../authorize";
 import type { AppDeps } from "../../deps";
 import type { UserDirectory } from "../../ports/services";
 import { listCommentsSchema } from "../../schemas/comment";
+import { pageWindow } from "../../schemas/common";
 import { parseInput } from "../../schemas/parse";
 
 export type { CommentView };
@@ -19,7 +20,7 @@ export function makeListComments(deps: AppDeps, users: UserDirectory) {
     const task = await deps.repos.tasks.findById(taskId);
     if (!task) throw new NotFoundError();
     const role = await requireBoardAccess(deps.repos.members, actor, task.boardId, "board:view");
-    const comments = await deps.repos.comments.listByTask(taskId, page);
+    const comments = await deps.repos.comments.listByTask(taskId, pageWindow(page));
     const authorIds = [...new Set(comments.flatMap((c) => (c.authorId === null ? [] : [c.authorId])))];
     const names = new Map((await users.findByIds(authorIds)).map((profile) => [profile.id, profile.name]));
     const attachments = new Map<string, AttachmentView[]>();
