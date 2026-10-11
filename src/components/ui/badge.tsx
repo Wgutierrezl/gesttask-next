@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 const TONES = {
-  neutral: "bg-slate-100 text-slate-700",
-  brand: "bg-brand-50 text-brand-700",
-  success: "bg-success-50 text-success-700",
-  warning: "bg-warning-50 text-warning-700",
-  danger: "bg-danger-50 text-danger-700",
+  neutral: "bg-surface-muted text-fg-muted",
+  brand: "bg-brand-soft text-brand-link",
+  success: "bg-success-soft text-success-fg",
+  warning: "bg-warning-soft text-warning-fg",
+  danger: "bg-danger-soft text-danger-fg",
 } as const;
 
 export type BadgeTone = keyof typeof TONES;

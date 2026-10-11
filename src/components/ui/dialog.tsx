@@ -55,21 +55,21 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
         pressedOnBackdrop.current = false;
       }}
       className={cn(
-        "m-auto max-h-[90vh] w-full overflow-hidden rounded-2xl bg-white p-0 shadow-2xl open:flex open:flex-col open:animate-modal-in",
-        "backdrop:bg-black/60 backdrop:backdrop-blur-sm backdrop:animate-fade-in",
+        "m-auto max-h-[90vh] w-full overflow-hidden rounded-2xl border border-border bg-elevated p-0 text-fg shadow-pop open:flex open:flex-col open:animate-modal-in",
+        "backdrop:bg-backdrop backdrop:backdrop-blur-sm backdrop:animate-fade-in",
         SIZES[size],
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-6">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border p-6">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-50 to-indigo-50 text-blue-600">
+            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-link">
               {icon}
             </span>
           ) : null}
           <div className="min-w-0">
-            <h2 id={titleId} className="break-words text-xl font-semibold text-slate-900">{title}</h2>
-            {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
+            <h2 id={titleId} className="break-words text-xl font-semibold text-fg">{title}</h2>
+            {subtitle ? <p className="text-sm text-fg-muted">{subtitle}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -78,7 +78,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
             type="button"
             aria-label={t("close")}
             onClick={() => ref.current?.close()}
-            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-600"
+            className="rounded-lg p-2 text-fg-subtle transition-colors hover:bg-surface-muted hover:text-fg-muted focus-visible:outline-2 focus-visible:outline-ring"
           >
             <X aria-hidden="true" className="size-5" />
           </button>

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pathname = vi.hoisted(() => ({ current: "/boards" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
-vi.mock("@/app/_actions/preferences", () => ({ setLocaleAction: async () => undefined }));
+vi.mock("@/app/_actions/preferences", () => ({ setLocaleAction: async () => undefined, setThemeAction: async () => undefined }));
 vi.mock("@/app/_actions/auth", () => ({
   signInGuestAction: async () => undefined,
   signOutAction: async () => undefined,

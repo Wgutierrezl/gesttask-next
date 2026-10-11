@@ -2,8 +2,8 @@ import { cloneElement, useId, type ComponentProps, type ReactElement, type React
 import { cn } from "./cn";
 
 const CONTROL =
-  "w-full rounded-control border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 " +
-  "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 disabled:opacity-60 aria-invalid:border-danger-600 " +
+  "w-full rounded-control border border-border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle " +
+  "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-60 aria-invalid:border-danger-600 " +
   // Inside a modal the controls are roomier, like the dialog's own spacing.
   "in-[dialog]:rounded-xl in-[dialog]:px-4 in-[dialog]:py-3";
 
@@ -42,9 +42,9 @@ export function Field({ label, hint, error, required = false, children }: FieldP
   const described = [children.props["aria-describedby"], hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="text-sm font-medium text-fg-muted">
         {label}
-        {required && <span aria-hidden="true" className="ml-0.5 text-danger-700">*</span>}
+        {required && <span aria-hidden="true" className="ml-0.5 text-danger-fg">*</span>}
       </label>
       {cloneElement(children, {
         id,
@@ -52,16 +52,16 @@ export function Field({ label, hint, error, required = false, children }: FieldP
         "aria-invalid": children.props["aria-invalid"] ?? (error ? true : undefined),
         "aria-required": required || children.props["aria-required"] || undefined,
       })}
-      {hint && <p id={`${id}-hint`} className="text-xs text-slate-600">{hint}</p>}
-      {error && <p id={`${id}-error`} className="text-xs text-danger-700">{error}</p>}
+      {hint && <p id={`${id}-hint`} className="text-xs text-fg-muted">{hint}</p>}
+      {error && <p id={`${id}-error`} className="text-xs text-danger-fg">{error}</p>}
     </div>
   );
 }
 
 const ALERT_TONES = {
-  danger: "border-danger-600/30 bg-danger-50 text-danger-700",
-  warning: "border-warning-600/30 bg-warning-50 text-warning-700",
-  success: "border-success-600/30 bg-success-50 text-success-700",
+  danger: "border-danger-600/30 bg-danger-soft text-danger-fg",
+  warning: "border-warning-600/30 bg-warning-soft text-warning-fg",
+  success: "border-success-600/30 bg-success-soft text-success-fg",
 } as const;
 
 /** Inline message: errors are announced assertively (`alert`), the rest politely (`status`). */
