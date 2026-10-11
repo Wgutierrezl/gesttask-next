@@ -40,8 +40,9 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
       ref={ref}
       aria-labelledby={titleId}
       // The native close event is the single source of onClose; closing driven by `open=false` is not reported back.
-      onClose={() => {
-        if (open) onClose();
+      // React lets `close` bubble through the component tree, so a dialog nested in this one must not count as ours.
+      onClose={(event) => {
+        if (open && event.target === event.currentTarget) onClose();
       }}
       onPointerDown={(event) => {
         pressedOnBackdrop.current = event.target === ref.current;

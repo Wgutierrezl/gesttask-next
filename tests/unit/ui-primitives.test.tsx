@@ -188,6 +188,17 @@ describe("Dialog", () => {
     expect(screen.getByTestId("glyph").closest("[aria-hidden='true']")).toBeTruthy();
   });
 
+  it("does not report a nested dialog's close as its own", async () => {
+    const onOuter = vi.fn();
+    const onInner = vi.fn();
+    render(<Dialog title="Outer" open onClose={onOuter}><Dialog title="Inner" open onClose={onInner}>x</Dialog></Dialog>);
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Inner" })).getByRole("button", { name: "Close" }));
+    expect(onInner).toHaveBeenCalledTimes(1);
+    expect(onOuter).not.toHaveBeenCalled();
+    fireEvent(screen.getByRole("dialog", { name: "Outer" }), new Event("close"));
+    expect(onOuter).toHaveBeenCalledTimes(1);
+  });
+
   it("closes the native dialog when open becomes false, without calling onClose again, and can reopen", () => {
     const onClose = vi.fn();
     const { rerender } = render(<Dialog title="T" open onClose={onClose}>x</Dialog>);
