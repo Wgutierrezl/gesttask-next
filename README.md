@@ -76,6 +76,19 @@ Nothing needs a cloud account: the defaults use the local Postgres and the files
 Set `STORAGE_DRIVER=s3` and the commented S3 variables in `.env.example` to use the local RustFS instead.
 Postgres is published on port 5433 to avoid clashing with a local instance on 5432.
 
+## UI redesign (review locally)
+
+The interface runs on one design system: Tailwind tokens in `src/app/globals.css` and primitives in `src/components/ui`
+([ADR 0020](docs/adr/0020-design-system.md)). Cards can also move between the pipelines of a board
+([ADR 0019](docs/adr/0019-cross-pipeline-move.md)). To look at it:
+
+1. Follow [Local setup](#local-setup) (`pnpm db:up`, `pnpm db:migrate && pnpm db:seed`, `pnpm dev`). Re-run `pnpm db:seed` after pulling, it adds anything the demo board is missing.
+2. Open http://localhost:3000 and press "Try the demo".
+3. Walk the demo board: the dashboard, the "Launch plan" and "Backlog" pipelines (drag a card onto the other pipeline's tab), a task page with its comments and attachments, and a phone-width window.
+
+Accessibility is part of the contract: one `main` landmark and one `h1` per page, visible focus rings, labelled controls, and
+no animation when the system asks for reduced motion (`e2e/a11y.spec.ts`).
+
 ## Scripts
 
 | Script | Purpose |
