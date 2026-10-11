@@ -78,7 +78,7 @@ describe("purgeExpiredGuests", () => {
     expect(await db.select().from(schema.user).where(eq(schema.user.id, "old-guest"))).toHaveLength(0);
     const members = await db.select().from(schema.boardMembers).where(eq(schema.boardMembers.boardId, boardId));
     expect(members.map((m) => [m.userId, m.role]).sort()).toEqual([["demo-viewer", "guest"], ["real", "owner"]]);
-    expect((await db.select().from(schema.comments))[0]?.authorId).toBeNull();
+    expect((await db.select().from(schema.comments).where(eq(schema.comments.body, "hi")))[0]?.authorId).toBeNull(); // the seeded comments keep their authors
     expect(await db.select().from(schema.user).where(eq(schema.user.id, "real"))).toHaveLength(1);
   });
 

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { storageKeyFor } from "@/application/attachment-policy";
 import {
   DEMO_BOARD_ID, DEMO_OWNER_ID, DEMO_VIEWER_ID, seedDemoBoard, type SeedDeps,
 } from "@/infrastructure/seed/seed-demo-board";
 import { isOverdue } from "@/domain/entities/task";
 import { sequentialIds } from "@tests/support/app-context";
+import { memoryFiles } from "@tests/support/seed-files";
 import { uuid, type RepoHarness } from "./harness";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
@@ -50,6 +52,55 @@ export function runSeedContract(name: string, setup: () => RepoHarness): void {
         created: false, boardId: DEMO_BOARD_ID,
       });
       expect(await snapshot(DEMO_BOARD_ID)).toEqual(before);
+    });
+
+    const commentsOf = async (boardId: string) => {
+      const { tasks } = await snapshot(boardId);
+      const comments = (await Promise.all(tasks.map((t) => h.repos.comments.listByTask(t.id, { limit: 50, offset: 0 })))).flat();
+      const attachments = await h.repos.attachments.listByComments(comments.map((c) => c.id));
+      return { tasks, comments, attachments };
+    };
+
+    it("seeds comments written by the owner and by the read-only viewer, on tasks of the same board, oldest first", async () => {
+      await seedDemoBoard(deps(), { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID });
+      const { tasks, comments, attachments } = await commentsOf(DEMO_BOARD_ID);
+      expect(comments.length).toBeGreaterThanOrEqual(4);
+      expect(new Set(comments.map((c) => c.authorId))).toEqual(new Set([DEMO_OWNER_ID, DEMO_VIEWER_ID]));
+      for (const comment of comments) {
+        expect(comment.boardId).toBe(DEMO_BOARD_ID);
+        expect(tasks.map((t) => t.id)).toContain(comment.taskId);
+        expect(comment.body.length).toBeGreaterThan(0);
+      }
+      const onSameTask = comments.filter((c) => c.taskId === comments[0]!.taskId);
+      expect(onSameTask.map((c) => c.createdAt.getTime())).toEqual([...onSameTask.map((c) => c.createdAt.getTime())].sort((a, b) => a - b));
+      expect(attachments).toEqual([]); // nothing to store the bytes in: no attachment rows pointing at nothing
+    });
+
+    it("with a file store, seeds attachments on some comments only: confirmed, keyed by board and id, bytes stored (REQ-DEMO-01)", async () => {
+      const { files, objects, puts } = memoryFiles();
+      await seedDemoBoard(deps(), { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, files });
+      const { comments, attachments } = await commentsOf(DEMO_BOARD_ID);
+      expect(attachments.length).toBeGreaterThanOrEqual(2);
+      const withFile = new Set(attachments.map((a) => a.commentId));
+      expect(withFile.size).toBeLessThan(comments.length); // comments with AND without an attachment
+      for (const attachment of attachments) {
+        expect(attachment).toMatchObject({ boardId: DEMO_BOARD_ID, status: "confirmed", uploaderId: DEMO_OWNER_ID });
+        expect(attachment.storageKey).toBe(storageKeyFor(DEMO_BOARD_ID, attachment.id));
+        expect(objects.get(attachment.storageKey)).toEqual({ contentType: attachment.contentType, size: attachment.size });
+        expect(attachment.size).toBeGreaterThan(0);
+      }
+      expect(new Set(attachments.map((a) => a.contentType))).toEqual(new Set(["image/png", "text/plain"]));
+      expect(puts).toHaveLength(attachments.length);
+    });
+
+    it("a second run uploads nothing and changes nothing", async () => {
+      const { files, puts } = memoryFiles();
+      await seedDemoBoard(deps(), { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, files });
+      const before = await commentsOf(DEMO_BOARD_ID);
+      const uploaded = puts.length;
+      expect(await seedDemoBoard({ ...deps(), ids: sequentialIds("6") }, { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, files })).toMatchObject({ created: false });
+      expect(puts).toHaveLength(uploaded);
+      expect(await commentsOf(DEMO_BOARD_ID)).toEqual(before);
     });
 
     it("clones independent boards for other owners", async () => {

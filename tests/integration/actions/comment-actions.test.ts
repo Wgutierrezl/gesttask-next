@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SeededGuestSandbox, sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import * as schema from "@/infrastructure/db/schema";
@@ -59,7 +59,8 @@ async function guest() {
   const deps = drizzleDeps(handle);
   await new SeededGuestSandbox(handle.db, { uow: deps.uow, ids: { next: randomUUID }, clock: deps.clock }).provision(user);
   const boardId = sandboxBoardId(user.userId);
-  const [task] = await handle.db.select().from(schema.tasks).where(eq(schema.tasks.boardId, boardId)).limit(1);
+  // A task the demo seed left without comments, so each test starts from an empty thread.
+  const [task] = await handle.db.select().from(schema.tasks).where(and(eq(schema.tasks.boardId, boardId), eq(schema.tasks.title, "Prepare onboarding checklist")));
   return { headers: cookieHeader(response.headers), boardId, userId: user.userId, taskId: task!.id };
 }
 
