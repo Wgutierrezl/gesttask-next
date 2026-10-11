@@ -1,4 +1,4 @@
-import { createTranslator } from "next-intl";
+import { createFormatter, createTranslator } from "next-intl";
 import en from "@/i18n/messages/en.json";
 
 /**
@@ -8,5 +8,6 @@ import en from "@/i18n/messages/en.json";
 export const intlServer = {
   getLocale: async () => "en",
   getMessages: async () => en,
+  getFormatter: async () => createFormatter({ locale: "en" }),
   getTranslations: async (namespace?: string) => createTranslator({ locale: "en", messages: en, namespace: namespace as never }),
 };

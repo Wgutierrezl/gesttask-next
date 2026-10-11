@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ROLE_LABEL, type RoleName } from "./role-label";
+import type { RoleName } from "./role-label";
 
 /** One board in the list: name, description, the caller's role and whether it is archived. */
 interface BoardSummary {
@@ -12,6 +13,7 @@ interface BoardSummary {
 }
 
 export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName | undefined }) {
+  const t = useTranslations("common");
   return (
     <li>
       <Card interactive className="h-full">
@@ -19,8 +21,8 @@ export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName
           <span className="flex items-start justify-between gap-2">
             <span className="font-semibold text-slate-900">{board.name}</span>
             <span className="flex shrink-0 gap-1.5">
-              {board.status === "inactive" ? <Badge>Archived</Badge> : null}
-              {role ? <Badge tone="brand">{ROLE_LABEL[role]}</Badge> : null}
+              {board.status === "inactive" ? <Badge>{t("archived")}</Badge> : null}
+              {role ? <Badge tone="brand">{t(`roles.${role}`)}</Badge> : null}
             </span>
           </span>
           {board.description ? <span className="line-clamp-2 text-sm text-slate-600">{board.description}</span> : null}

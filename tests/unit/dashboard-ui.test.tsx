@@ -9,6 +9,7 @@ const notFound = vi.fn(() => {
   throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
 });
 vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 
 const getActor = vi.fn();
 const useCases = { getBoard: vi.fn(), getBoardDashboard: vi.fn(), getUserDashboard: vi.fn() };

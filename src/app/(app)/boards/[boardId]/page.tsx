@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { loadPage } from "@/app/_shared/load-page";
 import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
@@ -8,7 +9,9 @@ import { PipelineList } from "@/components/boards/pipeline-list";
 import { Pager, hrefFor } from "@/components/boards/pager";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("board") };
+}
 
 interface BoardPageProps {
   params: Promise<{ boardId: string }>;
@@ -17,6 +20,7 @@ interface BoardPageProps {
 
 export default async function BoardPage({ params, searchParams }: BoardPageProps) {
   await requirePageActor();
+  const t = await getTranslations("pipeline");
   const { boardId } = await params;
   const query = await searchParams;
   const [membersPage, pipelinesPage] = [parsePage(query.membersPage), parsePage(query.pipelinesPage)];
@@ -40,7 +44,7 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
       <BoardHeader board={board} role={role} />
       <section aria-labelledby="pipelines-heading">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="pipelines-heading" className="text-lg font-semibold text-slate-900">Pipelines</h2>
+          <h2 id="pipelines-heading" className="text-lg font-semibold text-slate-900">{t("heading")}</h2>
           {role === "owner" ? <CreatePipelineDialog boardId={board.id} /> : null}
         </div>
         <PipelineList boardId={board.id} pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />

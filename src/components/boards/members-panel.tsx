@@ -1,8 +1,9 @@
+import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PastTheEnd } from "./pager";
-import { ROLE_LABEL, type RoleName } from "./role-label";
+import type { RoleName } from "./role-label";
 
 export interface MemberView {
   userId: string;
@@ -13,9 +14,10 @@ export interface MemberView {
 
 /** Read-only member list; managing members lives in the board settings. */
 export function MembersPanel({ members, pastTheEndHref }: { members: MemberView[]; pastTheEndHref?: string }) {
+  const t = useTranslations();
   return (
-    <section aria-label="Members">
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">Members</h2>
+    <section aria-label={t("board.members")}>
+      <h2 className="mb-3 text-lg font-semibold text-slate-900">{t("board.members")}</h2>
       {members.length === 0 && pastTheEndHref ? <PastTheEnd what="members" href={pastTheEndHref} /> : null}
       <Card>
         <ul className="divide-y divide-slate-100">
@@ -28,7 +30,7 @@ export function MembersPanel({ members, pastTheEndHref }: { members: MemberView[
                   {member.email ? <span className="block truncate text-slate-600">{member.email}</span> : null}
                 </span>
               </span>
-              <Badge>{ROLE_LABEL[member.role]}</Badge>
+              <Badge>{t(`common.roles.${member.role}`)}</Badge>
             </li>
           ))}
         </ul>

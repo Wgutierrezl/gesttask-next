@@ -38,7 +38,9 @@ describe("message catalogs", () => {
   it.each([["en", en], ["es", es]] as const)("compiles every %s message as valid ICU", (locale, messages) => {
     const t = createTranslator({ locale, messages: messages as never, onError: (error) => { throw error; } }) as unknown as (key: string, values: Record<string, unknown>) => string;
     for (const [key, message] of Object.entries(flatten(messages))) {
-      const values = Object.fromEntries([...message.matchAll(/\{(\w+)/g)].map((m) => [m[1], 1]));
+      const args = [...message.matchAll(/\{(\w+)/g)].map((m) => [m[1], 1] as const);
+      const tags = [...message.matchAll(/<(\w+)>/g)].map((m) => [m[1], (chunks: unknown) => chunks] as const);
+      const values = Object.fromEntries([...args, ...tags]);
       expect(() => t(key, values), key).not.toThrow();
     }
   });

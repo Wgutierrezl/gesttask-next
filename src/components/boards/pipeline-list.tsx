@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Workflow } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -11,8 +12,9 @@ interface PipelineView {
 
 /** `pastTheEndHref` is set when a later page was requested: an empty list then means the page is out of range. */
 export function PipelineList({ boardId, pipelines, pastTheEndHref }: { boardId: string; pipelines: PipelineView[]; pastTheEndHref?: string }) {
+  const t = useTranslations("pipeline");
   if (pipelines.length === 0) {
-    return pastTheEndHref ? <PastTheEnd what="pipelines" href={pastTheEndHref} /> : <p className="text-sm text-slate-600">No pipelines yet.</p>;
+    return pastTheEndHref ? <PastTheEnd what="pipelines" href={pastTheEndHref} /> : <p className="text-sm text-slate-600">{t("none")}</p>;
   }
   return (
     <ul className="grid gap-4 sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 interface PagerProps {
@@ -20,20 +21,22 @@ export function hrefFor({ basePath, param = "page", preserve = {} }: Pick<PagerP
 
 /** Previous/Next links; renders nothing when there is only one page. */
 export function Pager({ page, hasNext, ...link }: PagerProps) {
+  const t = useTranslations("common");
   if (page <= 1 && !hasNext) return null;
   return (
-    <nav aria-label="Pagination" className="mt-6 flex justify-between text-sm">
-      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="font-medium text-brand-700 underline">Previous</Link> : <span />}
-      {hasNext ? <Link href={hrefFor(link, page + 1)} className="font-medium text-brand-700 underline">Next</Link> : null}
+    <nav aria-label={t("pagination")} className="mt-6 flex justify-between text-sm">
+      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="font-medium text-brand-700 underline">{t("previous")}</Link> : <span />}
+      {hasNext ? <Link href={hrefFor(link, page + 1)} className="font-medium text-brand-700 underline">{t("next")}</Link> : null}
     </nav>
   );
 }
 
 /** What a list shows when the requested page is past its end, instead of the "nothing yet" message. */
-export function PastTheEnd({ what, href }: { what: string; href: string }) {
+export function PastTheEnd({ what, href }: { what: "boards" | "members" | "pipelines"; href: string }) {
+  const t = useTranslations("common");
   return (
     <p className="text-sm text-slate-600">
-      No {what} on this page. <Link href={href} className="text-brand-700 underline">Go to the first page</Link>
+      {t(`pastTheEnd.${what}`)} <Link href={href} className="text-brand-700 underline">{t("firstPage")}</Link>
     </p>
   );
 }

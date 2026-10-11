@@ -4,6 +4,7 @@ import { renderWithIntl as render } from "@tests/support/render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), notFound: vi.fn() }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => undefined }));
 
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";

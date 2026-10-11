@@ -1,6 +1,7 @@
 "use client";
 
 import { FolderKanban, Plus, Workflow } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -24,9 +25,11 @@ function DialogButton({ label, title, icon, children }: { label: string; title: 
 
 /** No `onSuccess` here: `createBoardAction` redirects to the new board on success, which unmounts this page. */
 export function CreateBoardDialog() {
-  return <DialogButton label="Create board" title="New board" icon={<FolderKanban className="size-5" />}>{(close) => <CreateBoardForm onCancel={close} />}</DialogButton>;
+  const t = useTranslations("boards");
+  return <DialogButton label={t("create")} title={t("newBoard")} icon={<FolderKanban className="size-5" />}>{(close) => <CreateBoardForm onCancel={close} />}</DialogButton>;
 }
 
 export function CreatePipelineDialog({ boardId }: { boardId: string }) {
-  return <DialogButton label="Create pipeline" title="New pipeline" icon={<Workflow className="size-5" />}>{(close) => <CreatePipelineForm boardId={boardId} onSuccess={close} onCancel={close} />}</DialogButton>;
+  const t = useTranslations("pipeline");
+  return <DialogButton label={t("create")} title={t("newPipeline")} icon={<Workflow className="size-5" />}>{(close) => <CreatePipelineForm boardId={boardId} onSuccess={close} onCancel={close} />}</DialogButton>;
 }

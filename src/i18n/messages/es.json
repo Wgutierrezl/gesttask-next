@@ -1,6 +1,22 @@
 {
   "common": {
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "pagination": "Paginación",
+    "archived": "Archivado",
+    "firstPage": "Ir a la primera página",
+    "roles": {
+      "owner": "Propietario",
+      "member": "Miembro",
+      "guest": "Lector"
+    },
+    "pastTheEnd": {
+      "boards": "No hay tableros en esta página.",
+      "members": "No hay miembros en esta página.",
+      "pipelines": "No hay pipelines en esta página."
+    }
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -62,6 +78,105 @@
   "meta": {
     "description": "Gestión de tareas Kanban",
     "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "boards": "Tableros",
+    "board": "Tablero",
+    "boardSettings": "Ajustes del tablero",
+    "boardDashboard": "Panel del tablero",
+    "dashboard": "Panel"
+  },
+  "guest": {
+    "banner": "Estás explorando un espacio de demostración — los datos se restablecen en 24 h.",
     "createAccount": "Crear cuenta"
+  },
+  "boards": {
+    "title": "Tus tableros",
+    "description": "Todo lo que posees o en lo que colaboras.",
+    "create": "Crear tablero",
+    "newBoard": "Nuevo tablero",
+    "emptyTitle": "Aún no tienes tableros",
+    "emptyDescription": "Crea el primero para empezar a organizar el trabajo.",
+    "name": "Nombre",
+    "descriptionField": "Descripción",
+    "submit": "Crear",
+    "submitting": "Creando..."
+  },
+  "pipeline": {
+    "heading": "Pipelines",
+    "create": "Crear pipeline",
+    "newPipeline": "Nuevo pipeline",
+    "none": "Aún no hay pipelines.",
+    "defaultStages": "Un pipeline nuevo empieza con las etapas To do, In progress y Done."
+  },
+  "board": {
+    "dashboard": "Panel",
+    "settings": "Ajustes",
+    "members": "Miembros",
+    "settingsPage": {
+      "back": "Volver a {name}",
+      "title": "Ajustes del tablero",
+      "details": "Detalles",
+      "status": "Estado",
+      "delete": "Eliminar tablero"
+    },
+    "edit": {
+      "save": "Guardar cambios",
+      "saving": "Guardando...",
+      "saved": "Guardado."
+    },
+    "archive": {
+      "archivedText": "Este tablero está archivado. Restáuralo para marcarlo de nuevo como activo.",
+      "activeText": "Archiva el tablero cuando el trabajo termine. No se elimina nada.",
+      "restore": "Restaurar tablero",
+      "archive": "Archivar tablero",
+      "pending": "Actualizando..."
+    },
+    "remove": {
+      "delete": "Eliminar tablero",
+      "deleting": "Eliminando...",
+      "confirmText": "Entiendo que este tablero y todos sus datos se eliminarán.",
+      "warning": "Eliminar <strong>{name}</strong> borra de forma permanente sus pipelines, tareas y membresías. Esta acción no se puede deshacer."
+    },
+    "member": {
+      "email": "Correo electrónico",
+      "role": "Rol",
+      "add": "Añadir miembro",
+      "adding": "Añadiendo...",
+      "added": "Miembro añadido.",
+      "roleOf": "Rol de {name}",
+      "update": "Actualizar",
+      "updateAria": "Actualizar el rol de {name}",
+      "updating": "Guardando...",
+      "remove": "Quitar",
+      "removeAria": "Quitar a {name}",
+      "removing": "Quitando...",
+      "loseAccessSelf": "Perderé el acceso a este tablero",
+      "loseAccess": "{name} perderá el acceso a este tablero"
+    }
+  },
+  "dashboard": {
+    "title": "Tu panel",
+    "description": "Un resumen de tus tableros y del trabajo que tienes asignado.",
+    "boardsYouAreOn": "Tableros en los que participas",
+    "assigned": "Asignado a ti",
+    "nothingAssigned": "Todavía no tienes nada asignado.",
+    "back": "Volver al tablero",
+    "tasksOnBoard": "Tareas del tablero",
+    "byPipeline": "Por pipeline y etapa",
+    "noPipelines": "Aún no hay pipelines, así que no hay nada que contar.",
+    "members": "{count, plural, one {# miembro} other {# miembros}}",
+    "tasks": "{count, plural, one {# tarea} other {# tareas}}",
+    "stage": "Etapa",
+    "doneStage": "(etapa final)",
+    "noStages": "Aún no hay etapas",
+    "counts": {
+      "total": "Total",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja",
+      "active": "Activas",
+      "inactive": "Inactivas",
+      "overdue": "Vencidas"
+    }
   }
 }
