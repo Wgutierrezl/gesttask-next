@@ -24,7 +24,7 @@ export function LanguageForm() {
             lang={locale}
             variant={locale === current ? "primary" : "secondary"}
             size="sm"
-            aria-current={locale === current ? "true" : undefined}
+            aria-pressed={locale === current}
             className="flex-1"
           >
             {label}

@@ -20,6 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  // S16: when the server-only `errors` catalog arrives, prune `messages` by namespace here so it never reaches the client.
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   return (
     <html lang={locale} className={geist.variable}>

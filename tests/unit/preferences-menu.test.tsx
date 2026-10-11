@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/support/render";
 
@@ -23,15 +23,32 @@ describe("PreferencesMenu", () => {
     expect(english.getAttribute("type")).toBe("submit");
     expect([english.getAttribute("name"), english.getAttribute("value")]).toEqual(["locale", "en"]);
     expect([spanish.getAttribute("name"), spanish.getAttribute("value")]).toEqual(["locale", "es"]);
-    expect(english.getAttribute("aria-current")).toBe("true");
-    expect(spanish.getAttribute("aria-current")).toBeNull();
+    expect(english.getAttribute("aria-pressed")).toBe("true");
+    expect(spanish.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("localizes its names and follows the active locale", () => {
     const { container } = renderWithIntl(<PreferencesMenu />, { locale: "es" });
     expect(container.querySelector("summary")?.getAttribute("aria-label")).toBe("Preferencias");
     const form = screen.getByRole("form", { name: "Idioma" });
-    expect(within(form).getByRole("button", { name: "Español" }).getAttribute("aria-current")).toBe("true");
-    expect(within(form).getByRole("button", { name: "English" }).getAttribute("aria-current")).toBeNull();
+    expect(within(form).getByRole("button", { name: "Español" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(form).getByRole("button", { name: "English" }).getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("closes on Escape, returning focus to the summary", () => {
+    const { container } = renderWithIntl(<PreferencesMenu />);
+    const details = container.querySelector("details")!;
+    details.open = true;
+    fireEvent.keyDown(screen.getByRole("button", { name: "English" }), { key: "Escape" });
+    expect(details.open).toBe(false);
+    expect(document.activeElement).toBe(container.querySelector("summary"));
+  });
+
+  it("closes after a language is chosen", () => {
+    const { container } = renderWithIntl(<PreferencesMenu />);
+    const details = container.querySelector("details")!;
+    details.open = true;
+    fireEvent.submit(screen.getByRole("form", { name: "Language" }));
+    expect(details.open).toBe(false);
   });
 });
