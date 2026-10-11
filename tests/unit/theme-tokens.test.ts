@@ -30,6 +30,10 @@ describe("theme tokens", () => {
     expect(system).toEqual(dark);
   });
 
+  it("parses a real token set from each block (guards the parser against matching nothing)", () => {
+    for (const tokens of [light, dark, system]) expect(Object.keys(tokens).length).toBeGreaterThan(35);
+  });
+
   it("defines the same tokens in light and dark, and tells the browser which scheme is active", () => {
     expect(Object.keys(dark).sort()).toEqual(Object.keys(light).sort());
     expect([light["color-scheme"], dark["color-scheme"]]).toEqual(["light", "dark"]);
@@ -42,7 +46,7 @@ describe("theme tokens", () => {
   describe.each([["light", light], ["dark", dark]] as const)("contrast in %s", (_name, t) => {
     const surfaces = ["--canvas", "--surface", "--elevated"] as const;
     it.each(surfaces)("text tokens reach 4.5:1 on %s", (surface) => {
-      for (const fg of ["--fg", "--fg-muted", "--fg-subtle", "--brand-link"]) {
+      for (const fg of ["--fg", "--fg-strong", "--fg-muted", "--fg-subtle", "--brand-link"]) {
         expect(contrast(t[fg]!, t[surface]!), `${fg} on ${surface}`).toBeGreaterThanOrEqual(4.5);
       }
     });
@@ -56,8 +60,12 @@ describe("theme tokens", () => {
     it.each(surfaces)("the focus ring reaches 3:1 on %s", (surface) => expect(contrast(t["--ring"]!, t[surface]!)).toBeGreaterThanOrEqual(3));
   });
 
-  it("white on the primary button gradient keeps 4.5:1 in both themes (the gradient is theme independent)", () => {
-    expect(contrast("#ffffff", "#4f46e5")).toBeGreaterThanOrEqual(4.5);
-    expect(contrast("#ffffff", "#4338ca")).toBeGreaterThanOrEqual(4.5);
+  it("white on the primary gradient and the danger fill keeps 4.5:1 (these fills are theme independent)", () => {
+    const theme = (name: string) => css.match(new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1] ?? "";
+    const gradient = css.match(/bg-brand-gradient[\s\S]*?linear-gradient\(135deg, var\(--color-([\w-]+)\), var\(--color-([\w-]+)\)\)/)!;
+    for (const name of [gradient[1]!, gradient[2]!, "danger-600", "danger-700"]) {
+      expect(theme(name), name).toMatch(/^#/);
+      expect(contrast("#ffffff", theme(name)), name).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
