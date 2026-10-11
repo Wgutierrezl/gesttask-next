@@ -57,19 +57,72 @@ describe("task placement", () => {
       expect(back.completedAt).toBeNull();
     });
 
-    it("answers NotFound for destinations in another board or pipeline and leaves the task untouched", async () => {
+    it("answers NotFound for destinations in another board or a missing stage and leaves the task untouched", async () => {
       const t = await add("T");
       const other = await makeCreateBoard(ctx)(STRANGER, { name: "Other" });
       const foreignPipeline = await makeCreatePipeline(ctx)(STRANGER, { boardId: other.id, name: "P" });
       const foreignStage = await makeCreateStage(ctx)(STRANGER, { pipelineId: foreignPipeline.id, name: "S" });
-      const sibling = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
-      const siblingStage = await makeCreateStage(ctx)(OWNER, { pipelineId: sibling.id, name: "S" });
-      for (const toStageId of [foreignStage.id, siblingStage.id, ghost]) {
+      for (const toStageId of [foreignStage.id, ghost]) {
         await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId, afterTaskId: null })).rejects.toBeInstanceOf(
           NotFoundError,
         );
       }
       expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, position: t.position });
+    });
+
+    describe("to a stage of a sibling pipeline of the same board (ADR 0019)", () => {
+      const sibling = async () => {
+        const pipeline = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
+        const stages = await ctx.repos.stages.listByPipeline(pipeline.id);
+        const byName = (name: string) => stages.find((s) => s.name === name)!.id;
+        return { pipelineId: pipeline.id, todoId: byName("To do"), doneId: byName("Done") };
+      };
+
+      it("moves the task there, re-parents it and lands it per the requested position", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        const x = await makeCreateTask(ctx)(OWNER, { stageId: p2.todoId, title: "X" });
+        const y = await makeCreateTask(ctx)(OWNER, { stageId: p2.todoId, title: "Y" });
+        const moved = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: x.id });
+        expect(moved).toMatchObject({ id: t.id, stageId: p2.todoId, pipelineId: p2.pipelineId, boardId: k.boardId });
+        expect(await order(p2.todoId)).toEqual(["X", "T", "Y"]);
+        expect(await order(k.todoId)).toEqual([]);
+        expect(y.pipelineId).toBe(p2.pipelineId);
+        expect((await ctx.repos.tasks.findById(t.id))?.pipelineId).toBe(p2.pipelineId);
+        await makeMoveTask(ctx)(OWNER, { taskId: x.id, toStageId: k.todoId, toEnd: true });
+        expect(await order(k.todoId)).toEqual(["X"]);
+        expect((await ctx.repos.tasks.findById(x.id))?.pipelineId).toBe(k.pipelineId);
+      });
+
+      it("sets completedAt entering a done stage of the other pipeline and clears it leaving", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        const done = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.doneId, toEnd: true });
+        expect(done).toMatchObject({ pipelineId: p2.pipelineId, completedAt: ctx.clock.now() });
+        const back = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect(back.completedAt).toBeNull();
+        const p1Done = await add("D", k.doneId);
+        expect(p1Done.completedAt).not.toBeNull();
+        const kept = await makeMoveTask(ctx)(OWNER, { taskId: p1Done.id, toStageId: p2.doneId, toEnd: true });
+        expect(kept.completedAt).toEqual(p1Done.completedAt);
+      });
+
+      it("keeps the permission of a move: viewers and strangers are refused with no effect", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        await expect(makeMoveTask(ctx)(GUEST, { taskId: t.id, toStageId: p2.todoId, toEnd: true })).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(makeMoveTask(ctx)(STRANGER, { taskId: t.id, toStageId: p2.todoId, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, pipelineId: k.pipelineId });
+        await makeMoveTask(ctx)(MEMBER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect((await ctx.repos.tasks.findById(t.id))?.pipelineId).toBe(p2.pipelineId);
+      });
+
+      it("refuses an anchor that is not in the destination column", async () => {
+        const p2 = await sibling();
+        const [a, b] = [await add("A"), await add("B")];
+        await expect(makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: p2.todoId, afterTaskId: b.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect((await ctx.repos.tasks.findById(a.id))?.pipelineId).toBe(k.pipelineId);
+      });
     });
 
     it("answers NotFound when the anchor task is unknown or in another stage", async () => {
@@ -155,11 +208,12 @@ describe("task placement", () => {
       }
     });
 
-    it("keeps the destination rules: foreign stage, other pipeline and viewers are refused", async () => {
+    it("keeps the destination rules: foreign stage and viewers are refused", async () => {
       const t = await add("T");
-      const sibling = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
-      const siblingStage = await makeCreateStage(ctx)(OWNER, { pipelineId: sibling.id, name: "S" });
-      await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: siblingStage.id, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+      const other = await makeCreateBoard(ctx)(STRANGER, { name: "Other" });
+      const foreignPipeline = await makeCreatePipeline(ctx)(STRANGER, { boardId: other.id, name: "P" });
+      const foreignStage = await makeCreateStage(ctx)(STRANGER, { pipelineId: foreignPipeline.id, name: "S" });
+      await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: foreignStage.id, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
       await expect(makeMoveTask(ctx)(GUEST, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(ForbiddenError);
       await expect(makeMoveTask(ctx)(STRANGER, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
     });

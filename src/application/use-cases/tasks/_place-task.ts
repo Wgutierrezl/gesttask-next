@@ -1,13 +1,15 @@
 import { ConflictError, NotFoundError } from "@/domain/errors";
 import { resolveCompletedAt, withOverdue, type Task, type TaskView } from "@/domain/entities/task";
+import type { Stage } from "@/domain/entities/pipeline";
 import type { AppDeps } from "../../deps";
 import { placeAfter, placeAtEnd } from "../../placement";
 
 /**
  * Shared by move and reorder: puts the task in `toStageId` (null = where it currently is) right
  * after `afterTaskId` (null = top). The task is re-read inside the transaction so concurrent edits
- * to its other fields survive. `"end"` as the anchor resolves the last task of the destination inside the transaction. The destination must live in the task's own pipeline, otherwise it
- * is indistinguishable from a missing one (REQ-ISO-07). Dropping a task on itself changes nothing.
+ * to its other fields survive. `"end"` as the anchor resolves the last task of the destination inside the transaction.
+ * The destination may live in any pipeline of the task's own board (ADR 0019); a stage of another board is
+ * indistinguishable from a missing one. Dropping a task on itself changes nothing.
  */
 export async function placeTask(
   deps: AppDeps,
@@ -19,12 +21,21 @@ export async function placeTask(
   // Pipeline and column are read from a snapshot only to know WHAT to lock; the task itself is re-read under lock.
   const origin = await deps.repos.tasks.findById(taskId);
   if (!origin) throw new NotFoundError();
+  let destinationPipelineId = origin.pipelineId;
+  if (toStageId && toStageId !== origin.stageId) {
+    const target = await deps.repos.stages.findById(toStageId);
+    if (!target || target.boardId !== origin.boardId) throw new NotFoundError();
+    destinationPipelineId = target.pipelineId;
+  }
   const placed = await deps.uow.run(async (tx) => {
-    // Lock order: stage list, then task columns in stage-id order; the task is picked from its column.
-    const stages = await tx.stages.listByPipeline(origin.pipelineId);
+    // Lock order: pipelines (by id) with their stage lists, then task columns in stage-id order; the task is picked from its column.
     const destinationId = toStageId ?? origin.stageId;
-    const destination = stages.find((s) => s.id === destinationId);
-    if (!destination) throw new NotFoundError();
+    let destination: Stage | undefined;
+    for (const pipelineId of [...new Set([origin.pipelineId, destinationPipelineId])].sort()) {
+      const found = (await tx.stages.listByPipeline(pipelineId)).find((s) => s.id === destinationId);
+      if (found) destination = found;
+    }
+    if (!destination || destination.pipelineId !== destinationPipelineId) throw new NotFoundError();
     const columns = new Map<string, Task[]>();
     for (const id of [...new Set([origin.stageId, destinationId])].sort()) columns.set(id, await tx.tasks.listByStage(id));
     const task = columns.get(origin.stageId)?.find((t) => t.id === taskId);
@@ -41,6 +52,7 @@ export async function placeTask(
     for (const relocated of placement.relocated) await tx.tasks.update(relocated);
     const moved: Task = {
       ...task,
+      pipelineId: destination.pipelineId,
       stageId: destinationId,
       position: placement.position,
       completedAt: resolveCompletedAt(task.completedAt, destination.isDone, now),
