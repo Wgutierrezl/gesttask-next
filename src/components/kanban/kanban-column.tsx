@@ -9,7 +9,7 @@ export function ColumnShell({ column, listRef, isOver = false, children }: { col
   const { stage, tasks } = column;
   const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
   return (
-    <section aria-label={`${stage.name}, ${count}`} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card bg-slate-100 p-3 transition-colors duration-[var(--duration-fast)]", isOver && "bg-brand-50 ring-2 ring-brand-600")}>
+    <section aria-label={`${stage.name}, ${count}`} data-drop-target={isOver} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card p-3 transition-colors duration-[var(--duration-fast)]", isOver ? "bg-brand-50 ring-2 ring-brand-600" : "bg-slate-100")}>
       <header className="flex items-center justify-between gap-2">
         <h3 className="font-semibold text-slate-900">{stage.name}</h3>
         <span className="flex items-center gap-2">

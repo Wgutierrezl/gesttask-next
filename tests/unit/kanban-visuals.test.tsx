@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ColumnView, TaskCardView } from "@/components/kanban/types";
 
 vi.mock("@/app/_actions/tasks", () => ({ moveTaskAction: vi.fn(), moveTaskToEndAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+
+const dnd = vi.hoisted(() => ({ props: undefined as undefined | { onDragOver: (event: unknown) => void } }));
+vi.mock("@dnd-kit/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@dnd-kit/core")>();
+  return { ...actual, DndContext: (props: never) => ((dnd.props = props), createElement(actual.DndContext, props)) };
+});
 
 const { TaskCard } = await import("@/components/kanban/task-card");
 const { KanbanColumn } = await import("@/components/kanban/kanban-column");
@@ -52,12 +60,55 @@ describe("KanbanColumn visuals", () => {
   });
 });
 
-describe("KanbanBoard layout", () => {
-  it("exposes the columns in a scrollable, snap-aligned strip and keeps the live region", () => {
-    const columns: ColumnView[] = [{ stage: { id: "s1", name: "To do", isDone: false }, tasks: [task()] }];
+describe("TaskCard completed", () => {
+  it("does not flag a completed task as overdue", () => {
+    render(<TaskCard task={task({ dueDate: "2026-10-01", overdue: true, completedAt: "2026-10-02T10:00:00.000Z" })} assigneeName={null} />);
+    expect(screen.queryByText("Overdue")).toBeNull();
+  });
+});
+
+describe("KanbanColumn empty", () => {
+  it("says there are no tasks", () => {
+    render(<KanbanColumn column={{ stage: { id: "s1", name: "Empty", isDone: false }, tasks: [] }} nameOf={() => null} />);
+    expect(within(screen.getByRole("region", { name: "Empty, 0 tasks" })).getByText("No tasks")).toBeTruthy();
+  });
+});
+
+describe("KanbanBoard dragging", () => {
+  const columns: ColumnView[] = [
+    { stage: { id: "s1", name: "To do", isDone: false }, tasks: [task()] },
+    { stage: { id: "s2", name: "Done", isDone: true }, tasks: [] },
+  ];
+
+  it("keeps the live region and drag handle", () => {
     render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
     expect(screen.getByRole("status", { name: "Board updates" })).toBeTruthy();
-    expect(screen.getByTestId("board-scroller").className).toMatch(/snap-x/);
     expect(screen.getByRole("button", { name: "Drag Write docs" })).toBeTruthy();
+  });
+
+  it("exposes only one heading for the dragged card while dragging, and clears the dragging state on cancel", async () => {
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
+    const scroller = screen.getByTestId("board-scroller");
+    expect(scroller.getAttribute("data-dragging")).toBe("false");
+    screen.getByRole("button", { name: "Drag Write docs" }).focus();
+    await user.keyboard(" ");
+    await waitFor(() => expect(scroller.getAttribute("data-dragging")).toBe("true"));
+    expect(screen.getAllByRole("heading", { level: 4, name: "Write docs" })).toHaveLength(1);
+    expect(document.querySelectorAll("h4")).toHaveLength(2);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(scroller.getAttribute("data-dragging")).toBe("false"));
+  });
+
+  it("marks the column the pointer is over as the drop target, from a card id or a column id", () => {
+    render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
+    const done = () => screen.getByRole("region", { name: "Done, 0 tasks" });
+    act(() => dnd.props!.onDragOver({ over: { id: "column:s2" } }));
+    expect(done().getAttribute("data-drop-target")).toBe("true");
+    act(() => dnd.props!.onDragOver({ over: { id: "t1" } }));
+    expect(done().getAttribute("data-drop-target")).toBe("false");
+    expect(screen.getByRole("region", { name: "To do, 1 task" }).getAttribute("data-drop-target")).toBe("true");
+    act(() => dnd.props!.onDragOver({ over: null }));
+    expect(done().getAttribute("data-drop-target")).toBe("false");
   });
 });

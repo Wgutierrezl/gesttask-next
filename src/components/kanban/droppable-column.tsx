@@ -10,6 +10,8 @@ import type { ColumnView } from "./types";
 interface DroppableColumnProps {
   column: ColumnView;
   columns: ColumnView[];
+  /** True while a dragged card hovers this stage, whether over its open area or one of its cards. */
+  isOver: boolean;
   nameOf: (userId: string) => string | null;
   taskHref: (taskId: string) => string;
   onMove: (request: MoveRequest) => void;
@@ -17,8 +19,8 @@ interface DroppableColumnProps {
 }
 
 /** A stage that accepts drops on its open area (so an empty stage can receive a card) and sorts the cards inside it. */
-export function DroppableColumn({ column, columns, nameOf, taskHref, onMove, registerHandle }: DroppableColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: columnId(column.stage.id) });
+export function DroppableColumn({ column, columns, isOver, nameOf, taskHref, onMove, registerHandle }: DroppableColumnProps) {
+  const { setNodeRef } = useDroppable({ id: columnId(column.stage.id) });
   return (
     <SortableContext items={column.tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
       <ColumnShell column={column} listRef={setNodeRef} isOver={isOver}>

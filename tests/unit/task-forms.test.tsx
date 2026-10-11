@@ -56,6 +56,7 @@ describe("CreateTaskForm", () => {
     expect(await screen.findByText("Too small")).toBeTruthy();
     expect(screen.getByLabelText("Title").getAttribute("aria-invalid")).toBe("true");
     expect(screen.getByLabelText("Due date").getAttribute("aria-describedby")).toBeTruthy();
+    expect((await screen.findAllByRole("alert")).map((a) => a.textContent)).toContain("Please fix the highlighted fields.");
   });
 
   it("shows the guest task limit as a readable message", async () => {

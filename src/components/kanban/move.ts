@@ -15,6 +15,12 @@ export interface MoveRequest {
 export const COLUMN_PREFIX = "column:";
 export const columnId = (stageId: string) => `${COLUMN_PREFIX}${stageId}`;
 
+/** The stage a droppable id belongs to: a column id names it, a card id names the stage that holds the card. */
+export function stageOfDroppable(columns: ColumnView[], id: string): string | null {
+  if (id.startsWith(COLUMN_PREFIX)) return id.slice(COLUMN_PREFIX.length);
+  return columns.find((column) => column.tasks.some((task) => task.id === id))?.stage.id ?? null;
+}
+
 /**
  * The board as it will look once `move` succeeds, mirroring the server rules (completed in the done stage,
  * reopened anywhere else). `overdue` is left as the server last said: it depends on the server's date, so it
