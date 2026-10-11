@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
+      // json-summary feeds `pnpm coverage:badge`.
+      reporter: ["text", "html", "json-summary"],
       // Verified: with no matching files (slice 0) vitest reports 0/0 and exits 0; as soon as a file
       // exists under these globs (slice 1) the 90% global thresholds apply and fail the run below it.
       // `all` is implicit: uncovered files inside `include` count as 0%.

@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:coverage": "vitest run --project unit --coverage",
+    "coverage:badge": "tsx scripts/coverage-badge.ts",
     "test:integration": "vitest run --project integration",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
