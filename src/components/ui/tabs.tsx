@@ -27,7 +27,7 @@ export function TabLink({ current = false, highlighted = false, className, child
         data-drop-target={highlighted}
         className={cn(
           "inline-flex items-center gap-2 whitespace-nowrap rounded-t-control border-b-2 px-3 py-2 text-sm font-medium transition-colors duration-[var(--duration-fast)] focus-visible:outline-2 focus-visible:outline-ring",
-          current ? "border-brand-600 text-brand-link" : "border-transparent text-fg-muted hover:bg-surface-muted hover:text-fg",
+          current ? "border-accent text-brand-link" : "border-transparent text-fg-muted hover:bg-surface-muted hover:text-fg",
           highlighted && "bg-brand-soft ring-2 ring-ring",
           className,
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 import { setThemeAction } from "@/app/_actions/preferences";
 import { Button } from "@/components/ui/button";
 import type { Theme } from "@/theme/config";
@@ -10,14 +11,15 @@ import { useTheme } from "./theme-context";
 export function ThemeForm() {
   const t = useTranslations("shell");
   const current = useTheme();
+  const labelId = useId();
   const options: { theme: Theme; label: string }[] = [
     { theme: "light", label: t("themeLight") },
     { theme: "dark", label: t("themeDark") },
     { theme: "system", label: t("themeSystem") },
   ];
   return (
-    <form action={setThemeAction} aria-label={t("theme")} className="flex flex-col gap-1">
-      <span aria-hidden="true" className="px-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t("theme")}</span>
+    <form action={setThemeAction} role="group" aria-labelledby={labelId} className="flex flex-col gap-1">
+      <span id={labelId} className="px-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t("theme")}</span>
       <div className="flex gap-1">
         {options.map(({ theme, label }) => (
           <Button

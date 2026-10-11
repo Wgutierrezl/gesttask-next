@@ -23,7 +23,7 @@ export default function HomePage() {
           <h1 className="text-4xl font-bold tracking-tight text-fg sm:text-5xl">
             GestTask
           </h1>
-          <p className="text-lg text-fg-muted">{t("tagline")}</p>
+          <p className="text-lg text-fg-strong">{t("tagline")}</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <LinkButton href="/login" variant="secondary">{t("signIn")}</LinkButton>
             <LinkButton href="/register" variant="secondary">{t("createAccount")}</LinkButton>
@@ -38,7 +38,7 @@ export default function HomePage() {
             <li key={key}>
               <Card className="h-full">
                 <CardBody className="flex flex-col gap-2">
-                  <Icon aria-hidden="true" className="size-6 text-brand-link" />
+                  <Icon aria-hidden="true" className="size-6 text-accent" />
                   <h3 className="font-semibold text-fg">{t(`features.${key}.title`)}</h3>
                   <p className="text-sm text-fg-muted">{t(`features.${key}.text`)}</p>
                 </CardBody>

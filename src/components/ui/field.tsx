@@ -2,7 +2,7 @@ import { cloneElement, useId, type ComponentProps, type ReactElement, type React
 import { cn } from "./cn";
 
 const CONTROL =
-  "w-full rounded-control border border-border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle " +
+  "w-full rounded-control border border-border-control bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-subtle " +
   "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-60 aria-invalid:border-danger-600 " +
   // Inside a modal the controls are roomier, like the dialog's own spacing.
   "in-[dialog]:rounded-xl in-[dialog]:px-4 in-[dialog]:py-3";
@@ -42,7 +42,7 @@ export function Field({ label, hint, error, required = false, children }: FieldP
   const described = [children.props["aria-describedby"], hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-fg-muted">
+      <label htmlFor={id} className="text-sm font-medium text-fg-strong">
         {label}
         {required && <span aria-hidden="true" className="ml-0.5 text-danger-fg">*</span>}
       </label>

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { setLocaleAction } from "@/app/_actions/preferences";
 import { Button } from "@/components/ui/button";
@@ -7,13 +8,14 @@ import type { Locale } from "@/i18n/config";
 export function LanguageForm() {
   const t = useTranslations("shell");
   const current = useLocale();
+  const labelId = useId();
   const options: { locale: Locale; label: string }[] = [
     { locale: "en", label: t("languageEnglish") },
     { locale: "es", label: t("languageSpanish") },
   ];
   return (
-    <form action={setLocaleAction} aria-label={t("language")} className="flex flex-col gap-1">
-      <span aria-hidden="true" className="px-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t("language")}</span>
+    <form action={setLocaleAction} role="group" aria-labelledby={labelId} className="flex flex-col gap-1">
+      <span id={labelId} className="px-1 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t("language")}</span>
       <div className="flex gap-1">
         {options.map(({ locale, label }) => (
           <Button

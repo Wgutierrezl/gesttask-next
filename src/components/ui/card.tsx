@@ -15,7 +15,7 @@ export function Card({ interactive = false, className, ...rest }: ComponentProps
 }
 
 export function CardHeader({ className, ...rest }: ComponentProps<"div">) {
-  return <div className={cn("border-b border-border px-5 py-4", className)} {...rest} />;
+  return <div className={cn("border-b border-border-subtle px-5 py-4", className)} {...rest} />;
 }
 
 export function CardBody({ className, ...rest }: ComponentProps<"div">) {

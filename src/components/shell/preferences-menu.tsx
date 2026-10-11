@@ -32,7 +32,7 @@ export function PreferencesMenu({ floating = false }: { floating?: boolean }) {
     >
       <summary
         aria-label={t("preferences")}
-        className="flex size-9 cursor-pointer list-none items-center justify-center rounded-control border border-border-strong bg-surface text-fg-muted hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden"
+        className="flex size-9 cursor-pointer list-none items-center justify-center rounded-control border border-border-control bg-surface text-fg-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden"
       >
         <SlidersHorizontal aria-hidden="true" className="size-4" />
       </summary>

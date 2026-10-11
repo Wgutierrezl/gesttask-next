@@ -4,8 +4,8 @@ import { cn } from "./cn";
 
 const VARIANTS = {
   primary: "bg-brand-gradient text-white shadow-brand hover:brightness-95",
-  secondary: "border border-border-strong bg-surface text-fg hover:bg-surface-muted",
-  ghost: "text-fg-muted hover:bg-surface-muted",
+  secondary: "border border-border-control bg-surface text-fg hover:bg-surface-hover",
+  ghost: "text-fg-strong hover:bg-surface-muted",
   danger: "bg-danger-600 text-white hover:bg-danger-700",
 } as const;
 

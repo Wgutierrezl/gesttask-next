@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 const TONES = {
-  neutral: "bg-surface-muted text-fg-muted",
+  neutral: "bg-surface-muted text-fg-strong",
   brand: "bg-brand-soft text-brand-link",
   success: "bg-success-soft text-success-fg",
   warning: "bg-warning-soft text-warning-fg",

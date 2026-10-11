@@ -55,7 +55,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
         pressedOnBackdrop.current = false;
       }}
       className={cn(
-        "m-auto max-h-[90vh] w-full overflow-hidden rounded-2xl border border-border bg-elevated p-0 text-fg shadow-pop open:flex open:flex-col open:animate-modal-in",
+        "m-auto max-h-[90vh] w-full overflow-hidden rounded-2xl border border-elevated-edge bg-elevated p-0 text-fg shadow-dialog open:flex open:flex-col open:animate-modal-in",
         "backdrop:bg-backdrop backdrop:backdrop-blur-sm backdrop:animate-fade-in",
         SIZES[size],
       )}
@@ -63,7 +63,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border p-6">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-link">
+            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-icon-from to-icon-to text-icon-fg">
               {icon}
             </span>
           ) : null}
@@ -78,7 +78,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
             type="button"
             aria-label={t("close")}
             onClick={() => ref.current?.close()}
-            className="rounded-lg p-2 text-fg-subtle transition-colors hover:bg-surface-muted hover:text-fg-muted focus-visible:outline-2 focus-visible:outline-ring"
+            className="rounded-lg p-2 text-fg-subtle transition-colors hover:bg-surface-muted hover:text-fg-strong focus-visible:outline-2 focus-visible:outline-ring"
           >
             <X aria-hidden="true" className="size-5" />
           </button>
