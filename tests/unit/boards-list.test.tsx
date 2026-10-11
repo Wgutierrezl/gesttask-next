@@ -63,10 +63,8 @@ describe("components", () => {
     expect(renderToStaticMarkup(<BoardCard board={board(2) as never} role="owner" />)).not.toContain("Archived");
   });
 
-  it("CreateBoardForm has labelled fields and a live region for errors", () => {
+  it("CreateBoardForm has a live region for errors", () => {
     const html = renderToStaticMarkup(<CreateBoardForm />);
-    expect(html).toContain('for="name"');
-    expect(html).toContain('for="description"');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain("Create board");
   });

@@ -1,26 +1,28 @@
 "use client";
 
-import { useActionState } from "react";
 import { createPipelineAction } from "@/app/_actions/pipelines";
-import { failureOf } from "@/app/_shared/mutation-state";
-import { FormError } from "@/components/auth/form-error";
-import { FormField } from "@/components/auth/form-field";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { MutationForm } from "@/components/ui/mutation-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 /** New pipelines start with the stages To do, In progress and Done. */
-export function CreatePipelineForm({ boardId }: { boardId: string }) {
-  const [state, formAction] = useActionState(createPipelineAction, undefined);
-  const failure = failureOf(state);
+export function CreatePipelineForm({ boardId, onSuccess }: { boardId: string; onSuccess?: () => void }) {
   return (
-    <form action={formAction} className="flex max-w-md flex-col gap-4">
-      <input type="hidden" name="boardId" value={boardId} />
-      <FormField label="Name" name="name" maxLength={100} errors={failure?.fieldErrors?.name} />
-      <FormField label="Description" name="description" multiline required={false} maxLength={2000} errors={failure?.fieldErrors?.description} />
-      <FormError failure={failure} inlineFields={["name", "description"]} />
-      <p className="text-xs text-gray-600">A new pipeline starts with the stages To do, In progress and Done.</p>
-      <div>
-        <SubmitButton pendingLabel="Creating...">Create pipeline</SubmitButton>
-      </div>
-    </form>
+    <MutationForm action={createPipelineAction} hidden={{ boardId }} inlineFields={["name", "description"]} onSuccess={onSuccess} className="flex flex-col gap-4">
+      {(failure) => (
+        <>
+          <Field label="Name" required error={failure?.fieldErrors?.name?.join(" ")}>
+            <Input name="name" maxLength={100} required />
+          </Field>
+          <Field label="Description" error={failure?.fieldErrors?.description?.join(" ")}>
+            <Textarea name="description" rows={3} maxLength={2000} />
+          </Field>
+          <p className="text-xs text-slate-600">A new pipeline starts with the stages To do, In progress and Done.</p>
+          <div>
+            <SubmitButton pendingLabel="Creating...">Create pipeline</SubmitButton>
+          </div>
+        </>
+      )}
+    </MutationForm>
   );
 }

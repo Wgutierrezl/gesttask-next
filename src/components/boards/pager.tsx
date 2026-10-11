@@ -22,9 +22,9 @@ export function hrefFor({ basePath, param = "page", preserve = {} }: Pick<PagerP
 export function Pager({ page, hasNext, ...link }: PagerProps) {
   if (page <= 1 && !hasNext) return null;
   return (
-    <nav aria-label="Pagination" className="mt-4 flex justify-between text-sm">
-      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="underline">Previous</Link> : <span />}
-      {hasNext ? <Link href={hrefFor(link, page + 1)} className="underline">Next</Link> : null}
+    <nav aria-label="Pagination" className="mt-6 flex justify-between text-sm">
+      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="font-medium text-brand-700 underline">Previous</Link> : <span />}
+      {hasNext ? <Link href={hrefFor(link, page + 1)} className="font-medium text-brand-700 underline">Next</Link> : null}
     </nav>
   );
 }
@@ -32,8 +32,8 @@ export function Pager({ page, hasNext, ...link }: PagerProps) {
 /** What a list shows when the requested page is past its end, instead of the "nothing yet" message. */
 export function PastTheEnd({ what, href }: { what: string; href: string }) {
   return (
-    <p className="text-sm text-gray-600">
-      No {what} on this page. <Link href={href} className="underline">Go to the first page</Link>
+    <p className="text-sm text-slate-600">
+      No {what} on this page. <Link href={href} className="text-brand-700 underline">Go to the first page</Link>
     </p>
   );
 }
