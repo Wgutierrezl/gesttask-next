@@ -8,7 +8,6 @@ import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { Alert } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { buildColumns } from "@/components/kanban/columns";
-import { CreateTaskForm } from "@/components/kanban/create-task-form";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { StageManager } from "@/components/kanban/stage-manager";
 import { getContainer } from "@/infrastructure/container";
@@ -56,15 +55,8 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
       {data.loaded.truncated ? <Notice>Showing the first 1000 tasks of this pipeline.</Notice> : null}
       {data.stages.truncated ? <Notice>Showing the first {LIST_LOAD_CAP} stages of this pipeline.</Notice> : null}
       {data.members.truncated ? <Notice>Showing the first {LIST_LOAD_CAP} members to choose as assignee.</Notice> : null}
-      {canWrite ? (
-        <details className="rounded-card border border-slate-200 bg-white p-3 shadow-card">
-          <summary className="cursor-pointer text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-600">Add a task</summary>
-          <div className="mt-3">
-            <CreateTaskForm stages={columns.map(({ stage }) => ({ id: stage.id, name: stage.name }))} members={data.members.items.map(({ userId, name }) => ({ userId, name }))} />
-          </div>
-        </details>
-      ) : null}
-      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} switcher={{ boardId, pipelineId, pipelines: data.pipelines }} />
+      {canWrite && columns.length === 0 ? <Notice>Add a stage first: tasks live inside stages.</Notice> : null}
+      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} switcher={{ boardId, pipelineId, pipelines: data.pipelines }} members={canWrite ? data.members.items.map(({ userId, name }) => ({ userId, name })) : undefined} />
       {data.role === "owner" ? (
         <StageManager pipelineId={pipelineId} truncated={data.loaded.truncated} stages={columns.map(({ stage, tasks }) => ({ ...stage, taskCount: tasks.length }))} />
       ) : null}

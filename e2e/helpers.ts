@@ -32,11 +32,21 @@ export const column = (page: Page, stage: string) => page.getByRole("region", { 
 /** A title no other test or earlier run has used, so a test only ever touches the cards it created itself. */
 export const uniqueTitle = (prefix: string) => `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** Adds a task to the open pipeline through the "Add a task" form and waits until its card is on the board. */
+/** The "New task" modal, open after pressing a column's add button. */
+export const newTaskDialog = (page: Page) => page.getByRole("dialog", { name: "New task" });
+
+/** Opens the Create task modal from the stage's column; the stage select starts on that stage. */
+export async function openNewTask(page: Page, stage: string): Promise<void> {
+  await column(page, stage).getByRole("button", { name: `Add task to ${stage}` }).click();
+  await expect(newTaskDialog(page)).toBeVisible();
+}
+
+/** Adds a task to the open pipeline through the stage's "Add task" modal and waits until its card is on the board. */
 export async function addTask(page: Page, title: string, stage: string): Promise<void> {
-  await page.getByText("Add a task").click();
-  await page.getByLabel("Title").fill(title);
-  await page.getByLabel("Stage", { exact: true }).selectOption({ label: stage });
-  await page.getByRole("button", { name: "Add task" }).click();
+  await openNewTask(page, stage);
+  const dialog = newTaskDialog(page);
+  await dialog.getByLabel("Title").fill(title);
+  await dialog.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(dialog).toBeHidden();
   await expect(column(page, stage).getByRole("heading", { name: title })).toBeVisible();
 }

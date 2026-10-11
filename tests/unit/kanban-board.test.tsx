@@ -43,6 +43,25 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("KanbanBoard task creation", () => {
+  it("gives writers an add button at the bottom of each column, named after the stage", () => {
+    render(<KanbanBoard columns={columns()} canWrite members={[{ userId: "u1", name: "Olivia" }]} {...props} />);
+    for (const name of ["To do", "Done"]) {
+      expect(within(column(name)).getByRole("button", { name: `Add task to ${name}` })).toBeTruthy();
+    }
+  });
+
+  it("gives viewers none, and writers none when the page offers no members to assign", () => {
+    const { unmount } = render(<KanbanBoard columns={columns()} canWrite={false} members={[{ userId: "u1", name: "Olivia" }]} {...props} />);
+    expect(screen.queryByRole("button", { name: /^Add task to/ })).toBeNull();
+    expect(titles("To do")).toEqual(["Task a", "Task b"]);
+    unmount();
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    expect(screen.queryByRole("button", { name: /^Add task to/ })).toBeNull();
+    expect(titles("To do")).toEqual(["Task a", "Task b"]);
+  });
+});
+
 describe("KanbanBoard moves from the menu", () => {
   it("shows the move at once, sends the placement, and keeps it once the server's page agrees", async () => {
     const pending = deferred();

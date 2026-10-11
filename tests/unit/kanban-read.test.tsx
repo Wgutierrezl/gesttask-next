@@ -160,12 +160,22 @@ describe("PipelinePage", () => {
     }
   });
 
-  it("offers task creation to owners and members, not to viewers", async () => {
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+  it("offers task creation to owners and members as a button in each column, not to viewers, and no longer as an inline form", async () => {
+    const owner = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(owner).toContain('aria-label="Add task to To do"');
+    expect(owner).toContain('aria-label="Add task to Done"');
+    expect(owner).not.toContain("Add a task");
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "member" });
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain('aria-label="Add task to To do"');
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add a task");
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add task to");
+  });
+
+  it("tells a writer to add a stage first when the pipeline has none, and a viewer nothing", async () => {
+    useCases.listStages.mockResolvedValue([]);
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a stage first");
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add a stage first");
   });
 
   it("authorizes through getPipeline first and never reads the rest for a foreign pipeline", async () => {

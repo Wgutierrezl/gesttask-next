@@ -4,8 +4,8 @@ import { cn } from "@/components/ui/cn";
 import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
-/** The frame of a column: header with the done marker and count, the empty message, and the list its `children` fill. */
-export function ColumnShell({ column, listRef, isOver = false, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; children: ReactNode }) {
+/** The frame of a column: header with the done marker and count, the empty message, the list its `children` fill, and an optional `footer`. */
+export function ColumnShell({ column, listRef, isOver = false, footer, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; footer?: ReactNode; children: ReactNode }) {
   const { stage, tasks } = column;
   const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
   return (
@@ -21,6 +21,7 @@ export function ColumnShell({ column, listRef, isOver = false, children }: { col
       <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
         {children}
       </ul>
+      {footer}
     </section>
   );
 }

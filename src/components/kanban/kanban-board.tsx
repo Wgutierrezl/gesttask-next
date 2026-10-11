@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
 import { describeFailure } from "@/components/auth/form-error";
+import { AddTaskButton } from "./add-task-button";
 import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
@@ -15,7 +16,7 @@ import { collideBoard } from "./collision";
 import { PipelineTabs, tabElementId, type PipelineSwitcherData } from "./pipeline-tabs";
 import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
-import type { ColumnView } from "./types";
+import type { ColumnView, MemberOption } from "./types";
 
 const FAILED = "The task could not be moved. Try again.";
 
@@ -42,13 +43,15 @@ interface KanbanBoardProps {
   taskBase: string;
   /** The board's pipelines, for the tabs and for moving cards between pipelines. Without it (or with one pipeline) the board is self-contained. */
   switcher?: PipelineSwitcherData;
+  /** Who a new task can be assigned to. Writers get an add-task button per column only when this is given. */
+  members?: MemberOption[];
 }
 
 /**
  * The board. Writers can drag cards (pointer or keyboard) or use each card's Move menu; both go through one
  * optimistic path that rolls back and explains when the server refuses. Viewers get the same columns read-only.
  */
-export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: KanbanBoardProps) {
+export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members }: KanbanBoardProps) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -165,7 +168,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
       {tabs}
       {scroller(
         shown.map((column) => (
-          <DroppableColumn key={column.stage.id} column={column} columns={shown} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
+          <DroppableColumn key={column.stage.id} column={column} columns={shown} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
         )),
       )}
       <DragOverlay>

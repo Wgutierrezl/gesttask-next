@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE, column, openKanban } from "./helpers";
+import { AUTH_FILE, column, newTaskDialog, openKanban, openNewTask } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
@@ -38,12 +38,28 @@ test.describe("board and Kanban (REQ-NFR-04, REQ-NFR-06)", () => {
 
   test("a new task appears in the stage it was created in, with its priority spelled out", async ({ page }) => {
     await openKanban(page);
-    await page.getByText("Add a task").click();
-    await page.getByLabel("Title").fill("Plan the retrospective");
-    await page.getByLabel("Priority").selectOption("high");
-    await page.getByRole("button", { name: "Add task" }).click();
+    // The page has no inline form any more: tasks are created from each column's own button.
+    await expect(page.getByText("Add a task")).toHaveCount(0);
+    await openNewTask(page, "To do");
+    const dialog = newTaskDialog(page);
+    await expect(dialog.getByLabel("Stage", { exact: true }).locator("option:checked")).toHaveText("To do");
+    await dialog.getByLabel("Title").fill("Plan the retrospective");
+    await dialog.getByRole("radio", { name: "High" }).check();
+    await dialog.getByRole("button", { name: "Add task", exact: true }).click();
     const card = column(page, "To do").getByRole("article").filter({ hasText: "Plan the retrospective" });
     await expect(card).toBeVisible();
     await expect(card).toContainText("High");
+  });
+
+  test("the column button preselects its own stage, Escape closes the modal and returns focus to the button", async ({ page }) => {
+    await openKanban(page);
+    const button = column(page, "In progress").getByRole("button", { name: "Add task to In progress" });
+    await button.click();
+    const dialog = newTaskDialog(page);
+    await expect(dialog.getByLabel("Stage", { exact: true }).locator("option:checked")).toHaveText("In progress");
+    await expect(dialog.getByRole("radio", { name: "Medium" })).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(button).toBeFocused();
   });
 });
