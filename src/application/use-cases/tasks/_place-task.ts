@@ -17,6 +17,23 @@ export async function placeTask(
   toStageId: string | null,
   anchor: string | null | "end",
 ): Promise<TaskView> {
+  // The snapshot decides what to lock; if the task left that column meanwhile (likelier now that a move can cross
+  // pipelines), take a fresh snapshot once and, if it is stale again, report the concurrent move.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const outcome = await attemptPlace(deps, taskId, toStageId, anchor);
+    if (outcome !== STALE) return outcome;
+  }
+  throw new ConflictError("The task changed column concurrently; retry");
+}
+
+const STALE = Symbol("stale-origin");
+
+async function attemptPlace(
+  deps: AppDeps,
+  taskId: string,
+  toStageId: string | null,
+  anchor: string | null | "end",
+): Promise<TaskView | typeof STALE> {
   const now = deps.clock.now();
   // Pipeline and column are read from a snapshot only to know WHAT to lock; the task itself is re-read under lock.
   const origin = await deps.repos.tasks.findById(taskId);
@@ -27,7 +44,7 @@ export async function placeTask(
     if (!target || target.boardId !== origin.boardId) throw new NotFoundError();
     destinationPipelineId = target.pipelineId;
   }
-  const placed = await deps.uow.run(async (tx) => {
+  const placed = await deps.uow.run<Task | typeof STALE>(async (tx) => {
     // Lock order: pipelines (by id) with their stage lists, then task columns in stage-id order; the task is picked from its column.
     const destinationId = toStageId ?? origin.stageId;
     let destination: Stage | undefined;
@@ -42,8 +59,9 @@ export async function placeTask(
     if (!task) {
       // Gone, or moved to another column since the pre-flight read.
       if (!(await tx.tasks.findById(taskId))) throw new NotFoundError();
-      throw new ConflictError("The task changed column concurrently; retry");
+      return STALE;
     }
+    // Dropping on itself is a no-op in its own column; anchored on itself in another column it is not a neighbour there (NotFound below).
     if (anchor === task.id && destinationId === task.stageId) return task;
     const others = (columns.get(destinationId) ?? []).filter((t) => t.id !== task.id);
     // Already last where it should go: nothing to write.
@@ -60,5 +78,5 @@ export async function placeTask(
     await tx.tasks.update(moved);
     return moved;
   });
-  return withOverdue(placed, now);
+  return placed === STALE ? STALE : withOverdue(placed, now);
 }

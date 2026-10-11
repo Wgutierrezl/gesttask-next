@@ -20,9 +20,13 @@ isolation boundary that matters for confidentiality is the board, not the pipeli
 - One `UPDATE` sets `pipelineId`, `stageId`, `position` and `completedAt` (set or cleared by the destination's
   `isDone`, as for same-pipeline moves). Positions are fractional keys, so the source column needs no rewrite; only the
   destination may relocate siblings, as today.
+- The pre-flight stage lookup checks `boardId` outside the transaction; that is safe because a stage's board never
+  changes. If the task left its snapshot column meanwhile, the use case re-reads once and, if still stale, answers
+  409 Conflict (documented on the operation).
 - `POST /api/v1/tasks/{id}/move` is backward compatible: same body and responses, only the description widens.
 
 ## Consequences
 
 - Comments and attachments are untouched; `boardId` never changes.
-- A stage deleted or a pipeline deleted while a move is in flight ends in NotFound/Conflict for the mover, never a deadlock.
+- Tests cover opposite-direction moves (one frozen holding a single pipeline lock), a move racing `deletePipeline` and
+  `deleteStage`: none deadlock. A destination deleted before the move locks it ends in NotFound for the mover.

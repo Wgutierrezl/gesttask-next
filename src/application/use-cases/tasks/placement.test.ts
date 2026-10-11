@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { MAX_POSITION_LENGTH, generatePositions } from "@/domain/value-objects/position";
-import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, STRANGER, buildTask, seedKanban } from "@tests/support/fixtures";
 import { makeCreateBoard } from "../boards/create-board";
@@ -8,6 +8,7 @@ import { makeCreatePipeline } from "../pipelines/create-pipeline";
 import { makeCreateStage } from "../stages/create-stage";
 import { makeCreateTask } from "./create-task";
 import { makeMoveTask } from "./move-task";
+import { placeTask } from "./_place-task";
 import { makeReorderTask } from "./reorder-task";
 
 describe("task placement", () => {
@@ -115,6 +116,78 @@ describe("task placement", () => {
         expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, pipelineId: k.pipelineId });
         await makeMoveTask(ctx)(MEMBER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
         expect((await ctx.repos.tasks.findById(t.id))?.pipelineId).toBe(p2.pipelineId);
+      });
+
+      it("clears completedAt moving from a done stage to a non-done stage of the other pipeline", async () => {
+        const p2 = await sibling();
+        const t = await add("T", k.doneId);
+        expect(t.completedAt).not.toBeNull();
+        const moved = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect(moved).toMatchObject({ pipelineId: p2.pipelineId, completedAt: null });
+      });
+
+      it("rebalances an oversized destination column and persists the relocated siblings", async () => {
+        const p2 = await sibling();
+        const ids = ["a", "b"].map((c) => `00000000-0000-4000-8000-0000000000${c}1`);
+        for (const [i, id] of ids.entries()) {
+          await ctx.repos.tasks.insert(buildTask({ id, title: `S${i}`, position: "a0", stageId: p2.todoId, pipelineId: p2.pipelineId, boardId: k.boardId }));
+        }
+        const t = await add("T");
+        await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: ids[0]! });
+        const column = await ctx.repos.tasks.listByStage(p2.todoId);
+        expect(column.map((c) => c.title)).toEqual(["S0", "T", "S1"]);
+        expect(new Set(column.map((c) => c.position)).size).toBe(3);
+        expect(column.every((c) => c.pipelineId === p2.pipelineId)).toBe(true);
+      });
+
+      it("lets a guest sandbox actor move across pipelines of its own board", async () => {
+        const guest = { userId: "sandbox", isGuest: true };
+        const mine = await seedKanban(ctx, guest);
+        const second = await makeCreatePipeline(ctx)(guest, { boardId: mine.boardId, name: "P2" });
+        const target = (await ctx.repos.stages.listByPipeline(second.id))[0]!;
+        const t = await makeCreateTask(ctx)(guest, { stageId: mine.todoId, title: "G" });
+        const moved = await makeMoveTask(ctx)(guest, { taskId: t.id, toStageId: target.id, toEnd: true });
+        expect(moved).toMatchObject({ pipelineId: second.id, stageId: target.id });
+      });
+
+      it("answers NotFound for an anchor that is the task itself when the destination is another pipeline", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: t.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, pipelineId: k.pipelineId });
+      });
+
+      describe("when the snapshot is stale (task moved since the pre-flight read)", () => {
+        const staleDeps = (t: { id: string }, staleCalls: number) => {
+          let calls = 0;
+          return {
+            ...ctx,
+            repos: {
+              ...ctx.repos,
+              tasks: {
+                ...ctx.repos.tasks,
+                findById: async (id: string) => {
+                  const real = await ctx.repos.tasks.findById(id);
+                  return real && id === t.id && calls++ < staleCalls ? { ...real, stageId: k.doneId } : real;
+                },
+              },
+            },
+          };
+        };
+
+        it("retries once with a fresh snapshot and succeeds", async () => {
+          const p2 = await sibling();
+          const t = await add("T");
+          const moved = await placeTask(staleDeps(t, 1), t.id, p2.todoId, "end");
+          expect(moved).toMatchObject({ stageId: p2.todoId, pipelineId: p2.pipelineId });
+        });
+
+        it("answers Conflict when the snapshot is still stale on the retry", async () => {
+          const p2 = await sibling();
+          const t = await add("T");
+          await expect(placeTask(staleDeps(t, 2), t.id, p2.todoId, "end")).rejects.toBeInstanceOf(ConflictError);
+          expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId });
+        });
       });
 
       it("refuses an anchor that is not in the destination column", async () => {
