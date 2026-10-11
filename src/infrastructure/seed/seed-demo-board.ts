@@ -73,13 +73,29 @@ const TASKS: readonly (readonly TaskTemplate[])[] = [
   ],
 ];
 
+/** A second, smaller pipeline so the demo shows moving cards between pipelines. Its stage names differ from the first one's on purpose. */
+const BACKLOG_STAGES = [{ name: "Ideas", isDone: false }, { name: "Refined", isDone: false }, { name: "Accepted", isDone: true }] as const;
+const BACKLOG_TASKS: readonly (readonly TaskTemplate[])[] = [
+  [
+    { title: "Offer a yearly plan", description: "Customers asked for a discount for paying upfront.", priority: "medium", dueInDays: null, assignee: false },
+    { title: "Add a public roadmap page", description: "", priority: "low", dueInDays: null, assignee: false },
+  ],
+  [{ title: "Dark mode for the app", description: "Needs a design pass first.", priority: "low", dueInDays: 21, assignee: true }],
+  [{ title: "Import boards from CSV", description: "Agreed with the first customers.", priority: "medium", dueInDays: -3, assignee: false }],
+];
+
+const PIPELINES = [
+  { name: "Launch plan", description: "From idea to release.", stages: DEFAULT_STAGES, cards: TASKS },
+  { name: "Backlog", description: "Ideas waiting for their turn.", stages: BACKLOG_STAGES, cards: BACKLOG_TASKS },
+] as const;
+
 const addDays = (from: Date, days: number): string => new Date(from.getTime() + days * 86_400_000).toISOString().slice(0, 10);
 
 /** Files per task in column order, flattened: the attachment ids are drawn up front so the objects can be stored before the rows exist. */
 const fileSlots = TASKS.flatMap((cards) => cards.flatMap((card) => (card.comments ?? []).flatMap((c) => (c.file ? [c.file] : []))));
 
 /**
- * Creates (once) a demo board: owner + read-only viewer, one pipeline with the default stages, a few realistic cards (one
+ * Creates (once) a demo board: owner + read-only viewer, two pipelines (the default stages, and a small Backlog), a few realistic cards (one
  * overdue) and comments on some of them. Used by `pnpm db:seed` with the fixed ids, and to clone a private sandbox for each
  * guest (fresh `boardId`, the guest as owner). Returns `created: false` when `boardId` already exists, including when a
  * concurrent run won the race.
@@ -120,44 +136,46 @@ export async function seedDemoBoard(
       await tx.members.insert({ boardId, userId: ownerId, role: "owner" });
       if (ownerId !== DEMO_VIEWER_ID) await tx.members.insert({ boardId, userId: DEMO_VIEWER_ID, role: "guest" });
 
-      const pipeline: Pipeline = { id: deps.ids.next(), boardId, name: "Launch plan", description: "From idea to release." };
-      await tx.pipelines.insert(pipeline);
-      const stagePositions = generatePositions(DEFAULT_STAGES.length);
       let commentCount = 0;
-      for (const [index, template] of DEFAULT_STAGES.entries()) {
-        const stage: Stage = {
-          id: deps.ids.next(), pipelineId: pipeline.id, boardId, name: template.name, isDone: template.isDone,
-          position: stagePositions[index]!,
-        };
-        await tx.stages.insert(stage);
-        const cards = TASKS[index] ?? [];
-        const positions = generatePositions(cards.length);
-        for (const [i, card] of cards.entries()) {
-          const task: Task = {
-            id: deps.ids.next(), boardId, pipelineId: pipeline.id, stageId: stage.id, title: card.title,
-            description: card.description, priority: card.priority, status: "active",
-            dueDate: card.dueInDays === null ? null : addDays(now, card.dueInDays),
-            assigneeId: card.assignee ? ownerId : null,
-            completedAt: resolveCompletedAt(null, stage.isDone, now),
-            position: positions[i]!, createdAt: now,
+      for (const plan of PIPELINES) {
+        const pipeline: Pipeline = { id: deps.ids.next(), boardId, name: plan.name, description: plan.description };
+        await tx.pipelines.insert(pipeline);
+        const stagePositions = generatePositions(plan.stages.length);
+        for (const [index, template] of plan.stages.entries()) {
+          const stage: Stage = {
+            id: deps.ids.next(), pipelineId: pipeline.id, boardId, name: template.name, isDone: template.isDone,
+            position: stagePositions[index]!,
           };
-          await tx.tasks.insert(task);
-          for (const template of card.comments ?? []) {
-            // One second apart, so the thread reads in the order it was written.
-            const comment: Comment = {
-              id: deps.ids.next(), taskId: task.id, boardId, authorId: template.by === "owner" ? ownerId : DEMO_VIEWER_ID,
-              body: template.body, createdAt: new Date(now.getTime() + 1000 * commentCount++),
+          await tx.stages.insert(stage);
+          const cards = plan.cards[index] ?? [];
+          const positions = generatePositions(cards.length);
+          for (const [i, card] of cards.entries()) {
+            const task: Task = {
+              id: deps.ids.next(), boardId, pipelineId: pipeline.id, stageId: stage.id, title: card.title,
+              description: card.description, priority: card.priority, status: "active",
+              dueDate: card.dueInDays === null ? null : addDays(now, card.dueInDays),
+              assigneeId: card.assignee ? ownerId : null,
+              completedAt: resolveCompletedAt(null, stage.isDone, now),
+              position: positions[i]!, createdAt: now,
             };
-            await tx.comments.insert(comment);
-            if (template.file && files) {
-              const upload = uploads[nextUpload++]!;
-              const file = DEMO_FILES[upload.id];
-              const attachment: Attachment = {
-                id: upload.attachmentId, commentId: null, boardId, uploaderId: ownerId, storageKey: storageKeyFor(boardId, upload.attachmentId),
-                fileName: file.fileName, contentType: file.contentType, size: file.bytes.byteLength, status: "pending", createdAt: now,
+            await tx.tasks.insert(task);
+            for (const template of card.comments ?? []) {
+              // One second apart, so the thread reads in the order it was written.
+              const comment: Comment = {
+                id: deps.ids.next(), taskId: task.id, boardId, authorId: template.by === "owner" ? ownerId : DEMO_VIEWER_ID,
+                body: template.body, createdAt: new Date(now.getTime() + 1000 * commentCount++),
               };
-              await tx.attachments.insert(attachment);
-              await tx.attachments.confirm(attachment.id, { commentId: comment.id, size: file.bytes.byteLength });
+              await tx.comments.insert(comment);
+              if (template.file && files) {
+                const upload = uploads[nextUpload++]!;
+                const file = DEMO_FILES[upload.id];
+                const attachment: Attachment = {
+                  id: upload.attachmentId, commentId: null, boardId, uploaderId: ownerId, storageKey: storageKeyFor(boardId, upload.attachmentId),
+                  fileName: file.fileName, contentType: file.contentType, size: file.bytes.byteLength, status: "pending", createdAt: now,
+                };
+                await tx.attachments.insert(attachment);
+                await tx.attachments.confirm(attachment.id, { commentId: comment.id, size: file.bytes.byteLength });
+              }
             }
           }
         }

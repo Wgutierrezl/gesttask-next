@@ -19,8 +19,9 @@ export function runSeedContract(name: string, setup: () => RepoHarness): void {
 
     const snapshot = async (boardId: string) => {
       const pipelines = await h.repos.pipelines.listByBoard(boardId, { limit: 50, offset: 0 });
-      const stages = await h.repos.stages.listByPipeline(pipelines[0]!.id);
-      const tasks = await h.repos.tasks.listByPipeline(pipelines[0]!.id, { limit: 200, offset: 0 });
+      const launch = pipelines.find((p) => p.name === "Launch plan")!;
+      const stages = await h.repos.stages.listByPipeline(launch.id);
+      const tasks = await h.repos.tasks.listByPipeline(launch.id, { limit: 200, offset: 0 });
       const members = await h.repos.members.listByBoard(boardId, { limit: 50, offset: 0 });
       return { pipelines, stages, tasks, members };
     };
@@ -30,7 +31,7 @@ export function runSeedContract(name: string, setup: () => RepoHarness): void {
         created: true, boardId: DEMO_BOARD_ID,
       });
       const { pipelines, stages, tasks, members } = await snapshot(DEMO_BOARD_ID);
-      expect(pipelines).toHaveLength(1);
+      expect(pipelines.map((p) => p.name)).toEqual(["Backlog", "Launch plan"]);
       expect(stages.map((s) => s.name)).toEqual(["To do", "In progress", "Done"]);
       expect(stages.filter((s) => s.isDone).map((s) => s.name)).toEqual(["Done"]);
       expect(members.map((m) => [m.userId, m.role])).toEqual([[DEMO_OWNER_ID, "owner"], [DEMO_VIEWER_ID, "guest"]]);
@@ -42,6 +43,24 @@ export function runSeedContract(name: string, setup: () => RepoHarness): void {
       for (const stage of stages) {
         const positions = tasks.filter((t) => t.stageId === stage.id).map((t) => t.position);
         expect(new Set(positions).size).toBe(positions.length);
+      }
+    });
+
+    it("seeds a second pipeline of the same board to move cards to: its own stages, one done stage, a few cards", async () => {
+      await seedDemoBoard(deps(), { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID });
+      const { pipelines, stages: launchStages } = await snapshot(DEMO_BOARD_ID);
+      const backlog = pipelines.find((p) => p.name === "Backlog")!;
+      const stages = await h.repos.stages.listByPipeline(backlog.id);
+      const tasks = await h.repos.tasks.listByPipeline(backlog.id, { limit: 50, offset: 0 });
+      expect(backlog.boardId).toBe(DEMO_BOARD_ID);
+      expect(stages.map((s) => s.name)).toEqual(["Ideas", "Refined", "Accepted"]);
+      expect(stages.filter((s) => s.isDone)).toHaveLength(1);
+      expect(stages.some((s) => launchStages.some((l) => l.name === s.name))).toBe(false); // names stay unambiguous for screen readers and tests
+      expect(tasks.length).toBeGreaterThanOrEqual(3);
+      const doneId = stages.find((s) => s.isDone)!.id;
+      for (const task of tasks) {
+        expect(task).toMatchObject({ boardId: DEMO_BOARD_ID, pipelineId: backlog.id });
+        expect(task.completedAt !== null).toBe(task.stageId === doneId);
       }
     });
 

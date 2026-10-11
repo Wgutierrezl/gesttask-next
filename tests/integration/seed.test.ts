@@ -21,7 +21,8 @@ describe("demo seed under real concurrency", () => {
       ["1", "2", "3"].map((n) => seedDemoBoard({ ...deps, ids: sequentialIds(n) }, { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, files })),
     );
     expect(results.filter((r) => r.created)).toHaveLength(1);
-    const tasks = await deps.repos.tasks.listByPipeline((await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 }))[0]!.id, { limit: 50, offset: 0 });
+    const launch = (await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 })).find((p) => p.name === "Launch plan")!;
+    const tasks = await deps.repos.tasks.listByPipeline(launch.id, { limit: 50, offset: 0 });
     const comments = (await Promise.all(tasks.map((t) => deps.repos.comments.listByTask(t.id, { limit: 50, offset: 0 })))).flat();
     const attachments = await deps.repos.attachments.listByComments(comments.map((c) => c.id));
     expect(attachments.length).toBeGreaterThan(0);
@@ -36,7 +37,7 @@ describe("demo seed under real concurrency", () => {
     );
     expect(results.filter((r) => r.created)).toHaveLength(1);
     const pipelines = await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 });
-    expect(pipelines).toHaveLength(1);
-    expect(await deps.repos.stages.listByPipeline(pipelines[0]!.id)).toHaveLength(3);
+    expect(pipelines.map((p) => p.name)).toEqual(["Backlog", "Launch plan"]);
+    for (const pipeline of pipelines) expect(await deps.repos.stages.listByPipeline(pipeline.id)).toHaveLength(3);
   });
 });
