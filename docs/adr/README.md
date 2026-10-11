@@ -23,3 +23,4 @@ wins: an ADR is amended in place when a later slice changes it, and says so in i
 | [0016](0016-testing-strategy-and-ci.md) | Test pyramid and CI |
 | [0017](0017-local-first-and-go-live-last.md) | Everything runs locally; cloud accounts last, by configuration |
 | [0018](0018-guest-sandbox-and-scheduled-maintenance.md) | Demo visitors get a private sandbox; one daily cron cleans up |
+| [0020](0020-design-system.md) | Token-based design system with local primitives, font and pinned icons |
