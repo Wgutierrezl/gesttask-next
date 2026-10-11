@@ -42,3 +42,14 @@ test.describe("with an OS that prefers dark", () => {
     await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
   });
 });
+
+// REQ-BRD-01: the brand mark is served as the favicon and the touch icon, and shown in the header.
+test("serves the favicon and the apple touch icon", async ({ page, request }) => {
+  await page.goto("/login");
+  const icon = await request.get(await page.locator("link[rel='icon']").first().getAttribute("href") as string);
+  expect(icon.status()).toBe(200);
+  expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+  const apple = await request.get(await page.locator("link[rel='apple-touch-icon']").getAttribute("href") as string);
+  expect(apple.status()).toBe(200);
+  expect(apple.headers()["content-type"]).toContain("image/png");
+});

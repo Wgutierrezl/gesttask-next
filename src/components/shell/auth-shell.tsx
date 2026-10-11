@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Logo } from "@/components/brand/logo";
 import { GridMask } from "./grid-mask";
 import { PreferencesMenu } from "./preferences-menu";
 import { Card, CardBody } from "@/components/ui/card";
@@ -11,6 +12,7 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
       <PreferencesMenu floating />
       <Card className="relative w-full max-w-sm animate-pop-in">
         <CardBody className="flex flex-col gap-6 p-6">
+          <Logo markClassName="size-9" wordmarkClassName="text-lg" />
           <h1 className="text-2xl font-semibold text-fg">{title}</h1>
           {children}
         </CardBody>
