@@ -51,6 +51,12 @@ describe("TaskPage across pipelines", () => {
     expect(html).toContain("Ideas");
   });
 
+  it("does not read the board's pipelines for a viewer, who gets no Move form", async () => {
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
+    renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(useCases.getBoardDashboard).not.toHaveBeenCalled();
+  });
+
   it("keeps a flat stage list when the board has one pipeline", async () => {
     expect(renderToStaticMarkup(await TaskPage({ params: params() }))).not.toContain("<optgroup");
   });

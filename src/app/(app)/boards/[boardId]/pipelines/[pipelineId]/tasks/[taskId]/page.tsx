@@ -26,17 +26,19 @@ export default async function TaskPage({ params }: TaskPageProps) {
     // `getTask` goes first: it is the authorization check, and a foreign task must not trigger the other reads.
     const task = await getTask({ taskId });
     if (task.boardId !== boardId || task.pipelineId !== pipelineId) return null;
-    const [{ role, pipeline }, stages, members, assignee, comments, dashboard] = await Promise.all([
-      getPipeline({ pipelineId }),
+    const [{ role, pipeline, pipelines }, stages, members, assignee, comments] = await Promise.all([
+      // The board's pipelines are only for the Move form, which viewers do not get: they skip that read.
+      getPipeline({ pipelineId }).then(async (detail) => ({
+        ...detail,
+        pipelines: detail.role === "guest" ? [] : toPipelineOptions((await getBoardDashboard({ boardId })).pipelines),
+      })),
       loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
       loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
       // The assignee is looked up by id: a member beyond the capped list is still named and stays selected when editing.
       loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), [task.assigneeId]),
       loadCapped((page) => listComments({ taskId, ...page }), LIST_LOAD_CAP),
-      // The board's other pipelines: the Move form can send the task to any of their stages.
-      getBoardDashboard({ boardId }),
     ]);
-    return { task, role, pipeline, stages, members, assignee, comments, pipelines: toPipelineOptions(dashboard.pipelines) };
+    return { task, role, pipeline, stages, members, assignee, comments, pipelines };
   });
   // A task reached through the wrong board or pipeline in the URL is indistinguishable from a missing one.
   if (!data) notFound();
