@@ -38,6 +38,11 @@ const authSchema = z
     message: "required in production",
   });
 
+/** Bearer secret of the scheduled maintenance route. Unset = that route answers 401 to everyone. Vercel sends it itself when the variable exists. */
+const cronSchema = z.object({
+  CRON_SECRET: z.preprocess((value) => (value === "" ? undefined : value), z.string().min(16).optional()),
+});
+
 const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
   z.object({ STORAGE_DRIVER: z.literal("local") }),
   z.object({
@@ -56,7 +61,7 @@ const storageSchema = z.discriminatedUnion("STORAGE_DRIVER", [
 ]);
 
 const envSchema = z
-  .intersection(z.intersection(dbSchema, authSchema), storageSchema)
+  .intersection(z.intersection(z.intersection(dbSchema, authSchema), cronSchema), storageSchema)
   // Vercel functions have a read-only, per-instance filesystem: uploads written there would vanish.
   .refine((env) => !(env.STORAGE_DRIVER === "local" && env.VERCEL), {
     path: ["STORAGE_DRIVER"],

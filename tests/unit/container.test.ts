@@ -54,7 +54,7 @@ describe("buildContainer", () => {
     const { buildContainer } = await import("@/infrastructure/container");
     const container = buildContainer(valid);
     expect(typeof container.devStorageHandler).toBe("function"); // STORAGE_DRIVER=local
-    expect(Object.keys(container.maintenance).sort()).toEqual(["drainStorageDeletions", "purgeExpiredGuests", "sweepPendingUploads"]);
+    expect(Object.keys(container.maintenance).sort()).toEqual(["drainStorageDeletions", "purgeExpiredGuests", "purgeRateLimits", "sweepPendingUploads", "warmUp"]);
     expect(Object.keys(container.useCases)).toEqual(expect.arrayContaining(["createComment", "requestUpload", "getAttachmentUrl", "deleteComment"]));
     await container.close();
     const s3 = buildContainer({
@@ -62,6 +62,35 @@ describe("buildContainer", () => {
     });
     expect(s3.devStorageHandler).toBeNull();
     await s3.close();
+  }, 30_000);
+
+  it("authorizes the cron endpoint with CRON_SECRET only, and stays closed without one", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const open = buildContainer({ ...valid, CRON_SECRET: "cron-secret-0123456789" });
+    expect(open.cron.authorized("Bearer cron-secret-0123456789")).toBe(true);
+    expect(open.cron.authorized("Bearer another-secret-0123456")).toBe(false);
+    expect(typeof open.cron.run).toBe("function");
+    await open.close();
+    const closed = buildContainer(valid);
+    expect(closed.cron.authorized("Bearer ")).toBe(false);
+    await closed.close();
+  }, 30_000);
+
+  it("warns at startup when a Vercel production build has no CRON_SECRET (scheduled cleanup would never run), and only then", async () => {
+    const { buildContainer } = await import("@/infrastructure/container");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const warned = () => write.mock.calls.map(([line]) => String(line)).filter((line) => line.includes('"level":"warn"') && line.includes("CRON_SECRET"));
+      const vercel = { ...valid, NODE_ENV: "production", VERCEL: "1", BETTER_AUTH_URL: "https://gesttask.example.com", STORAGE_DRIVER: "s3", S3_BUCKET: "b", AWS_REGION: "us-east-1", AWS_ACCESS_KEY_ID: "id", AWS_SECRET_ACCESS_KEY: "secret" };
+      await buildContainer(vercel).close();
+      expect(warned()).toHaveLength(1);
+      write.mockClear();
+      await buildContainer({ ...vercel, CRON_SECRET: "cron-secret-0123456789" }).close();
+      await buildContainer(valid).close(); // development
+      expect(warned()).toEqual([]);
+    } finally {
+      write.mockRestore();
+    }
   }, 30_000);
 
   it("warns at startup when a production build runs on the local storage driver, and only then (ADR 0009)", async () => {
