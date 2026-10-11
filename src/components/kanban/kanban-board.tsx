@@ -1,11 +1,12 @@
 "use client";
 
-import { closestCorners, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { closestCorners, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { describeFailure } from "@/components/auth/form-error";
+import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
 import { KanbanColumn } from "./kanban-column";
@@ -45,6 +46,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardProps) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const handles = useRef(new Map<string, HTMLElement>());
   const registerHandle = useCallback((taskId: string, element: HTMLElement | null) => {
     if (element) handles.current.set(taskId, element);
@@ -71,24 +73,27 @@ export function KanbanBoard({ columns, canWrite, names, taskBase }: KanbanBoardP
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const nameOf = (userId: string) => names[userId] ?? null;
   const taskHref = (taskId: string) => `${taskBase}${taskId}`;
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    const request = over ? resolveDrop(shown, String(active.id), String(over.id)) : null;
+  const active = activeId ? shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === activeId) : undefined;
+  const onDragEnd = ({ active: dragged, over }: DragEndEvent) => {
+    setActiveId(null);
+    const request = over ? resolveDrop(shown, String(dragged.id), String(over.id)) : null;
     if (request) move(request);
   };
   return (
     <>
-      <div role="status" aria-label="Board updates" className={errors.length > 0 ? "rounded bg-red-50 px-3 py-2 text-sm text-red-800" : undefined}>
+      <div role="status" aria-label="Board updates" className={errors.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
         <span className="sr-only">{announcement}</span>
         {errors.map((message, i) => (
           <p key={i}>{message}</p>
         ))}
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-2">
+      <div data-testid="board-scroller" className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 motion-reduce:scroll-auto md:snap-none">
         {canWrite ? (
-          <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown) }} onDragEnd={onDragEnd}>
+          <DndContext id="kanban" sensors={sensors} collisionDetection={closestCorners} accessibility={{ announcements: announcementsFor(shown) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd}>
             {shown.map((column) => (
               <DroppableColumn key={column.stage.id} column={column} columns={shown} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
             ))}
+            <DragOverlay>{active ? <TaskCard task={active} assigneeName={active.assigneeId ? nameOf(active.assigneeId) : null} lifted /> : null}</DragOverlay>
           </DndContext>
         ) : (
           shown.map((column) => <KanbanColumn key={column.stage.id} column={column} nameOf={nameOf} taskHref={taskHref} />)

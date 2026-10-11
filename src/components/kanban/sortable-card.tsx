@@ -1,5 +1,6 @@
 "use client";
 
+import { GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { MoveMenu } from "./move-menu";
@@ -30,13 +31,14 @@ export function SortableCard({ task, assigneeName, href, columns, onMove, regist
       {...attributes}
       {...listeners}
       aria-label={`Drag ${task.title}`}
-      className="cursor-grab rounded border border-gray-300 px-2 py-1 text-xs"
+      className="inline-flex h-7 cursor-grab touch-none items-center gap-1 rounded-control border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-600 active:cursor-grabbing"
     >
+      <GripVertical aria-hidden="true" className="size-3.5" />
       Drag
     </button>
   );
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
       <TaskCard
         task={task}
         assigneeName={assigneeName}

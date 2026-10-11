@@ -1,21 +1,23 @@
 import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/components/ui/cn";
 import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
 /** The frame of a column: header with the done marker and count, the empty message, and the list its `children` fill. */
-export function ColumnShell({ column, listRef, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; children: ReactNode }) {
+export function ColumnShell({ column, listRef, isOver = false, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; children: ReactNode }) {
   const { stage, tasks } = column;
   const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
   return (
-    <section aria-label={`${stage.name}, ${count}`} className="flex w-72 shrink-0 flex-col gap-3 rounded bg-gray-50 p-3">
+    <section aria-label={`${stage.name}, ${count}`} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card bg-slate-100 p-3 transition-colors duration-[var(--duration-fast)]", isOver && "bg-brand-50 ring-2 ring-brand-600")}>
       <header className="flex items-center justify-between gap-2">
-        <h3 className="font-medium">{stage.name}</h3>
-        <span className="flex items-center gap-2 text-xs text-gray-600">
-          {stage.isDone ? <span className="rounded bg-green-100 px-2 py-0.5 text-green-900">Done stage</span> : null}
-          {tasks.length}
+        <h3 className="font-semibold text-slate-900">{stage.name}</h3>
+        <span className="flex items-center gap-2">
+          {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
+          <span data-testid="column-count" className="inline-flex min-w-6 justify-center rounded-pill bg-white px-2 py-0.5 text-xs font-medium text-slate-700">{tasks.length}</span>
         </span>
       </header>
-      {tasks.length === 0 ? <p className="text-xs text-gray-600">No tasks</p> : null}
+      {tasks.length === 0 ? <p className="rounded-control border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-600">No tasks</p> : null}
       <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
         {children}
       </ul>

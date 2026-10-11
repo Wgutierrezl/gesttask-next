@@ -13,10 +13,10 @@ export function MoveMenu({ columns, taskId, title, onMove }: { columns: ColumnVi
     setOpen(false);
     onMove(request);
   };
-  const button = "rounded border border-gray-300 px-2 py-1 text-xs";
+  const button = "rounded-control border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-600";
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)} className="text-xs">
-      <summary aria-label={`Move options for ${title}`} className="cursor-pointer rounded border border-gray-300 px-2 py-1">Move</summary>
+      <summary aria-label={`Move options for ${title}`} className="inline-flex h-7 cursor-pointer items-center rounded-control border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-600">Move</summary>
       {moves ? (
         <div className="mt-1 flex flex-col items-start gap-1">
           {moves.up ? <button type="button" className={button} onClick={choose(moves.up)}>{`Move ${title} up`}</button> : null}
