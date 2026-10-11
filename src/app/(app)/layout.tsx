@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { GuestBanner } from "@/components/boards/guest-banner";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AppHeader } from "@/components/shell/app-header";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 
 // Per-request session: never prerendered at build time (no database or secrets there).
@@ -11,17 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const actor = await requirePageActor();
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <Link href="/boards" className="font-semibold">GestTask</Link>
-        <div className="flex items-center gap-4">
-          <Link href="/boards" className="text-sm underline">Boards</Link>
-          <Link href="/dashboard" className="text-sm underline">Dashboard</Link>
-          <SignOutButton />
-        </div>
-      </header>
-      {actor.isGuest ? <GuestBanner /> : null}
-      {children}
-    </div>
+    <>
+      <AppHeader />
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {actor.isGuest ? <GuestBanner /> : null}
+        {children}
+      </div>
+    </>
   );
 }
