@@ -3,7 +3,9 @@ import { cn } from "./cn";
 
 const CONTROL =
   "w-full rounded-control border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 " +
-  "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 disabled:opacity-60 aria-invalid:border-danger-600";
+  "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 disabled:opacity-60 aria-invalid:border-danger-600 " +
+  // Inside a modal the controls are roomier, like the dialog's own spacing.
+  "in-[dialog]:rounded-xl in-[dialog]:px-4 in-[dialog]:py-3";
 
 export function Input({ className, ...rest }: ComponentProps<"input">) {
   return <input className={cn(CONTROL, className)} {...rest} />;

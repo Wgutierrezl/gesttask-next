@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { FormFooter } from "@/components/ui/form-footer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -174,6 +175,19 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("shows an optional subtitle and header actions next to the title, inside the dialog's name", () => {
+    render(<Dialog title="Ship it" subtitle={"Sprint \u2192 To do"} actions={<button type="button">Edit</button>} open onClose={vi.fn()}>x</Dialog>);
+    const dialog = screen.getByRole("dialog", { name: "Ship it" });
+    expect(within(dialog).getByText("Sprint \u2192 To do")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeTruthy();
+  });
+
+  it("keeps the decorative icon out of the accessibility tree", () => {
+    render(<Dialog title="T" icon={<svg data-testid="glyph" />} open onClose={vi.fn()}>x</Dialog>);
+    expect(screen.getByTestId("glyph").closest("[aria-hidden='true']")).toBeTruthy();
+  });
+
   it("closes the native dialog when open becomes false, without calling onClose again, and can reopen", () => {
     const onClose = vi.fn();
     const { rerender } = render(<Dialog title="T" open onClose={onClose}>x</Dialog>);
@@ -193,5 +207,23 @@ describe("TabNav", () => {
     expect(screen.getByRole("link", { name: "A" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "B" }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByRole("link", { name: "B" }).getAttribute("href")).toBe("/b");
+  });
+});
+
+describe("FormFooter", () => {
+  it("offers Cancel and a submit button with the given label", async () => {
+    const onCancel = vi.fn();
+    render(<form><FormFooter onCancel={onCancel} submitLabel="Save task" /></form>);
+    expect((screen.getByRole("button", { name: "Save task" }) as HTMLButtonElement).type).toBe("submit");
+    const cancel = screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement;
+    expect(cancel.type).toBe("button");
+    await userEvent.click(cancel);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits Cancel when there is nothing to cancel out of", () => {
+    render(<form><FormFooter submitLabel="Save task" /></form>);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save task" })).toBeTruthy();
   });
 });

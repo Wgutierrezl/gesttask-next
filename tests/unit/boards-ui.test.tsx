@@ -49,6 +49,20 @@ describe("create dialogs", () => {
     expect(screen.queryByLabelText(/^Name/)).toBeNull();
   });
 
+  it("closes either dialog with Cancel without submitting", async () => {
+    const { unmount } = render(<CreateBoardDialog />);
+    await userEvent.click(screen.getByRole("button", { name: "Create board" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "New board" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText(/^Name/)).toBeNull();
+    unmount();
+    render(<CreatePipelineDialog boardId="b1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "New pipeline" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText(/^Name/)).toBeNull();
+    expect(createPipelineAction).not.toHaveBeenCalled();
+    expect(createBoardAction).not.toHaveBeenCalled();
+  });
+
   it("closes the pipeline dialog after a successful submit and sends the board id", async () => {
     render(<CreatePipelineDialog boardId="b1" />);
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));

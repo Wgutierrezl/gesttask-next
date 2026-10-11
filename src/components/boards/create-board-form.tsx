@@ -3,9 +3,9 @@
 import { createBoardAction } from "@/app/_actions/boards";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { FormFooter } from "@/components/ui/form-footer";
 
-export function CreateBoardForm() {
+export function CreateBoardForm({ onCancel }: { onCancel?: () => void }) {
   return (
     <MutationForm action={createBoardAction} inlineFields={["name", "description"]} className="flex flex-col gap-4">
       {(failure) => (
@@ -16,9 +16,7 @@ export function CreateBoardForm() {
           <Field label="Description" error={failure?.fieldErrors?.description?.join(" ")}>
             <Textarea name="description" rows={3} maxLength={2000} />
           </Field>
-          <div>
-            <SubmitButton pendingLabel="Creating...">Create</SubmitButton>
-          </div>
+          <FormFooter submitLabel="Create" pendingLabel="Creating..." onCancel={onCancel} />
         </>
       )}
     </MutationForm>

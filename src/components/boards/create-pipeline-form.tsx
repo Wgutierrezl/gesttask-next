@@ -3,10 +3,10 @@
 import { createPipelineAction } from "@/app/_actions/pipelines";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { FormFooter } from "@/components/ui/form-footer";
 
 /** New pipelines start with the stages To do, In progress and Done. */
-export function CreatePipelineForm({ boardId, onSuccess }: { boardId: string; onSuccess?: () => void }) {
+export function CreatePipelineForm({ boardId, onSuccess, onCancel }: { boardId: string; onSuccess?: () => void; onCancel?: () => void }) {
   return (
     <MutationForm action={createPipelineAction} hidden={{ boardId }} inlineFields={["name", "description"]} onSuccess={onSuccess} className="flex flex-col gap-4">
       {(failure) => (
@@ -18,9 +18,7 @@ export function CreatePipelineForm({ boardId, onSuccess }: { boardId: string; on
             <Textarea name="description" rows={3} maxLength={2000} />
           </Field>
           <p className="text-xs text-slate-600">A new pipeline starts with the stages To do, In progress and Done.</p>
-          <div>
-            <SubmitButton pendingLabel="Creating...">Create</SubmitButton>
-          </div>
+          <FormFooter submitLabel="Create" pendingLabel="Creating..." onCancel={onCancel} />
         </>
       )}
     </MutationForm>
