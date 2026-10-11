@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export const AUTH_FILE = "e2e/.auth/guest.json";
 
@@ -49,4 +49,20 @@ export async function addTask(page: Page, title: string, stage: string): Promise
   await dialog.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(column(page, stage).getByRole("heading", { name: title })).toBeVisible();
+}
+
+/**
+ * Opens a card's task as the full page, the way a shared link or a reload does. Clicking the card opens the task as a
+ * modal over the board instead, so tests of the page itself visit its address.
+ */
+export async function openTaskPage(page: Page, stage: string, title: string): Promise<void> {
+  const href = await column(page, stage).getByRole("link", { name: title }).getAttribute("href");
+  await page.goto(href!);
+  await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
+}
+
+/** Picks a priority the way a visitor does, by pressing its segment; the radio itself is visually hidden. */
+export async function choosePriority(form: Locator, priority: "Low" | "Medium" | "High"): Promise<void> {
+  await form.getByRole("radiogroup", { name: "Priority" }).getByText(priority, { exact: true }).click();
+  await expect(form.getByRole("radio", { name: priority })).toBeChecked();
 }

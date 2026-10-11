@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, AUTH_FILE, column, openKanban, uniqueTitle, waitForHydration } from "./helpers";
+import { addTask, AUTH_FILE, column, openKanban, openTaskPage, uniqueTitle, waitForHydration } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
@@ -65,8 +65,7 @@ test.describe("moving cards between pipelines of a board", () => {
     const title = uniqueTitle("Form move");
     await openKanban(page);
     await addTask(page, title, "To do");
-    await column(page, "To do").getByRole("link", { name: title }).click();
-    await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
+    await openTaskPage(page, "To do", title);
     const before = page.url();
     const select = page.getByLabel("Move to stage");
     await expect(select.locator("optgroup")).toHaveCount(2);

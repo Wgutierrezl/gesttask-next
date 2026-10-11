@@ -1,12 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { AUTH_FILE, column, openKanban } from "./helpers";
+import { AUTH_FILE, openKanban, openTaskPage } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
 async function openTask(page: Page) {
   await openKanban(page);
-  await column(page, "To do").getByRole("link", { name: "Prepare onboarding checklist" }).click();
-  await expect(page.getByRole("heading", { name: "Prepare onboarding checklist", level: 1 })).toBeVisible();
+  await openTaskPage(page, "To do", "Prepare onboarding checklist");
 }
 
 test.describe("accessibility basics (REQ-DS-04, REQ-DS-05)", () => {

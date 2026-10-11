@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE, column, newTaskDialog, openKanban, openNewTask } from "./helpers";
+import { AUTH_FILE, choosePriority, column, newTaskDialog, openKanban, openNewTask } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
@@ -44,7 +44,7 @@ test.describe("board and Kanban (REQ-NFR-04, REQ-NFR-06)", () => {
     const dialog = newTaskDialog(page);
     await expect(dialog.getByLabel("Stage", { exact: true }).locator("option:checked")).toHaveText("To do");
     await dialog.getByLabel("Title").fill("Plan the retrospective");
-    await dialog.getByRole("radio", { name: "High" }).check();
+    await choosePriority(dialog, "High");
     await dialog.getByRole("button", { name: "Add task", exact: true }).click();
     const card = column(page, "To do").getByRole("article").filter({ hasText: "Plan the retrospective" });
     await expect(card).toBeVisible();
