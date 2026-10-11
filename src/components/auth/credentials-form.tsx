@@ -28,15 +28,15 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {signUp ? (
         <Field label="Name" required error={fields?.name?.join(" ")}>
-          <Input id="name" name="name" autoComplete="name" required />
+          <Input name="name" autoComplete="name" required />
         </Field>
       ) : null}
       <Field label="Email" required error={fields?.email?.join(" ")}>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input name="email" type="email" autoComplete="email" required />
       </Field>
       <Field label="Password" required error={fields?.password?.join(" ")}>
         <Input
-          id="password"
+         
           name="password"
           type="password"
           autoComplete={signUp ? "new-password" : "current-password"}

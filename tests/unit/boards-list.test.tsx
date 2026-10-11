@@ -9,7 +9,7 @@ const notFound = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
 const revalidatePath = vi.fn();
-vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next/navigation", () => ({ redirect, notFound, usePathname: () => "/boards" }));
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/app/_actions/boards", () => ({ createBoardAction: async () => undefined }));
 vi.mock("@/app/_actions/auth", () => ({ signOutAction: async () => undefined }));

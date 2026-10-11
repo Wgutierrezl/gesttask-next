@@ -17,7 +17,7 @@ const noop = async () => undefined;
 describe("CredentialsForm", () => {
   it("renders labelled email and password inputs with the right autocomplete for signing in", () => {
     const html = renderToStaticMarkup(<CredentialsForm mode="sign-in" action={noop} next="/boards/1" />);
-    expect(html).toContain('for="email"');
+    expect(html).toMatch(/<label for="([^"]+)"[^>]*>Email.*?<input[^>]* id="\1"[^>]* name="email"/s);
     expect(html).toContain('autoComplete="current-password"');
     expect(html).toContain('name="next" value="/boards/1"');
     expect(html).toContain("Sign in");
@@ -69,6 +69,13 @@ describe("FormError", () => {
     expect(renderToStaticMarkup(<FormError failure={failure} inlineFields={["email"]} />)).not.toContain("bad email");
   });
 
+  it("announces a summary when every failing field is shown inline", () => {
+    const failure: ActionFailure = { ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { email: ["bad email"] } };
+    const html = renderToStaticMarkup(<FormError failure={failure} inlineFields={["email"]} />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Please fix the highlighted fields.");
+  });
+
   it("renders the message inside the live region", () => {
     const html = renderToStaticMarkup(<FormError failure={{ ok: false, code: "CONFLICT", message: "Email already registered" }} />);
     expect(html).toContain("Email already registered");
@@ -78,5 +85,13 @@ describe("FormError", () => {
 describe("GuestButton", () => {
   it("offers the one-click demo as a plain form", () => {
     expect(renderToStaticMarkup(<GuestButton />)).toContain("Try the demo");
+  });
+});
+
+describe("CredentialsForm field ids", () => {
+  it("lets labels and inputs be linked without hard-coded ids", () => {
+    const html = renderToStaticMarkup(<CredentialsForm mode="sign-in" action={noop} />);
+    expect(html).not.toContain('id="email"');
+    expect(html).toMatch(/<label for="([^"]+)"/);
   });
 });

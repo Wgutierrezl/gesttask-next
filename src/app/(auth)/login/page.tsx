@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         No account? <Link href="/register" className="font-medium text-brand-700 underline">Create one</Link>
       </p>
       <hr className="border-slate-200" />
-      <GuestButton />
+      <GuestButton variant="secondary" />
     </AuthShell>
   );
 }
