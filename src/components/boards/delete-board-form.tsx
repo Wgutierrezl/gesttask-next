@@ -13,7 +13,7 @@ export function DeleteBoardForm({ board }: { board: { id: string; name: string }
   return (
     <form action={formAction} className="flex max-w-md flex-col gap-3">
       <input type="hidden" name="boardId" value={board.id} />
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-slate-700">
         Deleting <strong>{board.name}</strong> permanently removes its pipelines, tasks and memberships. This cannot be undone.
       </p>
       <label className="flex items-start gap-2 text-sm">

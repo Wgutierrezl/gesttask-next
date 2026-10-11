@@ -1,6 +1,8 @@
 "use client";
 
 import { deleteStageAction, renameStageAction, reorderStageAction, setStageDoneAction } from "@/app/_actions/stages";
+import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { StageNameFields } from "./stage-name-fields";
@@ -38,10 +40,10 @@ function Move({ stage, direction, after }: { stage: ManagedStage; direction: "le
 export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHaveHiddenTasks }: StageRowProps) {
   const hasTasks = stage.taskCount > 0 || mayHaveHiddenTasks;
   return (
-    <li className="flex flex-col gap-3 rounded border border-gray-200 p-3">
+    <li className="flex flex-col gap-3 rounded-card border border-slate-200 bg-white p-4 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{stage.name}</span>
-        {stage.isDone ? <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-900">Done stage</span> : null}
+        <span className="font-medium text-slate-900">{stage.name}</span>
+        {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
         {afterWhenLeft !== null ? <Move stage={stage} direction="left" after={afterWhenLeft} /> : null}
         {afterWhenRight !== null ? <Move stage={stage} direction="right" after={afterWhenRight} /> : null}
       </div>
@@ -61,19 +63,19 @@ export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHave
         )}
       </MutationForm>
       {stage.isDone ? (
-        <p className="text-xs text-gray-600">The done stage cannot be deleted. Mark another stage as done first.</p>
+        <p className="text-xs text-slate-600">The done stage cannot be deleted. Mark another stage as done first.</p>
       ) : (
         <MutationForm action={deleteStageAction} hidden={{ stageId: stage.id }} className="flex flex-wrap items-end gap-2">
           {() => (
             <>
-              <label className="flex flex-col gap-1 text-xs">
+              <label className="flex flex-col gap-1 text-xs text-slate-700">
                 <span>{`Move tasks of ${stage.name} to`}</span>
-                <select name="moveToStageId" required={hasTasks} defaultValue={hasTasks ? others[0]?.id : ""} className="rounded border border-gray-300 px-2 py-1 text-sm">
+                <Select name="moveToStageId" required={hasTasks} defaultValue={hasTasks ? others[0]?.id : ""}>
                   {!hasTasks ? <option value="">No tasks to move</option> : null}
                   {others.map((other) => (
                     <option key={other.id} value={other.id}>{other.name}</option>
                   ))}
-                </select>
+                </Select>
               </label>
               <SubmitButton variant="danger" pendingLabel="Deleting..." ariaLabel={`Delete ${stage.name}`}>Delete</SubmitButton>
             </>

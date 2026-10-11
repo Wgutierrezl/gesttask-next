@@ -77,6 +77,21 @@ describe("CreateStageForm", () => {
   });
 });
 
+describe("StageNameFields errors", () => {
+  it("links a validation error to the name input", async () => {
+    actions.createStageAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { name: ["That name is taken"] } });
+    const user = userEvent.setup();
+    render(<CreateStageForm pipelineId="p1" />);
+    const input = screen.getByLabelText("Name");
+    await user.type(input, "Review");
+    await user.click(screen.getByRole("button", { name: "Add stage" }));
+    const message = await screen.findByText("That name is taken");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe(message.id);
+    expect(screen.getByRole("alert").textContent).toBe("Please fix the highlighted fields.");
+  });
+});
+
 describe("StageManager", () => {
   it("lists a row per stage, marking the done stage and offering moves only where they are possible", () => {
     render(<StageManager pipelineId="p1" stages={STAGES} />);

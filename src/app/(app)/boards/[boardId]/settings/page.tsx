@@ -41,7 +41,7 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
       </section>
       <section aria-labelledby="members-heading" className="flex flex-col gap-4">
         <h2 id="members-heading" className="text-lg font-medium">Members</h2>
-        <ul className="divide-y divide-gray-100 rounded border border-gray-200">
+        <ul className="divide-y divide-slate-100 rounded-card border border-slate-200 bg-white">
           {members.items.map((member) => (
             <MemberRow key={member.userId} boardId={board.id} member={member} isSelf={member.userId === actor.userId} />
           ))}

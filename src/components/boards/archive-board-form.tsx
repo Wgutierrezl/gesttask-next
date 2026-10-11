@@ -14,7 +14,7 @@ export function ArchiveBoardForm({ board }: { board: { id: string; status: "acti
     <form action={formAction} className="flex max-w-md flex-col gap-3">
       <input type="hidden" name="boardId" value={board.id} />
       <input type="hidden" name="status" value={archived ? "active" : "inactive"} />
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-slate-600">
         {archived ? "This board is archived. Restore it to mark it as active again." : "Archive the board when the work is finished. Nothing is deleted."}
       </p>
       <FormError failure={failureOf(state)} />

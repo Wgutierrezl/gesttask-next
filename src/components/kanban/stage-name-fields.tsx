@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Field, Input } from "@/components/ui/field";
 import { suggestsDone } from "./stage-names";
 
 interface StageNameFieldsProps {
@@ -17,26 +18,14 @@ interface StageNameFieldsProps {
 export function StageNameFields({ idPrefix, defaultName = "", offerDone, label = "Name", errors }: StageNameFieldsProps) {
   const [name, setName] = useState(defaultName);
   const suggest = offerDone && suggestsDone(name);
-  const inputId = `${idPrefix}-name`;
-  const errorId = `${idPrefix}-name-error`;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={inputId} className="text-sm font-medium">{label}</label>
-      <input
-        id={inputId}
-        name="name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        required
-        maxLength={60}
-        aria-invalid={errors ? true : undefined}
-        aria-describedby={errors ? errorId : undefined}
-        className="rounded border border-gray-300 px-3 py-2 text-sm"
-      />
-      {errors ? <p id={errorId} role="alert" className="text-sm text-red-700">{errors.join(" ")}</p> : null}
+      <Field label={label} error={errors?.join(" ")}>
+        <Input id={`${idPrefix}-name`} name="name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={60} />
+      </Field>
       {suggest ? (
-        <label className="flex items-start gap-2 text-xs">
-          <input type="checkbox" name="markDone" value="yes" className="mt-0.5" />
+        <label className="flex items-start gap-2 text-xs text-slate-700">
+          <input type="checkbox" name="markDone" value="yes" className="mt-0.5 size-4 accent-brand-600" />
           <span>Mark as the done stage (tasks entering it count as completed)</span>
         </label>
       ) : null}
