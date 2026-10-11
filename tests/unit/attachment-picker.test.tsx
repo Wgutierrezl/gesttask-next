@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,7 +33,7 @@ describe("attaching files to a comment", () => {
     render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
     await pick(user, png());
     expect(uploads.requestUploadAction).toHaveBeenCalledWith({ taskId: "t1", fileName: "pixel.png", contentType: "image/png", size: 4 });
-    await waitFor(() => expect(strategy.uploadFile).toHaveBeenCalledWith({ kind: "local-put", url: "http://x/put" }, expect.any(File)));
+    await waitFor(() => expect(strategy.uploadFile).toHaveBeenCalledWith({ kind: "local-put", url: "http://x/put" }, expect.any(File), expect.any(AbortSignal)));
     expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
     await user.type(screen.getByLabelText("Add a comment"), "With a file");
     await user.click(screen.getByRole("button", { name: "Comment" }));
@@ -127,7 +127,7 @@ describe("attaching files to a comment", () => {
     expect(uploads.requestUploadAction).toHaveBeenCalledWith(expect.objectContaining({ fileName: "small.png" }));
   });
 
-  it("announces a failed file as an alert and a pending one as progress", async () => {
+  it("announces a failed file once, through the live region, and a pending one as progress", async () => {
     let finish!: () => void;
     strategy.uploadFile.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
     const user = userEvent.setup({ applyAccept: false });
@@ -135,9 +135,93 @@ describe("attaching files to a comment", () => {
     const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "huge.pdf", { type: "application/pdf" });
     await pick(user, png(), big);
     expect(screen.getByText("pixel.png: uploading...").closest("li")?.getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByText("huge.pdf: The file is larger than 5.0 MB").closest("[role=alert]")).not.toBeNull();
+    expect(screen.getByText("huge.pdf: The file is larger than 5.0 MB").closest("[aria-live]")).not.toBeNull();
+    expect(screen.getAllByRole("alert").map((a) => a.textContent)).toEqual([""]); // only the form's own empty region: the file is announced once, by the live region
     finish();
     expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
+  });
+
+  it("keeps the live region in the page while empty, and words the size limit the same in the help and the error", () => {
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    const region = document.querySelector("[aria-live=polite]");
+    expect(region?.textContent).toBe("");
+    expect(screen.getByText(/up to 5\.0 MB each and 5 per comment/)).toBeTruthy();
+  });
+
+  it("aborts the upload under way when its file is removed", async () => {
+    let signal: AbortSignal | undefined;
+    strategy.uploadFile.mockImplementation((_ticket: unknown, _file: File, s?: AbortSignal) => {
+      signal = s;
+      return new Promise<void>(() => {});
+    });
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    await pick(user, png());
+    await waitFor(() => expect(signal).toBeDefined());
+    expect(signal!.aborted).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Remove pixel.png" }));
+    expect(signal!.aborted).toBe(true);
+    expect(screen.queryByText(/pixel\.png/)).toBeNull();
+  });
+
+  it("cannot go past five files when the picker fires twice before React re-renders", async () => {
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    const input = screen.getByLabelText("Attach files");
+    const three = (prefix: string) => Array.from({ length: 3 }, (_, i) => png(`${prefix}${i}.png`));
+    fireEvent.change(input, { target: { files: three("a") } });
+    fireEvent.change(input, { target: { files: three("b") } });
+    await waitFor(() => expect(screen.getAllByText(/: ready$/)).toHaveLength(5));
+    expect(uploads.requestUploadAction).toHaveBeenCalledTimes(5);
+    expect(screen.getByText("b2.png: You can attach up to 5 files to a comment")).toBeTruthy();
+  });
+
+  describe("retrying a failed upload", () => {
+    const ticket = { kind: "local-put", url: "http://x/put" };
+
+    it("offers Retry after a storage failure and reuses the same ticket", async () => {
+      strategy.uploadFile.mockRejectedValueOnce(new strategy.UploadError("The upload failed. Try again."));
+      const user = userEvent.setup();
+      render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+      await pick(user, png());
+      await screen.findByText("pixel.png: The upload failed. Try again.");
+      await user.click(screen.getByRole("button", { name: "Retry pixel.png" }));
+      expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
+      expect(uploads.requestUploadAction).toHaveBeenCalledTimes(1);
+      expect(strategy.uploadFile).toHaveBeenLastCalledWith(ticket, expect.any(File), expect.any(AbortSignal));
+      await user.type(screen.getByLabelText("Add a comment"), "x");
+      await user.click(screen.getByRole("button", { name: "Comment" }));
+      await waitFor(() => expect(comments.createCommentAction).toHaveBeenCalled());
+      expect(fields(comments.createCommentAction.mock.calls[0]![1]).filter(([n]) => n === "attachmentIds")).toEqual([["attachmentIds", "att-1"]]);
+    });
+
+    it("asks for a fresh ticket when the reused one fails too", async () => {
+      strategy.uploadFile.mockRejectedValueOnce(new strategy.UploadError("The upload failed. Try again.")).mockRejectedValueOnce(new strategy.UploadError("The upload failed. Try again."));
+      const user = userEvent.setup();
+      render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+      await pick(user, png());
+      await screen.findByText("pixel.png: The upload failed. Try again.");
+      await user.click(screen.getByRole("button", { name: "Retry pixel.png" }));
+      await waitFor(() => expect(strategy.uploadFile).toHaveBeenCalledTimes(2));
+      await user.click(await screen.findByRole("button", { name: "Retry pixel.png" }));
+      expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
+      expect(uploads.requestUploadAction).toHaveBeenCalledTimes(2);
+    });
+
+    it("asks again after a rate limit, but offers no Retry for a refusal that cannot change", async () => {
+      uploads.requestUploadAction.mockResolvedValueOnce({ ok: false, code: "RATE_LIMITED", message: "Too many requests", retryAfterSeconds: 60 });
+      const user = userEvent.setup();
+      render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+      await pick(user, png());
+      await user.click(await screen.findByRole("button", { name: "Retry pixel.png" }));
+      expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
+      expect(uploads.requestUploadAction).toHaveBeenCalledTimes(2);
+      cleanup();
+      uploads.requestUploadAction.mockResolvedValue({ ok: false, code: "CONFLICT", message: "Guest limit reached: at most 5 attachments. Sign up to attach more." });
+      render(<CommentForm taskId="t1" canAttach demoGuest />);
+      await pick(user, png("q.png"));
+      expect(await screen.findByText(/q\.png: Guest limit reached.*Sign up to attach more/)).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Retry/ })).toBeNull();
+    });
   });
 
   it("starts clean after the comment is posted", async () => {

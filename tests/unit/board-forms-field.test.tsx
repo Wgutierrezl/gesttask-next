@@ -41,6 +41,26 @@ describe("AddMemberForm", () => {
   });
 });
 
+describe("validation failures are announced", () => {
+  const SUMMARY = "Please fix the highlighted fields.";
+  it("add member", async () => {
+    members.addMemberAction.mockResolvedValue(invalid("email", "Enter a valid email"));
+    const user = userEvent.setup();
+    render(<AddMemberForm boardId="b1" />);
+    await user.type(screen.getByLabelText(/^Email/), "x@example.com");
+    await user.click(screen.getByRole("button", { name: "Add member" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(SUMMARY);
+  });
+
+  it("edit board", async () => {
+    boards.updateBoardAction.mockResolvedValue(invalid("description", "Too long"));
+    const user = userEvent.setup();
+    render(<EditBoardForm board={board} />);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(SUMMARY);
+  });
+});
+
 describe("EditBoardForm", () => {
   it("requires the name but not the description, and links a server error to the name", async () => {
     boards.updateBoardAction.mockResolvedValue(invalid("name", "Name is too long"));

@@ -147,3 +147,20 @@ describe("CommentsSection", () => {
     expect(screen.getByRole("status").textContent).toMatch(/first 200 comments/i);
   });
 });
+
+describe("validation failures are announced", () => {
+  it("names the problem in one alert for a new comment and for an edited one", async () => {
+    actions.createCommentAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { body: ["Write something first"] } });
+    actions.editCommentAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { body: ["Too long"] } });
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach={false} demoGuest={false} />);
+    await user.type(screen.getByLabelText("Add a comment"), "x");
+    await user.click(screen.getByRole("button", { name: "Comment" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Please fix the highlighted fields.");
+    expect(screen.getByText("Write something first").id).toBe(screen.getByLabelText("Add a comment").getAttribute("aria-describedby"));
+    cleanup();
+    render(<CommentItem comment={row({ canManage: true })} />);
+    await user.click(screen.getByRole("button", { name: "Save comment" }));
+    expect((await screen.findAllByRole("alert")).map((a) => a.textContent)).toContain("Please fix the highlighted fields.");
+  });
+});

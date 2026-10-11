@@ -28,7 +28,7 @@ export function CommentForm({ taskId, canAttach, demoGuest }: CommentFormProps) 
               <Textarea id="comment-body" name="body" required maxLength={COMMENT_MAX_LENGTH} rows={3} />
             </Field>
             {canAttach ? (
-              <AttachmentPicker files={attachments.files} onPick={attachments.add} onRemove={attachments.remove} demoGuest={demoGuest} />
+              <AttachmentPicker files={attachments.files} onPick={attachments.add} onRemove={attachments.remove} onRetry={attachments.retry} demoGuest={demoGuest} />
             ) : (
               <p className="text-sm text-slate-600">Guests can comment, but only members can attach files.</p>
             )}
