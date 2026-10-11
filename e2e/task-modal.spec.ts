@@ -100,6 +100,37 @@ test.describe("task detail as a modal (intercepting route)", () => {
     await expect(column(page, "To do").getByRole("heading", { name: title })).toHaveCount(0);
   });
 
+  test("Back after deleting from the modal does not land on the deleted task", async ({ page }) => {
+    const { title, link } = await newCard(page);
+    const board = page.url();
+    await link.click();
+    await taskDialog(page, title).getByRole("button", { name: "Delete" }).click();
+    const confirm = page.getByRole("dialog", { name: "Delete task" });
+    await confirm.getByLabel(/delete this task/i).check();
+    await confirm.getByRole("button", { name: "Delete task" }).click();
+    await expect(page).toHaveURL(board);
+    await page.goBack();
+    // The entry before the board is wherever the visitor came from, not the deleted task.
+    await expect(page).not.toHaveURL(/\/tasks\//);
+    await expect(page.getByText("This page could not be found.")).toHaveCount(0);
+  });
+
+  test("moving the task to another pipeline from the modal lands on that pipeline's board with the task in its stage, never a 404", async ({ page }) => {
+    const { title, link } = await newCard(page);
+    await link.click();
+    const dialog = taskDialog(page, title);
+    await dialog.getByLabel("Move to stage").selectOption({ label: "Refined" });
+    await dialog.getByRole("button", { name: "Move task" }).click();
+    await expect(page.getByRole("heading", { name: "Backlog", level: 1 })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByText("This page could not be found.")).toHaveCount(0);
+    await expect(column(page, "Refined").getByRole("heading", { name: title })).toBeVisible();
+    // Back skips the old pipeline's task address (it would be a 404 now) and returns to where the visitor came from.
+    await page.goBack();
+    await expect(page).not.toHaveURL(/\/tasks\//);
+    await expect(page.getByText("This page could not be found.")).toHaveCount(0);
+  });
+
   test("the full page offers the same Edit and Delete modals", async ({ page }) => {
     const { title, link } = await newCard(page);
     const href = await link.getAttribute("href");

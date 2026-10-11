@@ -85,6 +85,12 @@ describe("deleteTaskAction", () => {
     expect(digest).toContain(`/boards/${ID(1)}/pipelines/${ID(2)}`);
   });
 
+  it("replaces the history entry, so Back never returns to the page of the deleted task", async () => {
+    useCases.deleteTask.mockResolvedValue({ boardId: ID(1), pipelineId: ID(2) });
+    await actions.deleteTaskAction(undefined, form({ taskId: ID(4), confirm: "yes" })).catch(() => undefined);
+    expect(redirect).toHaveBeenCalledWith(`/boards/${ID(1)}/pipelines/${ID(2)}`, "replace");
+  });
+
   it("queues the storage cleanup only when the delete really happened", async () => {
     await actions.deleteTaskAction(undefined, form(entries));
     useCases.deleteTask.mockRejectedValueOnce(new NotFoundError());
@@ -159,6 +165,24 @@ describe("moveTaskFromDetailAction (the task page's form)", () => {
   it("follows the task to its new pipeline's URL, so the page it was on never 404s", async () => {
     useCases.moveTask.mockResolvedValue(moved(6));
     expect(await digestOf(actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2) })))).toContain(`/boards/${ID(1)}/pipelines/${ID(6)}/tasks/${ID(4)};`);
+  });
+
+  it("replaces the history entry on that redirect: the old address is a 404 for this task", async () => {
+    useCases.moveTask.mockResolvedValue(moved(6));
+    await actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2) })).catch(() => undefined);
+    expect(redirect).toHaveBeenCalledWith(`/boards/${ID(1)}/pipelines/${ID(6)}/tasks/${ID(4)}`, "replace");
+  });
+
+  it("from the modal, lands on the new pipeline's board instead: an intercepted task address would reopen the old pipeline's layout", async () => {
+    useCases.moveTask.mockResolvedValue(moved(6));
+    await actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2), surface: "modal" })).catch(() => undefined);
+    expect(redirect).toHaveBeenCalledWith(`/boards/${ID(1)}/pipelines/${ID(6)}`, "replace");
+  });
+
+  it("from the modal, still stays put when the pipeline is unchanged", async () => {
+    useCases.moveTask.mockResolvedValue(moved(2));
+    expect(await actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2), surface: "modal" }))).toEqual({ ok: true, data: null });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("answers a refusal as state and does not redirect", async () => {

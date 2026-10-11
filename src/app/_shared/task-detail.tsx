@@ -113,7 +113,7 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
   );
 }
 
-/** Writers only. */
+/** Writers only. Level 3 is the modal (its sections nest under the dialog title), which also changes where a cross-pipeline move lands. */
 export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, pipeline, pipelines, stages } = detail;
   return (
@@ -121,7 +121,7 @@ export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Lev
       <Heading level={level}>Move task</Heading>
       <Card>
         <CardBody>
-          <MoveTaskForm taskId={task.id} pipelineId={pipeline.id} pipelineName={pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={pipelines.filter((p) => p.id !== pipeline.id)} />
+          <MoveTaskForm inModal={level === 3} taskId={task.id} pipelineId={pipeline.id} pipelineName={pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={pipelines.filter((p) => p.id !== pipeline.id)} />
         </CardBody>
       </Card>
     </div>

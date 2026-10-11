@@ -32,6 +32,8 @@ interface Options<T> {
   revalidate?: string[];
   /** Where to go after success, or null to stay; the redirect happens outside the error handling so it is never swallowed. */
   redirectTo?: (data: T) => string | null;
+  /** Replace the current history entry instead of adding one: for when the page the visitor was on no longer exists. */
+  replaceHistory?: boolean;
   /** The mutation may have queued storage objects for deletion (REQ-CAS-02): drain them once the response is out. */
   cleanupStorage?: boolean;
 }
@@ -52,7 +54,10 @@ export async function runMutationData<T>(work: () => Promise<T>, options: Option
   }
   if (options.cleanupStorage) scheduleStorageCleanup();
   const destination = options.redirectTo?.(result.data);
-  if (destination) redirect(destination);
+  if (destination) {
+    if (options.replaceHistory) redirect(destination, "replace");
+    redirect(destination);
+  }
   return result;
 }
 

@@ -155,6 +155,20 @@ describe("MoveTaskForm", () => {
     expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).toEqual({ taskId: "t1", pipelineId: "p1", toStageId: "s2" });
   });
 
+  it("tells the action it runs in a modal only when asked to", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Launch plan" stages={STAGES} currentStageId="s1" inModal />);
+    await user.click(screen.getByRole("button", { name: "Move task" }));
+    await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
+    expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).toMatchObject({ surface: "modal" });
+    unmount();
+    actions.moveTaskFromDetailAction.mockClear();
+    render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Launch plan" stages={STAGES} currentStageId="s1" />);
+    await user.click(screen.getByRole("button", { name: "Move task" }));
+    await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
+    expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).not.toHaveProperty("surface");
+  });
+
   it("groups the stages by pipeline when the board has others, skips pipelines without stages, and can send a card across", async () => {
     const user = userEvent.setup();
     render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Launch plan" stages={STAGES} currentStageId="s1" otherPipelines={OTHERS} />);
