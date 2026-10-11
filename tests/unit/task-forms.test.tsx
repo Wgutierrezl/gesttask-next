@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const actions = vi.hoisted(() => ({ createTaskAction: vi.fn(), updateTaskAction: vi.fn(), deleteTaskAction: vi.fn(), moveTaskToEndAction: vi.fn() }));
+const actions = vi.hoisted(() => ({ createTaskAction: vi.fn(), updateTaskAction: vi.fn(), deleteTaskAction: vi.fn(), moveTaskFromDetailAction: vi.fn() }));
 vi.mock("@/app/_actions/tasks", () => actions);
 
 const { CreateTaskForm } = await import("@/components/kanban/create-task-form");
@@ -124,14 +124,30 @@ describe("DeleteTaskForm", () => {
 });
 
 describe("MoveTaskForm", () => {
-  it("starts on the task's own stage and sends the chosen one", async () => {
+  const OTHERS = [{ id: "p2", name: "Backlog", stages: [{ id: "i1", name: "Ideas" }, { id: "i2", name: "Done" }] }, { id: "p3", name: "Empty", stages: [] }];
+
+  it("starts on the task's own stage and sends the chosen one with the page's pipeline", async () => {
     const user = userEvent.setup();
-    render(<MoveTaskForm taskId="t1" stages={STAGES} currentStageId="s1" />);
+    render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Launch plan" stages={STAGES} currentStageId="s1" />);
     const select = screen.getByLabelText("Move to stage") as HTMLSelectElement;
     expect(select.value).toBe("s1");
+    expect(select.querySelector("optgroup")).toBeNull(); // one pipeline: a flat list
     await user.selectOptions(select, "s2");
     await user.click(screen.getByRole("button", { name: "Move task" }));
-    await waitFor(() => expect(actions.moveTaskToEndAction).toHaveBeenCalled());
-    expect(fields(actions.moveTaskToEndAction.mock.calls[0]![1])).toEqual({ taskId: "t1", toStageId: "s2" });
+    await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
+    expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).toEqual({ taskId: "t1", pipelineId: "p1", toStageId: "s2" });
+  });
+
+  it("groups the stages by pipeline when the board has others, skips pipelines without stages, and can send a card across", async () => {
+    const user = userEvent.setup();
+    render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Launch plan" stages={STAGES} currentStageId="s1" otherPipelines={OTHERS} />);
+    const select = screen.getByLabelText("Move to stage") as HTMLSelectElement;
+    const groups = [...select.querySelectorAll("optgroup")].map((g) => [g.label, [...g.querySelectorAll("option")].map((o) => o.textContent)]);
+    expect(groups).toEqual([["Launch plan", ["To do", "Done"]], ["Backlog", ["Ideas", "Done"]]]);
+    expect(select.value).toBe("s1");
+    await user.selectOptions(select, "i1");
+    await user.click(screen.getByRole("button", { name: "Move task" }));
+    await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
+    expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).toMatchObject({ toStageId: "i1" });
   });
 });

@@ -11,7 +11,7 @@ const notFound = vi.fn(() => {
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const getActor = vi.fn();
-const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn() };
+const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn(), getBoardDashboard: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger: { error: vi.fn() } }) }));
 
 const { default: TaskPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
@@ -33,6 +33,27 @@ beforeEach(() => {
   useCases.listStages.mockResolvedValue([{ id: "s1", name: "To do", isDone: false }, { id: "s2", name: "Done", isDone: true }]);
   useCases.listMemberProfiles.mockResolvedValue([{ userId: "u1", role: "owner", name: "Olivia", email: null }]);
   useCases.listComments.mockResolvedValue([]);
+  useCases.getBoardDashboard.mockResolvedValue({ members: 1, pipelines: [{ id: PIPELINE, name: "Sprint", tasks: { total: 1 }, stages: [{ id: "s1", name: "To do" }, { id: "s2", name: "Done" }] }] });
+});
+
+describe("TaskPage across pipelines", () => {
+  it("offers the stages of the board's other pipelines in the Move form, grouped by pipeline", async () => {
+    useCases.getBoardDashboard.mockResolvedValue({
+      members: 1,
+      pipelines: [
+        { id: "p-other", name: "Backlog", tasks: { total: 0 }, stages: [{ id: "i1", name: "Ideas" }] },
+        { id: PIPELINE, name: "Sprint", tasks: { total: 1 }, stages: [{ id: "s1", name: "To do" }, { id: "s2", name: "Done" }] },
+      ],
+    });
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(html).toContain('<optgroup label="Sprint">');
+    expect(html).toContain('<optgroup label="Backlog">');
+    expect(html).toContain("Ideas");
+  });
+
+  it("keeps a flat stage list when the board has one pipeline", async () => {
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }))).not.toContain("<optgroup");
+  });
 });
 
 describe("TaskPage", () => {

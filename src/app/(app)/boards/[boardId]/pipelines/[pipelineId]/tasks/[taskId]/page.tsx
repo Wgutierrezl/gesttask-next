@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped } from "@/app/_shared/kanban-data";
+import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped, toPipelineOptions } from "@/app/_shared/kanban-data";
 import { toCommentRow } from "@/app/_shared/comments-data";
 import { loadPage } from "@/app/_shared/load-page";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
@@ -22,19 +22,21 @@ export default async function TaskPage({ params }: TaskPageProps) {
   const actor = await requirePageActor();
   const { boardId, pipelineId, taskId } = await params;
   const data = await loadPage(async () => {
-    const { getTask, getPipeline, listStages, listMemberProfiles, listComments } = getContainer().useCases;
+    const { getTask, getPipeline, listStages, listMemberProfiles, listComments, getBoardDashboard } = getContainer().useCases;
     // `getTask` goes first: it is the authorization check, and a foreign task must not trigger the other reads.
     const task = await getTask({ taskId });
     if (task.boardId !== boardId || task.pipelineId !== pipelineId) return null;
-    const [{ role }, stages, members, assignee, comments] = await Promise.all([
+    const [{ role, pipeline }, stages, members, assignee, comments, dashboard] = await Promise.all([
       getPipeline({ pipelineId }),
       loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
       loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
       // The assignee is looked up by id: a member beyond the capped list is still named and stays selected when editing.
       loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), [task.assigneeId]),
       loadCapped((page) => listComments({ taskId, ...page }), LIST_LOAD_CAP),
+      // The board's other pipelines: the Move form can send the task to any of their stages.
+      getBoardDashboard({ boardId }),
     ]);
-    return { task, role, stages, members, assignee, comments };
+    return { task, role, pipeline, stages, members, assignee, comments, pipelines: toPipelineOptions(dashboard.pipelines) };
   });
   // A task reached through the wrong board or pipeline in the URL is indistinguishable from a missing one.
   if (!data) notFound();
@@ -83,7 +85,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
         <>
           <section aria-labelledby="move-heading">
             <h2 id="move-heading" className="mb-3 text-lg font-medium">Move task</h2>
-            <MoveTaskForm taskId={task.id} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} />
+            <MoveTaskForm taskId={task.id} pipelineId={pipelineId} pipelineName={data.pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={data.pipelines.filter((p) => p.id !== pipelineId)} />
           </section>
           <section aria-labelledby="edit-heading">
             <h2 id="edit-heading" className="mb-3 text-lg font-medium">Edit task</h2>

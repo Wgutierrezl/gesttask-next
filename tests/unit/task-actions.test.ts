@@ -13,7 +13,7 @@ const useCases = { createTask: vi.fn(), updateTask: vi.fn(), deleteTask: vi.fn()
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ useCases, logger: { error: vi.fn() } }) }));
 
 const actions = await import("@/app/_actions/tasks");
-const { pipelinePath } = await import("@/app/_shared/paths");
+const { pipelinePath, taskPath } = await import("@/app/_shared/paths");
 const PIPELINE_PAGE = "/boards/[boardId]/pipelines/[pipelineId]";
 const TASK_PAGE = "/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]";
 const ID = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -141,5 +141,36 @@ describe("moveTaskToEndAction (the form without drag and drop)", () => {
     useCases.moveTask.mockRejectedValue(new NotFoundError());
     expect(await actions.moveTaskToEndAction(undefined, form({ taskId: ID(4), toStageId: ID(3) }))).toMatchObject({ ok: false, code: "NOT_FOUND" });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("moveTaskFromDetailAction (the task page's form)", () => {
+  const moved = (pipelineId: number) => ({ id: ID(4), boardId: ID(1), pipelineId: ID(pipelineId) });
+  const digestOf = (run: Promise<unknown>) => run.then(() => "", (e: { digest: string }) => e.digest);
+
+  it("stays on the page when the task keeps its pipeline", async () => {
+    useCases.moveTask.mockResolvedValue(moved(2));
+    expect(await actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2) }))).toEqual({ ok: true, data: null });
+    expect(useCases.moveTask).toHaveBeenCalledWith({ taskId: ID(4), toStageId: ID(3), toEnd: true });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(refreshed()).toEqual([PIPELINE_PAGE, TASK_PAGE]);
+  });
+
+  it("follows the task to its new pipeline's URL, so the page it was on never 404s", async () => {
+    useCases.moveTask.mockResolvedValue(moved(6));
+    expect(await digestOf(actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2) })))).toContain(`/boards/${ID(1)}/pipelines/${ID(6)}/tasks/${ID(4)};`);
+  });
+
+  it("answers a refusal as state and does not redirect", async () => {
+    useCases.moveTask.mockRejectedValue(new NotFoundError());
+    expect(await actions.moveTaskFromDetailAction(undefined, form({ taskId: ID(4), toStageId: ID(3), pipelineId: ID(2) }))).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe("taskPath", () => {
+  it("builds the task page path and falls back to the board list for anything that is not an id", () => {
+    expect(taskPath(ID(1), ID(2), ID(3))).toBe(`/boards/${ID(1)}/pipelines/${ID(2)}/tasks/${ID(3)}`);
+    for (const [b, p, t] of [[ID(1), ID(2), "../x"], ["x", ID(2), ID(3)], [ID(1), "//evil.example", ID(3)]] as const) expect(taskPath(b, p, t)).toBe("/boards");
   });
 });

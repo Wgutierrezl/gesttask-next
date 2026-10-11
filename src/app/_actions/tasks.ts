@@ -1,7 +1,7 @@
 "use server";
 
 import type { MutationState } from "../_shared/mutation-state";
-import { PIPELINE_PAGE, TASK_PAGE, pipelinePath } from "../_shared/paths";
+import { PIPELINE_PAGE, TASK_PAGE, pipelinePath, taskPath } from "../_shared/paths";
 import { checked, optionalText, runMutation, text } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
@@ -68,4 +68,16 @@ export async function reorderTaskAction(_previous: MutationState, form: FormData
  */
 export async function moveTaskToEndAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   return runMutation(() => getContainer().useCases.moveTask({ taskId: text(form, "taskId"), toStageId: text(form, "toStageId"), toEnd: true }), pages);
+}
+
+/**
+ * The task page's own move: same as above, but when the task lands in another pipeline the page it is on would be a 404
+ * (the URL names the old pipeline), so the visitor follows it to the task's new address. `pipelineId` is the page's.
+ */
+export async function moveTaskFromDetailAction(_previous: MutationState, form: FormData): Promise<MutationState> {
+  const from = text(form, "pipelineId");
+  return runMutation(() => getContainer().useCases.moveTask({ taskId: text(form, "taskId"), toStageId: text(form, "toStageId"), toEnd: true }), {
+    ...pages,
+    redirectTo: (task) => (task.pipelineId === from ? null : taskPath(task.boardId, task.pipelineId, task.id)),
+  });
 }
