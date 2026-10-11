@@ -1,6 +1,7 @@
 "use client";
 
 import { createCommentAction } from "@/app/_actions/comments";
+import { Field, Textarea } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { AttachmentPicker } from "./attachment-picker";
@@ -23,22 +24,13 @@ export function CommentForm({ taskId, canAttach, demoGuest }: CommentFormProps) 
         const error = failure?.fieldErrors?.body;
         return (
           <>
-            <label htmlFor="comment-body" className="text-sm font-medium">Add a comment</label>
-            <textarea
-              id="comment-body"
-              name="body"
-              required
-              maxLength={COMMENT_MAX_LENGTH}
-              rows={3}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "comment-body-error" : undefined}
-              className="rounded border border-gray-300 px-3 py-2 text-sm"
-            />
-            {error ? <p id="comment-body-error" role="alert" className="text-sm text-red-700">{error.join(" ")}</p> : null}
+            <Field label="Add a comment" error={error?.join(" ")}>
+              <Textarea id="comment-body" name="body" required maxLength={COMMENT_MAX_LENGTH} rows={3} />
+            </Field>
             {canAttach ? (
               <AttachmentPicker files={attachments.files} onPick={attachments.add} onRemove={attachments.remove} demoGuest={demoGuest} />
             ) : (
-              <p className="text-sm text-gray-600">Guests can comment, but only members can attach files.</p>
+              <p className="text-sm text-slate-600">Guests can comment, but only members can attach files.</p>
             )}
             <div>
               <SubmitButton pendingLabel="Posting..." disabled={attachments.busy}>Comment</SubmitButton>

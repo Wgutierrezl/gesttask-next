@@ -116,6 +116,30 @@ describe("attaching files to a comment", () => {
     expect(screen.getByText("f5.png: You can attach up to 5 files to a comment")).toBeTruthy();
   });
 
+  it("refuses a file over the size limit on the spot, without asking the server for a ticket", async () => {
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "huge.pdf", { type: "application/pdf" });
+    await pick(user, big, png("small.png"));
+    expect(await screen.findByText("huge.pdf: The file is larger than 5.0 MB")).toBeTruthy();
+    expect(await screen.findByText("small.png: ready")).toBeTruthy();
+    expect(uploads.requestUploadAction).toHaveBeenCalledTimes(1);
+    expect(uploads.requestUploadAction).toHaveBeenCalledWith(expect.objectContaining({ fileName: "small.png" }));
+  });
+
+  it("announces a failed file as an alert and a pending one as progress", async () => {
+    let finish!: () => void;
+    strategy.uploadFile.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const user = userEvent.setup({ applyAccept: false });
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "huge.pdf", { type: "application/pdf" });
+    await pick(user, png(), big);
+    expect(screen.getByText("pixel.png: uploading...").closest("li")?.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByText("huge.pdf: The file is larger than 5.0 MB").closest("[role=alert]")).not.toBeNull();
+    finish();
+    expect(await screen.findByText("pixel.png: ready")).toBeTruthy();
+  });
+
   it("starts clean after the comment is posted", async () => {
     const user = userEvent.setup();
     render(<CommentForm taskId="t1" canAttach demoGuest={false} />);

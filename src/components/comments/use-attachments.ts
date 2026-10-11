@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { MAX_ATTACHMENT_BYTES } from "@/application/attachment-policy";
 import { requestUploadAction } from "@/app/_actions/uploads";
 import { describeFailure } from "@/components/auth/form-error";
+import { formatBytes } from "./format";
 import { UploadError, uploadFile } from "./upload-strategy";
 
 export const MAX_FILES_PER_COMMENT = 5;
@@ -48,6 +50,11 @@ export function useAttachments(taskId: string) {
       const added: PickedFile[] = [];
       for (const file of picked) {
         const key = nextKey.current++;
+        // The server enforces the size too; saying so here saves a ticket and an upload that cannot succeed.
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          added.push({ key, name: file.name, status: "failed", message: `The file is larger than ${formatBytes(MAX_ATTACHMENT_BYTES)}` });
+          continue;
+        }
         if (used >= MAX_FILES_PER_COMMENT) {
           added.push({ key, name: file.name, status: "failed", message: `You can attach up to ${MAX_FILES_PER_COMMENT} files to a comment` });
           continue;
