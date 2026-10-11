@@ -1,6 +1,6 @@
 import type { ActionFailure } from "@/application/result";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { PRIORITY_LABELS } from "./format";
+import { PriorityPicker } from "./priority-picker";
 import type { MemberOption, PriorityName } from "./types";
 
 export interface TaskDefaults {
@@ -25,13 +25,7 @@ export function TaskFields({ prefix, members, defaults = {}, failure }: { prefix
       <Field label="Description" error={errors?.description?.join(" ")}>
         <Textarea id={`${prefix}-description`} name="description" rows={3} maxLength={5000} defaultValue={defaults.description} />
       </Field>
-      <Field label="Priority" error={errors?.priority?.join(" ")}>
-        <Select id={`${prefix}-priority`} name="priority" defaultValue={defaults.priority ?? "medium"}>
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </Select>
-      </Field>
+      <PriorityPicker prefix={prefix} defaultValue={defaults.priority} error={errors?.priority?.join(" ")} />
       <Field label="Due date" error={errors?.dueDate?.join(" ")}>
         <Input id={`${prefix}-due`} name="dueDate" type="date" defaultValue={defaults.dueDate ?? ""} />
       </Field>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,9 +25,11 @@ describe("CreateTaskForm", () => {
   it("offers the stages, priorities and board members, and starts on the first stage with medium priority", () => {
     render(<CreateTaskForm stages={STAGES} members={MEMBERS} />);
     expect([...(screen.getByLabelText("Stage") as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["To do", "Done"]);
-    const priority = screen.getByLabelText("Priority") as HTMLSelectElement;
-    expect([...priority.options].map((o) => o.textContent)).toEqual(["Low", "Medium", "High"]);
-    expect(priority.value).toBe("medium");
+    const priority = screen.getByRole("radiogroup", { name: "Priority" });
+    expect(within(priority).getAllByRole("radio").map((r) => (r as HTMLInputElement).value)).toEqual(["low", "medium", "high"]);
+    expect(within(priority).getAllByRole("radio").map((r) => r.closest("label")?.textContent)).toEqual(["Low", "Medium", "High"]);
+    expect((within(priority).getByRole("radio", { name: "Medium" }) as HTMLInputElement).checked).toBe(true);
+    expect((within(priority).getByRole("radio", { name: "High" }) as HTMLInputElement).checked).toBe(false);
     expect([...(screen.getByLabelText("Assignee") as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["Unassigned", "Olivia", "Mark"]);
   });
 
@@ -37,7 +39,7 @@ describe("CreateTaskForm", () => {
     await user.type(screen.getByLabelText("Title"), "Ship it");
     await user.type(screen.getByLabelText("Description"), "Before Friday");
     await user.selectOptions(screen.getByLabelText("Stage"), "s2");
-    await user.selectOptions(screen.getByLabelText("Priority"), "high");
+    await user.click(screen.getByRole("radio", { name: "High" }));
     await user.type(screen.getByLabelText("Due date"), "2026-12-01");
     await user.selectOptions(screen.getByLabelText("Assignee"), "u2");
     await user.click(screen.getByRole("button", { name: "Add task" }));
@@ -45,6 +47,20 @@ describe("CreateTaskForm", () => {
     expect(fields(actions.createTaskAction.mock.calls[0]![1])).toEqual({
       stageId: "s2", title: "Ship it", description: "Before Friday", priority: "high", dueDate: "2026-12-01", assigneeId: "u2",
     });
+  });
+
+  it("lets the visitor change the priority back and forth, and shows a server error under the group", async () => {
+    actions.createTaskAction.mockResolvedValue({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { priority: ["Pick a priority"] } });
+    const user = userEvent.setup();
+    render(<CreateTaskForm stages={STAGES} members={MEMBERS} />);
+    await user.click(screen.getByRole("radio", { name: "Low" }));
+    expect((screen.getByRole("radio", { name: "Low" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "Medium" }) as HTMLInputElement).checked).toBe(false);
+    await user.type(screen.getByLabelText("Title"), "Tidy up");
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    expect(await screen.findByText("Pick a priority")).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: "Priority" }).getAttribute("aria-describedby")).toBeTruthy();
+    expect(fields(actions.createTaskAction.mock.calls[0]![1]).priority).toBe("low");
   });
 
   it("links field errors to their inputs", async () => {
@@ -82,7 +98,8 @@ describe("EditTaskForm", () => {
     const user = userEvent.setup();
     render(<EditTaskForm task={TASK} members={MEMBERS} />);
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Ship");
-    expect((screen.getByLabelText("Priority") as HTMLSelectElement).value).toBe("high");
+    expect((screen.getByRole("radio", { name: "High" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "Medium" }) as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText("Due date") as HTMLInputElement).value).toBe("2026-12-01");
     expect((screen.getByLabelText("Assignee") as HTMLSelectElement).value).toBe("u2");
     await user.clear(screen.getByLabelText("Title"));
