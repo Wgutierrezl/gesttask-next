@@ -30,9 +30,28 @@ for a demo visitor, [ADR 0013](adr/0013-rate-limits-in-postgres.md)), but the bu
 
 ## 2. S3 bucket and a minimum-privilege key
 
-1. Create a bucket in one region (`AWS_REGION`), **Block all public access ON**, default encryption on. The bucket stays
+1. Create a bucket in one region (`AWS_REGION`), with **Block Public Access ON, all four settings** (turn it on for the
+   whole account too, under S3, Block Public Access settings for this account), and default encryption on. The bucket stays
    private: downloads use signed URLs of five minutes ([ADR 0009](adr/0009-storage.md)).
-2. CORS (the browser POSTs the file straight to the bucket, [ADR 0010](adr/0010-presigned-post.md)). Replace the origin:
+2. Bucket policy (Permissions, Bucket policy) that refuses any request not made over TLS. Replace `BUCKET`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyInsecureTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::BUCKET", "arn:aws:s3:::BUCKET/*"],
+      "Condition": { "Bool": { "aws:SecureTransport": "false" } }
+    }
+  ]
+}
+```
+
+3. CORS (the browser POSTs the file straight to the bucket, [ADR 0010](adr/0010-presigned-post.md)). Replace the origin:
 
 ```json
 [
@@ -46,38 +65,50 @@ for a demo visitor, [ADR 0013](adr/0013-rate-limits-in-postgres.md)), but the bu
 ]
 ```
 
-3. Lifecycle rule: **abort incomplete multipart uploads after 1 day**. (Optional, only if this deployment is a pure demo:
+4. Lifecycle rule: **abort incomplete multipart uploads after 1 day**. (Optional, only if this deployment is a pure demo:
    expire the `boards/` prefix after a few days as a second safety net. Do not do this for real data.)
-4. An IAM user for the app only, no console access, with this policy (replace `BUCKET`). `ListBucket` is there so that
-   asking for an object that does not exist answers 404 (the app treats that as "never uploaded") and not 403:
+5. An IAM user for the app only, no console access, with this policy (replace `BUCKET`). `ListBucket` is there so that
+   asking for an object that does not exist answers 404 (the app treats that as "never uploaded") and not 403. It has NO
+   `s3:prefix` condition on purpose: that key only exists on list requests, so a `HeadObject` on a missing key would not
+   match the condition and would be answered 403. The statement is already limited to this one bucket:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     { "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], "Resource": "arn:aws:s3:::BUCKET/boards/*" },
-    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::BUCKET", "Condition": { "StringLike": { "s3:prefix": "boards/*" } } }
+    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::BUCKET" }
   ]
 }
 ```
 
-5. Create an access key for that user: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. Do not set `S3_ENDPOINT` (it is for RustFS).
+6. Create an access key for that user: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. Do not set `S3_ENDPOINT` (it is for RustFS).
 
 ## 3. Neon
 
 1. Create a project and a database. Copy the **pooled** connection string (the host contains `-pooler`), with
    `sslmode=require`. That is `DATABASE_URL`, and `DB_DRIVER` is `neon` ([ADR 0003](adr/0003-postgres-drizzle-drivers.md)).
-2. Apply the migrations from your machine (migrations always use plain node-postgres over TCP):
+2. Apply the migrations and seed from your machine (migrations always use plain node-postgres over TCP). Do NOT type
+   secrets inline on the command line (`DATABASE_URL=... pnpm ...`): they end up in your shell history and in the process
+   list. Prompt for them, so they live only in this shell session:
 
 ```bash
-DATABASE_URL='postgres://...-pooler...?sslmode=require' pnpm db:migrate
+read -rs -p 'DATABASE_URL (pooled, sslmode=require): ' DATABASE_URL && export DATABASE_URL; echo
+pnpm db:migrate
 ```
 
-3. Seed the shared demo board (it also uploads its two sample attachments to the bucket, so it needs the S3 variables):
+   An alternative is a `.env.local` file in the repository (git-ignored; `db:migrate` and `db:seed` both read it). Delete it
+   when you are done and never leave production values in it next to local development.
+
+3. Seed the shared demo board (it also uploads its two sample attachments to the bucket, so it needs the S3 variables and
+   the app secret; `BETTER_AUTH_SECRET` can be any 32+ characters here, it only has to pass validation):
 
 ```bash
-DB_DRIVER=neon DATABASE_URL='...' STORAGE_DRIVER=s3 S3_BUCKET=... AWS_REGION=... \
-AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... BETTER_AUTH_SECRET='any 32+ characters' pnpm db:seed
+read -rs -p 'AWS_SECRET_ACCESS_KEY: ' AWS_SECRET_ACCESS_KEY && export AWS_SECRET_ACCESS_KEY; echo
+export DB_DRIVER=neon STORAGE_DRIVER=s3 S3_BUCKET=YOUR-BUCKET AWS_REGION=YOUR-REGION AWS_ACCESS_KEY_ID=YOUR-KEY-ID
+export BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+pnpm db:seed
+unset DATABASE_URL AWS_SECRET_ACCESS_KEY BETTER_AUTH_SECRET AWS_ACCESS_KEY_ID   # when you are done
 ```
 
 Run it twice if you like: the second run says "already exists".
@@ -101,6 +132,11 @@ Notes:
 - `TRUSTED_PROXY_HOPS` is **not needed on Vercel**: there the client address comes from the platform's headers and the
   variable is ignored. Set it only when you run the app somewhere else behind N reverse proxies (N = how many append to
   `X-Forwarded-For`); with the default 0, production off Vercel refuses sign-ins and answers the API with 503, on purpose.
+  The count only works if EVERY trusted hop **appends** to `X-Forwarded-For` and `X-Forwarded-Proto` and none replaces
+  or drops what it received: the app reads the entry N places from the right, and everything to the left is the client's
+  claim. Count the proxies in front of the app, no more and no fewer. If the header has fewer entries than N the app
+  fails closed (no address, so 503 and refused sign-ins; a short `X-Forwarded-Proto` is ignored and the URL's scheme
+  is used), it never falls back to a client-supplied value ([ADR 0013](adr/0013-rate-limits-in-postgres.md)).
 - Give Preview deployments their own database (a Neon branch) and no production secrets. A preview that points at the
   production database would run the demo's purge against it.
 - `STORAGE_DRIVER=local` is refused on Vercel (read-only filesystem).

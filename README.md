@@ -13,10 +13,10 @@ often Hobby allows.
 ## Try it in 30 seconds
 
 Press **Try the demo** on the landing page: you get your own sandbox board (3 stages, cards with priorities, due dates and
-assignees, comments with attachments), no form, and may drag cards, comment and upload files. A sandbox is private to you
+assignees, and text comments), no form, and may drag cards, comment and upload files. A sandbox is private to you
 and is cleaned up after 24 hours. Visitors are limited (3 boards, 200 tasks, 5 attachments of up to 5 MB) so the demo
-cannot be abused. An end-to-end test measures the path from the landing page to a populated board against a 30 second
-budget.
+cannot be abused. Only the shared board that `pnpm db:seed` creates carries sample attachments; your sandbox's comments
+are text only. An end-to-end test measures the path from the landing page to a populated board against a 30 second budget.
 
 ## What is in it
 

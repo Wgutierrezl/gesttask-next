@@ -26,11 +26,21 @@ for counters. The demo accepts anonymous visitors and file uploads, which is exa
      rotates addresses cannot multiply their budget, and users sharing an address (an office, a carrier NAT) do not
      exhaust each other.
 - `x-forwarded-proto`, used for the CSRF origin check, is read with the same rule: `hops` entries from the right.
+- The rule only holds if EVERY trusted hop APPENDS to `x-forwarded-for` and `x-forwarded-proto` and none replaces or
+  drops the incoming value (with `TRUSTED_PROXY_HOPS=N`, the entries further left are the client's claims). A hop that
+  overwrites the header makes the count wrong. It fails closed rather than trusting a forged entry: with fewer entries
+  than hops there is no address (production answers 503, sign-in refuses) and a short `x-forwarded-proto` is ignored, so
+  the scheme falls back to the request URL. A count too large
+  reaches a client-supplied entry (spoofable); one too small lands on the address of one of our own proxies (every caller
+  shares a bucket). Count the proxies in front of the app, no more and no fewer.
 
 ## Consequences
 
-- One extra upsert per limited request (three for a signed-in API call); acceptable at this scale, and it is the price of
-  needing no extra service.
+- One extra upsert per limited request. A signed-in API call costs THREE separate upserts (address, user+address, user),
+  each its own statement and round trip, on top of the session lookup; an anonymous call costs one. They are not combined
+  into one statement: the three counts must be checked in order and a refusal on the first must not charge the others,
+  and a single multi-row upsert would charge all three even for a refused request. Acceptable at this scale (the
+  limiter is one indexed upsert on `rate_limits`) and it is the price of needing no extra service.
 - Fixed windows allow a burst of twice the limit across a window boundary. For abuse control that is fine; precise
   fairness would need a sliding window.
 - Rate-limit tests that spend a whole budget wait for a fresh window first, so a minute boundary cannot reset the counter
