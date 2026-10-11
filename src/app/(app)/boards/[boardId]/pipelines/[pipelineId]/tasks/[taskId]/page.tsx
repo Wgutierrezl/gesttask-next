@@ -75,16 +75,16 @@ export default async function TaskPage({ params }: TaskPageProps) {
           {task.description ? <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-slate-800">{task.description}</p></CardBody></Card> : null}
           <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />
           {canWrite ? (
-            <section aria-labelledby="edit-heading">
+            <div>
               <h2 id="edit-heading" className="mb-3 text-lg font-semibold text-slate-900">Edit task</h2>
               <Card><CardBody><EditTaskForm task={task} members={members} /></CardBody></Card>
-            </section>
+            </div>
           ) : null}
         </div>
         <aside aria-label="Task details" className="flex flex-col gap-6">
           <Card>
             <CardBody>
-              <h2 className="mb-3 text-base font-semibold text-slate-900">Details</h2>
+              <h2 className="mb-3 text-lg font-semibold text-slate-900">Details</h2>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 <dt className="font-medium text-slate-700">Priority</dt>
                 <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
@@ -111,14 +111,14 @@ export default async function TaskPage({ params }: TaskPageProps) {
           </Card>
           {canWrite ? (
             <>
-              <section aria-labelledby="move-heading">
+              <div>
                 <h2 id="move-heading" className="mb-3 text-lg font-semibold text-slate-900">Move task</h2>
                 <Card><CardBody><MoveTaskForm taskId={task.id} pipelineId={pipelineId} pipelineName={data.pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={data.pipelines.filter((p) => p.id !== pipelineId)} /></CardBody></Card>
-              </section>
-              <section aria-labelledby="delete-heading">
+              </div>
+              <div>
                 <h2 id="delete-heading" className="mb-3 text-lg font-semibold text-slate-900">Delete task</h2>
                 <Card><CardBody><DeleteTaskForm taskId={task.id} /></CardBody></Card>
-              </section>
+              </div>
             </>
           ) : null}
         </aside>

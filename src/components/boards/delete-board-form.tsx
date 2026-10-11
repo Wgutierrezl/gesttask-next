@@ -29,7 +29,7 @@ export function DeleteBoardForm({ board }: { board: { id: string; name: string }
         <span>I understand that this board and all its data will be deleted.</span>
       </label>
       {confirmError ? (
-        <p id="confirm-error" role="alert" className="text-sm text-red-700">
+        <p id="confirm-error" role="alert" className="text-sm text-danger-700">
           {confirmError.join(" ")}
         </p>
       ) : null}

@@ -37,7 +37,7 @@ export function RemoveMemberForm({ boardId, userId, name, isSelf }: RemoveMember
         <span>{isSelf ? "I will lose access to this board" : `${name} will lose access to this board`}</span>
       </label>
       {confirmError ? (
-        <p id={errorId} role="alert" className="text-xs text-red-700">
+        <p id={errorId} role="alert" className="text-xs text-danger-700">
           {confirmError.join(" ")}
         </p>
       ) : null}

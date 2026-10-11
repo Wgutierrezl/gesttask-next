@@ -76,6 +76,17 @@ describe("TaskPage layout", () => {
     }
   });
 
+  it("adds no landmark regions beside the aside itself, and sizes its headings alike", async () => {
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    const aside = asideOf(html);
+    expect(aside).not.toContain("<section");
+    expect(aside).not.toContain("aria-labelledby");
+    expect(html).not.toMatch(/<section[^>]*aria-labelledby="edit-heading"/);
+    const sizes = [...aside.matchAll(/<h2[^>]*class="([^"]*)"/g)].map((m) => /text-(?:base|lg|xl)/.exec(m[1]!)?.[0]);
+    expect(sizes).toHaveLength(3);
+    expect(new Set(sizes).size).toBe(1);
+  });
+
   it("gives a viewer the details but no controls in the sidebar", async () => {
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
     const aside = asideOf(renderToStaticMarkup(await TaskPage({ params: params() })));

@@ -17,7 +17,7 @@ export function CountsList({ label, counts }: { label: string; counts: Counts })
       {rows.map(([name, value, alert]) => (
         <Card key={name} className="p-4">
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-600">{name}</dt>
-          <dd className={`mt-1 text-3xl font-semibold tracking-tight ${alert ? "text-red-700" : "text-slate-900"}`}>{value}</dd>
+          <dd className={`mt-1 text-3xl font-semibold tracking-tight ${alert ? "text-danger-700" : "text-slate-900"}`}>{value}</dd>
         </Card>
       ))}
     </dl>

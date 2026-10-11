@@ -35,7 +35,7 @@ export function PipelineStats({ pipeline, boardId }: { pipeline: PipelineStatsDa
                 <td className="px-2 text-right">{tasks.byPriority.high}</td>
                 <td className="px-2 text-right">{tasks.byPriority.medium}</td>
                 <td className="px-2 text-right">{tasks.byPriority.low}</td>
-                <td className={`px-2 text-right ${tasks.overdue > 0 ? "text-red-700" : ""}`}>{tasks.overdue}</td>
+                <td className={`px-2 text-right ${tasks.overdue > 0 ? "text-danger-700" : ""}`}>{tasks.overdue}</td>
               </tr>
             ))
           )}

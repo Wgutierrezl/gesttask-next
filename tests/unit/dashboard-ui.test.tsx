@@ -41,8 +41,8 @@ describe("CountsList", () => {
   });
 
   it("flags overdue work only when there is some", () => {
-    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2, overdue: 2 })} />)).toContain("text-red-700");
-    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2 })} />)).not.toContain("text-red-700");
+    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2, overdue: 2 })} />)).toContain("text-danger-700");
+    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2 })} />)).not.toContain("text-danger-700");
   });
 });
 
