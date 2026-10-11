@@ -84,6 +84,8 @@ jobs:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: gesttask
       AWS_SECRET_ACCESS_KEY: gesttask-secret
+      # The seed script loads the same configuration as the app, so it needs the auth secret (a CI-only value).
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef-0123456789
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
