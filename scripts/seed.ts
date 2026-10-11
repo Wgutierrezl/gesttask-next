@@ -17,7 +17,7 @@ try {
   await ensureDemoUsers(db);
   const result = await seedDemoBoard(
     { uow: new DrizzleUnitOfWork(db), ids: { next: randomUUID }, clock },
-    { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, ...(files ? { files } : {}) },
+    { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, ...(files ? { files } : {}), log: (message, context) => console.warn(message, context.keys, context.error) },
   );
   console.log(result.created ? "Demo board created." : "Demo board already exists; nothing to do.");
 } finally {

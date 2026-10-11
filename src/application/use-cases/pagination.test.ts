@@ -58,7 +58,7 @@ describe("paginated lists (default 50, max 200)", () => {
     expect(names(await makeListStages(ctx)(OWNER, { pipelineId, limit: 2, offset: 1 }))).toEqual(["y", "z"]);
   });
 
-  it.each([{ limit: 0 }, { limit: 202 }, { limit: "abc" }, { offset: -1 }, { limit: 1.5 }])(
+  it.each([{ limit: 0 }, { limit: 201 }, { limit: 202 }, { limit: "abc" }, { offset: -1 }, { limit: 1.5 }])(
     "rejects invalid page %o on every list",
     async (page) => {
       const k = await seedKanban(ctx);
@@ -72,6 +72,19 @@ describe("paginated lists (default 50, max 200)", () => {
       for (const call of calls) await expect(call).rejects.toBeInstanceOf(ValidationError);
     },
   );
+
+  it("peek asks every list for one row beyond the page (the REST layer's way to know whether another page exists)", async () => {
+    const k = await seedKanban(ctx);
+    const members = (input: object) => makeListMembers(ctx)(OWNER, { boardId: k.boardId, ...input });
+    expect(await members({ limit: 2 })).toHaveLength(2);
+    expect(await members({ limit: 2, peek: true })).toHaveLength(3);
+    expect(await members({ limit: 200, peek: true })).toHaveLength(3); // fewer rows than the window: just what exists
+    expect(await makeListMyBoards(ctx)(OWNER, { limit: 1 })).toHaveLength(1);
+    await makeCreateBoard(ctx)(OWNER, { name: "second" });
+    expect(await makeListMyBoards(ctx)(OWNER, { limit: 1, peek: true })).toHaveLength(2);
+    expect(await makeListPipelines(ctx)(OWNER, { boardId: k.boardId, limit: 1, peek: true })).toHaveLength(1);
+    expect((await makeListStages(ctx)(OWNER, { pipelineId: k.pipelineId, limit: 1, peek: true })).length).toBe(2);
+  });
 
   it("accepts the maximum page size and keeps authorization first", async () => {
     const k = await seedKanban(ctx);

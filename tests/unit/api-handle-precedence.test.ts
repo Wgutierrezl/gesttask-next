@@ -30,9 +30,9 @@ describe("handle: precedence between input sources", () => {
     const request = new Request("https://app.example.com/api/v1/x?term=real&limit=2", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ term: "forged", limit: 500, offset: 9000, boardId: "forged-board", extra: "kept" }),
+      body: JSON.stringify({ term: "forged", limit: 500, peek: false, offset: 9000, boardId: "forged-board", extra: "kept" }),
     });
     await handle("fakeSearch")(request, { params: Promise.resolve({ boardId: "real-board" }) });
-    expect(useCases.fakeSearch).toHaveBeenCalledWith({ term: "real", limit: 3, offset: 0, boardId: "real-board", extra: "kept" });
+    expect(useCases.fakeSearch).toHaveBeenCalledWith({ term: "real", limit: 2, peek: true, offset: 0, boardId: "real-board", extra: "kept" });
   });
 });

@@ -64,12 +64,15 @@ Blob adapter must be disabled rather than silently downgraded.
       "Effect": "Allow",
       "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::BUCKET/boards/*"
-    }
+    },
+    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::BUCKET" }
   ]
 }
 ```
 
-`s3:HeadObject` needs `s3:GetObject`; no `ListBucket`, no `*` actions and no bucket-level permissions. The bucket
+`s3:HeadObject` needs `s3:GetObject`. `s3:ListBucket` is what makes S3 answer 404 instead of 403 for a key that does not exist
+(the adapter maps only 404 to "never uploaded"); it carries no `s3:prefix` condition because a `HeadObject` request has no
+prefix, so the condition would not match and the answer would be 403 again. No `*` actions. The bucket
 blocks all public access, has CORS for the app origin only (`POST` for uploads, `GET` for downloads), and a
 lifecycle rule that aborts incomplete multipart uploads after one day.
 

@@ -24,6 +24,9 @@ export interface SeedFiles {
   delete(keys: string[]): Promise<void>;
 }
 
+/** Where a failed cleanup is reported (the seed has no logger of its own); the script passes one. */
+export type SeedLog = (message: string, context: { keys: string[]; error: unknown }) => void;
+
 interface CommentTemplate {
   by: "owner" | "viewer";
   body: string;
@@ -84,12 +87,24 @@ const fileSlots = TASKS.flatMap((cards) => cards.flatMap((card) => (card.comment
  * With `files`, some comments also carry an attachment (REQ-DEMO-01): the objects are stored BEFORE the rows that point at
  * them, and deleted again if this run did not create the board, so storage never keeps an object without a row. Sandboxes
  * are seeded without files (a copy of each object per guest is not worth it): their comments are text only.
+ *
+ * The cleanup is best effort: if deleting the objects fails it is reported through `log` and never replaces the error that
+ * made the cleanup necessary. The objects are then orphans (storage without a row); they are harmless and a rerun of the
+ * seed stores new ones under new keys (ADR 0018).
  */
 export async function seedDemoBoard(
   deps: SeedDeps,
-  options: { ownerId: string; boardId: string; files?: SeedFiles },
+  options: { ownerId: string; boardId: string; files?: SeedFiles; log?: SeedLog },
 ): Promise<{ created: boolean; boardId: string }> {
-  const { ownerId, boardId, files } = options;
+  const { ownerId, boardId, files, log } = options;
+  const cleanUp = async () => {
+    if (!files) return;
+    try {
+      await files.delete(keys);
+    } catch (error) {
+      log?.("seed cleanup failed: the stored demo objects are orphans", { keys, error });
+    }
+  };
   const now = deps.clock.now();
   const uploads = files ? fileSlots.map((id) => ({ id, attachmentId: deps.ids.next() })) : [];
   const keys = uploads.map((upload) => storageKeyFor(boardId, upload.attachmentId));
@@ -149,12 +164,12 @@ export async function seedDemoBoard(
       }
       return true;
     });
-    if (!created && files) await files.delete(keys);
+    if (!created) await cleanUp();
     return { created, boardId };
   } catch (error) {
     // A concurrent run may have created the board between our check and our insert. That is the only
     // conflict we absorb: confirm the board exists, otherwise the conflict was something else.
-    if (files) await files.delete(keys);
+    await cleanUp();
     if (error instanceof ConflictError && (await deps.uow.run((tx) => tx.boards.findById(boardId)))) {
       return { created: false, boardId };
     }

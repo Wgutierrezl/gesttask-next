@@ -62,10 +62,10 @@ export function handle(operationId: string) {
       const paginated = operation.response.kind === "list" && operation.response.paginated;
       const offset = paginated ? offsetOf(cursor) : 0;
       // One row more than the page tells whether another page exists, so the last page never has a cursor to an empty one
-      // (the use cases accept MAX_PAGE_SIZE + 1 for exactly this). Later sources win: a body cannot override the query,
-      // the paging computed here, or the path.
+      // (`peek`: the use cases then answer with up to limit + 1 rows, without accepting a limit above MAX_PAGE_SIZE). Later
+      // sources win: a body cannot override the query, the paging computed here, or the path.
       const limit = paginated ? (query.limit as number) : 0;
-      const input = { ...body, ...query, ...(paginated ? { limit: limit + 1, offset } : {}), ...params };
+      const input = { ...body, ...query, ...(paginated ? { limit, offset, peek: true } : {}), ...params };
 
       const result = await (container.useCases as unknown as Record<string, UseCase>)[operation.id]!(input);
       return respond(success(operation.response, result, paginated ? { limit, offset } : null), requestId);

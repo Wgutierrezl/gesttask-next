@@ -70,12 +70,12 @@ describe("handle: the thin adapter between a route and a use case", () => {
     it("asks for one row more than the page to know whether a next page exists, and trims it", async () => {
       useCases.listMyBoards = vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
       const full = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=2" })).json();
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 3, offset: 0 });
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 2, offset: 0, peek: true });
       expect(full.items).toEqual([{ id: "a" }, { id: "b" }]);
       expect(typeof full.nextCursor).toBe("string");
       useCases.listMyBoards.mockResolvedValue([{ id: "c" }]);
       const last = await (await call("listMyBoards", { url: `https://app.example.com/api/v1/boards?limit=2&cursor=${full.nextCursor}` })).json();
-      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 3, offset: 2 });
+      expect(useCases.listMyBoards).toHaveBeenLastCalledWith({ limit: 2, offset: 2, peek: true });
       expect(last).toEqual({ items: [{ id: "c" }], nextCursor: null });
     });
 
@@ -88,7 +88,7 @@ describe("handle: the thin adapter between a route and a use case", () => {
       const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i) }));
       useCases.listMyBoards = vi.fn().mockResolvedValue(rows(200));
       const exact = await (await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=200" })).json();
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 201, offset: 0 });
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 200, offset: 0, peek: true });
       expect(exact.items).toHaveLength(200);
       expect(exact.nextCursor).toBeNull(); // no cursor to an empty page
       useCases.listMyBoards.mockResolvedValue(rows(201));
@@ -113,7 +113,7 @@ describe("handle: the thin adapter between a route and a use case", () => {
       useCases.listMyBoards = vi.fn().mockResolvedValue([]);
       const empty = await call("listMyBoards");
       expect(await empty.json()).toEqual({ items: [], nextCursor: null });
-      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 51, offset: 0 });
+      expect(useCases.listMyBoards).toHaveBeenCalledWith({ limit: 50, offset: 0, peek: true });
       expect((await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?limit=201" })).status).toBe(422);
       const forged = await call("listMyBoards", { url: "https://app.example.com/api/v1/boards?cursor=not*a*cursor" });
       expect(forged.status).toBe(422);
