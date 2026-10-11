@@ -16,7 +16,7 @@ export function DeleteBoardForm({ board }: { board: { id: string; name: string }
     <form action={formAction} className="flex max-w-md flex-col gap-3">
       <input type="hidden" name="boardId" value={board.id} />
       <p className="text-sm text-slate-700">
-        {t.rich("warning", { name: board.name, strong: (chunks) => <strong>{chunks}</strong> })}
+        {t.rich("warning", { name: board.name, strong: (chunks) => <strong key="board-name">{chunks}</strong> })}
       </p>
       <label className="flex items-start gap-2 text-sm">
         <input

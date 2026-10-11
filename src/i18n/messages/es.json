@@ -135,7 +135,7 @@
       "delete": "Eliminar tablero",
       "deleting": "Eliminando...",
       "confirmText": "Entiendo que este tablero y todos sus datos se eliminarán.",
-      "warning": "Eliminar <strong>{name}</strong> borra de forma permanente sus pipelines, tareas y membresías. Esta acción no se puede deshacer."
+      "warning": "Al eliminar «<strong>{name}</strong>» se borran de forma permanente sus pipelines, tareas y membresías. Esta acción no se puede deshacer."
     },
     "member": {
       "email": "Correo electrónico",

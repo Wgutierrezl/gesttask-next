@@ -135,11 +135,29 @@ describe("boards in Spanish", () => {
   });
 });
 
+describe("delete board warning", () => {
+  it.each(["en", "es"] as const)("shows a board name with markup and braces literally in %s", (locale) => {
+    const name = "<b>{x}'";
+    render(<DeleteBoardForm board={{ id: "b1", name }} />, { locale });
+    const strong = screen.getByText(name, { selector: "strong" });
+    expect(strong.innerHTML).toBe("&lt;b&gt;{x}'");
+    expect(strong.querySelector("b")).toBeNull();
+  });
+
+  it("phrases the Spanish warning with the name quoted", () => {
+    render(<DeleteBoardForm board={{ id: "b1", name: "Roadmap" }} />, { locale: "es" });
+    expect(screen.getByText(/^Al eliminar «/).textContent).toContain("«Roadmap» se borran de forma permanente");
+  });
+});
+
 describe("dashboards in Spanish", () => {
   it("labels every count in Spanish, with the figures formatted for the locale", () => {
-    render(<CountsList label="Asignado a ti" counts={{ ...ZEROS, total: 1234, overdue: 2 }} />, { locale: "es" });
+    render(<CountsList label="Asignado a ti" counts={{ ...ZEROS, total: 12345, overdue: 2 }} />, { locale: "es" });
     for (const label of ["Total", "Alta", "Media", "Baja", "Activas", "Inactivas", "Vencidas"]) expect(screen.getByText(label)).toBeTruthy();
-    expect(screen.getByText("1234")).toBeTruthy();
+    expect(screen.getByText("12.345")).toBeTruthy();
+    cleanup();
+    render(<CountsList label="Assigned to you" counts={{ ...ZEROS, total: 12345 }} />);
+    expect(screen.getByText("12,345")).toBeTruthy();
   });
 
   it.each([

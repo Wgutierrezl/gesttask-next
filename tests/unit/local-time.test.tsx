@@ -13,17 +13,16 @@ afterEach(() => {
 
 describe("formatInstant", () => {
   it("writes an instant in UTC with an explicit label when no zone is given", () => {
-    expect(formatInstant(ISO)).toBe("Oct 9, 2026, 10:00 AM UTC");
+    expect(formatInstant(ISO, "UTC", "en")).toBe("Oct 9, 2026, 10:00 AM UTC");
   });
 
   it("writes it in the given zone, labelled with that zone", () => {
-    expect(formatInstant(ISO, "America/Bogota")).toBe("Oct 9, 2026, 5:00 AM GMT-5");
+    expect(formatInstant(ISO, "America/Bogota", "en")).toBe("Oct 9, 2026, 5:00 AM GMT-5");
   });
 });
 
 describe("locale-aware formatting", () => {
-  it("keeps the English output as it was and defaults to English", () => {
-    expect(formatDate("2026-10-09")).toBe("Oct 9, 2026");
+  it("keeps the English output as it was", () => {
     expect(formatDate("2026-10-09", "en")).toBe("Oct 9, 2026");
     expect(formatInstant(ISO, "UTC", "en")).toBe("Oct 9, 2026, 10:00 AM UTC");
   });
@@ -37,9 +36,9 @@ describe("locale-aware formatting", () => {
 describe("LocalTime", () => {
   it("renders Spanish on the server and in the browser from the active locale", async () => {
     process.env.TZ = "America/Bogota";
-    expect(renderToStaticMarkupWithIntl(<LocalTime iso={ISO} label="Completada" />, { locale: "es" })).toContain("Completada 9 oct 2026");
+    expect(renderToStaticMarkupWithIntl(<LocalTime iso={ISO} label="Completada" />, { locale: "es" })).toContain("<time dateTime=\"2026-10-09T10:00:00.000Z\">Completada 9 oct 2026, 10:00 UTC</time>");
     render(<LocalTime iso={ISO} label="Completada" />, { locale: "es" });
-    expect((await screen.findByText(/^Completada 9 oct 2026.*5:00/)).tagName).toBe("TIME");
+    expect((await screen.findByText("Completada 9 oct 2026, 5:00 GMT-5")).tagName).toBe("TIME");
   });
 
   it("renders UTC on the server, so there is no time zone to guess and no hydration mismatch", () => {

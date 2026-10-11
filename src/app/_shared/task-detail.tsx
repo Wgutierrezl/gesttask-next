@@ -10,7 +10,9 @@ import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { Alert } from "@/components/ui/field";
 import { getContainer } from "@/infrastructure/container";
+import { useLocale } from "next-intl";
 import { notFound } from "next/navigation";
+import type { Locale } from "@/i18n/config";
 
 export interface TaskRouteParams {
   boardId: string;
@@ -77,6 +79,7 @@ export function TaskDescription({ description }: { description: string }) {
 
 export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, stage, assignee } = detail;
+  const locale = useLocale() as Locale;
   return (
     <Card>
       <CardBody>
@@ -96,7 +99,7 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
           </dd>
           <dt className="font-medium text-slate-700">Due date</dt>
           <dd>
-            {task.dueDate ? `Due ${formatDate(task.dueDate)}` : "No due date"}
+            {task.dueDate ? `Due ${formatDate(task.dueDate, locale)}` : "No due date"}
             {task.overdue ? <span className="ml-2"><Badge tone="danger">Overdue</Badge></span> : null}
           </dd>
           {task.completedAt ? (
@@ -106,7 +109,7 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
             </>
           ) : null}
           <dt className="font-medium text-slate-700">Created</dt>
-          <dd>{formatDate(task.createdAt.toISOString())}</dd>
+          <dd>{formatDate(task.createdAt.toISOString(), locale)}</dd>
         </dl>
       </CardBody>
     </Card>
