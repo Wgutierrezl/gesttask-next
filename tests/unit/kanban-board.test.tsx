@@ -97,7 +97,9 @@ describe("KanbanBoard moves from the menu", () => {
     await user.click(screen.getByLabelText("Move options for Task b"));
     await user.click(screen.getByRole("button", { name: "Move Task b up" }));
     await waitFor(() => expect(status()).toContain("The task could not be moved. Try again."));
-    expect(titles("To do")).toEqual(["Task a", "Task b"]);
+    // The error message is state set right after the rejection; the optimistic move only snaps back when the whole
+    // transition commits, a render later. Wait for that commit instead of reading the cards at the message's instant.
+    await waitFor(() => expect(titles("To do")).toEqual(["Task a", "Task b"]));
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
