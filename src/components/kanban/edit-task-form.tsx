@@ -15,7 +15,7 @@ export function EditTaskForm({ task, members }: EditTaskFormProps) {
   // A former member is not an option any more, so the select falls back to Unassigned rather than showing a stranger.
   const assigneeId = members.some((member) => member.userId === task.assigneeId) ? task.assigneeId : null;
   return (
-    <MutationForm action={updateTaskAction} hidden={{ taskId: task.id }} inlineFields={TASK_FIELD_NAMES} className="flex max-w-md flex-col gap-3">
+    <MutationForm action={updateTaskAction} hidden={{ taskId: task.id }} inlineFields={TASK_FIELD_NAMES} className="flex flex-col gap-3">
       {(failure) => (
         <>
           <TaskFields prefix={`edit-${task.id}`} members={members} failure={failure} defaults={{ ...task, assigneeId }} />

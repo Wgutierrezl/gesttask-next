@@ -62,6 +62,40 @@ describe("TaskPage across pipelines", () => {
   });
 });
 
+const asideOf = (html: string) => /<aside[^>]*aria-label="Task details"[^>]*>(.*?)<\/aside>/s.exec(html)?.[1] ?? "";
+const headingLevels = (html: string) => [...html.matchAll(/<h([1-6])[ >]/g)].map((m) => Number(m[1]));
+
+describe("TaskPage layout", () => {
+  it("keeps the task's content apart from a sidebar with its details and, for writers, the move and delete controls", async () => {
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    const aside = asideOf(html);
+    for (const text of ["Priority", "High", "Assignee", "Olivia", "Due date", "Overdue", "Move to stage", "Delete task"]) expect(aside).toContain(text);
+    for (const text of ["Cut the tag", "Comments (0)", "Edit task", "Add a comment"]) {
+      expect(html).toContain(text);
+      expect(aside).not.toContain(text);
+    }
+  });
+
+  it("gives a viewer the details but no controls in the sidebar", async () => {
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
+    const aside = asideOf(renderToStaticMarkup(await TaskPage({ params: params() })));
+    expect(aside).toContain("Priority");
+    expect(aside).not.toContain("Move to stage");
+    expect(aside).not.toContain("Delete task");
+  });
+
+  it.each(["owner", "guest"])("is one landmark with one h1 and no skipped heading level for a %s", async (role) => {
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role });
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    expect(html.match(/<main[ >]/g)).toHaveLength(1);
+    const levels = headingLevels(html);
+    expect(levels.filter((level) => level === 1)).toHaveLength(1);
+    expect(levels[0]).toBe(1);
+    expect(levels.length).toBeGreaterThanOrEqual(3);
+    levels.forEach((level, i) => i > 0 && expect(level).toBeLessThanOrEqual(levels[i - 1]! + 1));
+  });
+});
+
 describe("TaskPage", () => {
   it("shows the task with its stage, priority, overdue state and assignee, and the edit and delete forms to writers", async () => {
     const html = renderToStaticMarkup(await TaskPage({ params: params() }));

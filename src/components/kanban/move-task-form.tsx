@@ -1,6 +1,7 @@
 "use client";
 
 import { moveTaskFromDetailAction } from "@/app/_actions/tasks";
+import { Field, Select } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
 import { SubmitButton } from "@/components/ui/submit-button";
 
@@ -23,20 +24,21 @@ export function MoveTaskForm({ taskId, pipelineId, pipelineName, stages, current
     <MutationForm action={moveTaskFromDetailAction} hidden={{ taskId, pipelineId }} className="flex flex-wrap items-end gap-3">
       {() => (
         <>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="move-task-stage" className="text-sm font-medium">Move to stage</label>
-            <select id="move-task-stage" name="toStageId" defaultValue={currentStageId} className="rounded border border-gray-300 px-3 py-2 text-sm">
-              {elsewhere.length === 0 ? (
-                options(stages)
-              ) : (
-                <>
-                  <optgroup label={pipelineName}>{options(stages)}</optgroup>
-                  {elsewhere.map((pipeline) => (
-                    <optgroup key={pipeline.id} label={pipeline.name}>{options(pipeline.stages)}</optgroup>
-                  ))}
-                </>
-              )}
-            </select>
+          <div className="min-w-0 flex-1">
+            <Field label="Move to stage">
+              <Select id="move-task-stage" name="toStageId" defaultValue={currentStageId}>
+                {elsewhere.length === 0 ? (
+                  options(stages)
+                ) : (
+                  <>
+                    <optgroup label={pipelineName}>{options(stages)}</optgroup>
+                    {elsewhere.map((pipeline) => (
+                      <optgroup key={pipeline.id} label={pipeline.name}>{options(pipeline.stages)}</optgroup>
+                    ))}
+                  </>
+                )}
+              </Select>
+            </Field>
           </div>
           <SubmitButton variant="secondary" pendingLabel="Moving...">Move task</SubmitButton>
         </>

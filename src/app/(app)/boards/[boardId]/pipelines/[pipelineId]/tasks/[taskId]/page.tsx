@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped, toPipelineOptions } from "@/app/_shared/kanban-data";
@@ -10,6 +11,11 @@ import { MoveTaskForm } from "@/components/kanban/move-task-form";
 import { LocalTime } from "@/components/kanban/local-time";
 import { EditTaskForm } from "@/components/kanban/edit-task-form";
 import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge, priorityTone } from "@/components/ui/badge";
+import { Card, CardBody } from "@/components/ui/card";
+import { Alert } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { getContainer } from "@/infrastructure/container";
 
 export const metadata = { title: "Task - GestTask" };
@@ -50,55 +56,73 @@ export default async function TaskPage({ params }: TaskPageProps) {
   const stage = stages.find((s) => s.id === task.stageId);
   const canWrite = role !== "guest";
   return (
-    <main className="flex max-w-2xl flex-col gap-6">
+    <main className="flex flex-col gap-6">
       <nav aria-label="Breadcrumb" className="text-sm">
-        <Link href={`/boards/${boardId}/pipelines/${pipelineId}`} className="underline">Back to pipeline</Link>
+        <Link href={`/boards/${boardId}/pipelines/${pipelineId}`} className="inline-flex items-center gap-1 rounded text-slate-600 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"><ChevronLeft aria-hidden="true" className="size-4" />Back to pipeline</Link>
       </nav>
-      <header>
-        <h1 className="text-2xl font-semibold">{task.title}</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          {stage?.name ?? "Unknown stage"}
-          {stage?.isDone ? " (Done stage)" : ""}
-        </p>
-      </header>
-      {data.stages.truncated ? <p role="status" className="rounded bg-yellow-50 px-3 py-2 text-sm">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</p> : null}
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt className="font-medium">Priority</dt>
-        <dd>{PRIORITY_LABELS[task.priority]}</dd>
-        <dt className="font-medium">Assignee</dt>
-        <dd>{assigneeLabel(task.assigneeId, assignee)}</dd>
-        <dt className="font-medium">Due date</dt>
-        <dd>
-          {task.dueDate ? `Due ${formatDate(task.dueDate)}` : "No due date"}
-          {task.overdue ? <span className="ml-2 rounded bg-red-700 px-2 py-0.5 text-xs text-white">Overdue</span> : null}
-        </dd>
-        {task.completedAt ? (
+      <PageHeader
+        title={task.title}
+        actions={
           <>
-            <dt className="font-medium">Completed</dt>
-            <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
+            <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
+            {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
           </>
-        ) : null}
-        <dt className="font-medium">Created</dt>
-        <dd>{formatDate(task.createdAt.toISOString())}</dd>
-      </dl>
-      {task.description ? <p className="whitespace-pre-wrap text-sm">{task.description}</p> : null}
-      <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />
-      {canWrite ? (
-        <>
-          <section aria-labelledby="move-heading">
-            <h2 id="move-heading" className="mb-3 text-lg font-medium">Move task</h2>
-            <MoveTaskForm taskId={task.id} pipelineId={pipelineId} pipelineName={data.pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={data.pipelines.filter((p) => p.id !== pipelineId)} />
-          </section>
-          <section aria-labelledby="edit-heading">
-            <h2 id="edit-heading" className="mb-3 text-lg font-medium">Edit task</h2>
-            <EditTaskForm task={task} members={members} />
-          </section>
-          <section aria-labelledby="delete-heading">
-            <h2 id="delete-heading" className="mb-3 text-lg font-medium">Delete task</h2>
-            <DeleteTaskForm taskId={task.id} />
-          </section>
-        </>
-      ) : null}
+        }
+      />
+      {data.stages.truncated ? <Alert tone="warning">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</Alert> : null}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
+          {task.description ? <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-slate-800">{task.description}</p></CardBody></Card> : null}
+          <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />
+          {canWrite ? (
+            <section aria-labelledby="edit-heading">
+              <h2 id="edit-heading" className="mb-3 text-lg font-semibold text-slate-900">Edit task</h2>
+              <Card><CardBody><EditTaskForm task={task} members={members} /></CardBody></Card>
+            </section>
+          ) : null}
+        </div>
+        <aside aria-label="Task details" className="flex flex-col gap-6">
+          <Card>
+            <CardBody>
+              <h2 className="mb-3 text-base font-semibold text-slate-900">Details</h2>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                <dt className="font-medium text-slate-700">Priority</dt>
+                <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
+                <dt className="font-medium text-slate-700">Assignee</dt>
+                <dd className="flex min-w-0 items-center gap-2">
+                  {assignee ? <Avatar name={assignee} size="sm" /> : null}
+                  <span className="min-w-0 truncate">{assigneeLabel(task.assigneeId, assignee)}</span>
+                </dd>
+                <dt className="font-medium text-slate-700">Due date</dt>
+                <dd>
+                  {task.dueDate ? `Due ${formatDate(task.dueDate)}` : "No due date"}
+                  {task.overdue ? <span className="ml-2"><Badge tone="danger">Overdue</Badge></span> : null}
+                </dd>
+                {task.completedAt ? (
+                  <>
+                    <dt className="font-medium text-slate-700">Completed</dt>
+                    <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
+                  </>
+                ) : null}
+                <dt className="font-medium text-slate-700">Created</dt>
+                <dd>{formatDate(task.createdAt.toISOString())}</dd>
+              </dl>
+            </CardBody>
+          </Card>
+          {canWrite ? (
+            <>
+              <section aria-labelledby="move-heading">
+                <h2 id="move-heading" className="mb-3 text-lg font-semibold text-slate-900">Move task</h2>
+                <Card><CardBody><MoveTaskForm taskId={task.id} pipelineId={pipelineId} pipelineName={data.pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={data.pipelines.filter((p) => p.id !== pipelineId)} /></CardBody></Card>
+              </section>
+              <section aria-labelledby="delete-heading">
+                <h2 id="delete-heading" className="mb-3 text-lg font-semibold text-slate-900">Delete task</h2>
+                <Card><CardBody><DeleteTaskForm taskId={task.id} /></CardBody></Card>
+              </section>
+            </>
+          ) : null}
+        </aside>
+      </div>
     </main>
   );
 }
