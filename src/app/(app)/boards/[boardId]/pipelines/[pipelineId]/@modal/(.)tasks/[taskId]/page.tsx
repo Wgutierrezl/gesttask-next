@@ -1,8 +1,11 @@
 import { ClipboardList } from "lucide-react";
+import { pipelinePath } from "@/app/_shared/paths";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { loadTaskDetail, StagesTruncatedNotice, TaskComments, TaskDescription, TaskDetailsCard, TaskMoveCard, type TaskRouteParams } from "@/app/_shared/task-detail";
 import { TaskActions } from "@/components/kanban/task-actions";
 import { RouteModal } from "@/components/ui/route-modal";
+
+export const metadata = { title: "Task - GestTask" };
 
 interface TaskModalProps {
   params: Promise<TaskRouteParams>;
@@ -15,6 +18,7 @@ export default async function TaskModalPage({ params }: TaskModalProps) {
   const { task, pipeline, stage, members, canWrite } = detail;
   return (
     <RouteModal
+      fallbackHref={pipelinePath(task.boardId, task.pipelineId)}
       title={task.title}
       subtitle={`${pipeline.name} → ${stage?.name ?? "Unknown stage"}`}
       icon={<ClipboardList className="size-5" />}

@@ -30,6 +30,7 @@ test.describe("task detail as a modal (intercepting route)", () => {
     await dialog.getByRole("button", { name: "Close" }).click();
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(board);
+    await expect(page).toHaveTitle("Pipeline - GestTask");
     await expect(link).toBeFocused();
   });
 
