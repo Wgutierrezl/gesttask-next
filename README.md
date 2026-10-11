@@ -84,7 +84,7 @@ The interface runs on one design system: Tailwind tokens in `src/app/globals.css
 
 1. Follow [Local setup](#local-setup) (`pnpm db:up`, `pnpm db:migrate && pnpm db:seed`, `pnpm dev`). Re-run `pnpm db:seed` after pulling, it adds anything the demo board is missing.
 2. Open http://localhost:3000 and press "Try the demo".
-3. Walk the demo board: the dashboard, the "Launch plan" and "Backlog" pipelines (drag a card onto the other pipeline's tab), a task page with its comments and attachments, and a phone-width window.
+3. Walk the demo board: the dashboard, the "Launch plan" and "Backlog" pipelines (drag a card onto the other pipeline's tab), a task with its comments and attachments (a click on a card opens it in a modal; reload for the full page), the dashed "Add task" button under each column, and a phone-width window.
 
 Accessibility is part of the contract: one `main` landmark and one `h1` per page, visible focus rings, labelled controls, and
 no animation when the system asks for reduced motion (`e2e/a11y.spec.ts`).
