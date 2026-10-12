@@ -25,8 +25,8 @@ export function Pager({ page, hasNext, ...link }: PagerProps) {
   if (page <= 1 && !hasNext) return null;
   return (
     <nav aria-label={t("pagination")} className="mt-6 flex justify-between text-sm">
-      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="font-medium text-brand-700 underline">{t("previous")}</Link> : <span />}
-      {hasNext ? <Link href={hrefFor(link, page + 1)} className="font-medium text-brand-700 underline">{t("next")}</Link> : null}
+      {page > 1 ? <Link href={hrefFor(link, page - 1)} className="font-medium text-brand-link underline">{t("previous")}</Link> : <span />}
+      {hasNext ? <Link href={hrefFor(link, page + 1)} className="font-medium text-brand-link underline">{t("next")}</Link> : null}
     </nav>
   );
 }
@@ -35,8 +35,8 @@ export function Pager({ page, hasNext, ...link }: PagerProps) {
 export function PastTheEnd({ what, href }: { what: "boards" | "members" | "pipelines"; href: string }) {
   const t = useTranslations("common");
   return (
-    <p className="text-sm text-slate-600">
-      {t(`pastTheEnd.${what}`)} <Link href={href} className="text-brand-700 underline">{t("firstPage")}</Link>
+    <p className="text-sm text-fg-muted">
+      {t(`pastTheEnd.${what}`)} <Link href={href} className="text-brand-link underline">{t("firstPage")}</Link>
     </p>
   );
 }

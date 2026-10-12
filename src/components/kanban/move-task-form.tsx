@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { moveTaskFromDetailAction } from "@/app/_actions/tasks";
 import { Field, Select } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
@@ -20,6 +21,7 @@ interface MoveTaskFormProps {
 
 /** Moves the task to the end of a stage, in this pipeline or another one of the board. Works without drag and drop and without JavaScript. */
 export function MoveTaskForm({ taskId, pipelineId, pipelineName, stages, currentStageId, otherPipelines = [], inModal = false }: MoveTaskFormProps) {
+  const t = useTranslations("task.move");
   const options = (list: { id: string; name: string }[]) => list.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>);
   const elsewhere = otherPipelines.filter((pipeline) => pipeline.stages.length > 0);
   return (
@@ -27,7 +29,7 @@ export function MoveTaskForm({ taskId, pipelineId, pipelineName, stages, current
       {() => (
         <>
           <div className="min-w-0 flex-1">
-            <Field label="Move to stage">
+            <Field label={t("field")}>
               <Select id="move-task-stage" name="toStageId" defaultValue={currentStageId}>
                 {elsewhere.length === 0 ? (
                   options(stages)
@@ -42,7 +44,7 @@ export function MoveTaskForm({ taskId, pipelineId, pipelineName, stages, current
               </Select>
             </Field>
           </div>
-          <SubmitButton variant="secondary" pendingLabel="Moving...">Move task</SubmitButton>
+          <SubmitButton variant="secondary" pendingLabel={t("pending")}>{t("submit")}</SubmitButton>
         </>
       )}
     </MutationForm>

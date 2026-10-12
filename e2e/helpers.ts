@@ -66,3 +66,35 @@ export async function choosePriority(form: Locator, priority: "Low" | "Medium" |
   await form.getByRole("radiogroup", { name: "Priority" }).getByText(priority, { exact: true }).click();
   await expect(form.getByRole("radio", { name: priority })).toBeChecked();
 }
+
+/** The stage columns of the open pipeline's board, left to right. */
+export const columnNames = (page: Page) => page.getByTestId("board-scroller").getByRole("heading", { level: 3 }).allTextContents();
+
+/**
+ * Creates a pipeline in the demo board through the "Create pipeline" modal and opens its Kanban. `stages` replaces the three
+ * prefilled rows (extra rows are added, surplus ones removed); without it the prefilled defaults are saved as they are.
+ */
+export async function createPipeline(page: Page, name: string, stages?: string[]): Promise<void> {
+  await page.goto("/boards");
+  await page.getByRole("link", { name: /Product launch/ }).first().click();
+  await page.getByRole("button", { name: /^(Create pipeline|Crear pipeline)$/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel(/^(Name|Nombre)/).fill(name);
+  if (stages) {
+    const rows = dialog.getByRole("textbox", { name: /^(Stage \d+ name|Etapa \d+: nombre)$/ });
+    while ((await rows.count()) < stages.length) await dialog.getByRole("button", { name: /^(Add stage|Agregar etapa)$/ }).click();
+    while ((await rows.count()) > stages.length) await dialog.getByRole("button", { name: /^(Remove stage|Quitar la etapa) \d+$/ }).last().click();
+    for (const [i, stage] of stages.entries()) await rows.nth(i).fill(stage);
+  }
+  await dialog.getByRole("button", { name: /^(Create pipeline|Crear pipeline)$/ }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole("link", { name }).click();
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+  await waitForHydration(page);
+}
+
+/** Removes the pipeline the page shows (through the API, with the session the page has), so later specs see the seeded board only. */
+export async function deleteOpenPipeline(page: Page): Promise<void> {
+  const id = /\/pipelines\/([0-9a-f-]{36})/.exec(page.url())?.[1];
+  if (id) await page.request.delete(`/api/v1/pipelines/${id}`);
+}

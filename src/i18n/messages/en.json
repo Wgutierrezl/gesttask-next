@@ -16,7 +16,8 @@
       "boards": "No boards on this page.",
       "members": "No members on this page.",
       "pipelines": "No pipelines on this page."
-    }
+    },
+    "active": "Active"
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -73,7 +74,12 @@
       "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "internal": "Something went wrong. Please try again.",
       "fixFields": "Please fix the highlighted fields."
-    }
+    },
+    "signInSubtitle": "Manage projects with boards and pipelines",
+    "signUpSubtitle": "Create your account and start today",
+    "footerTagline": "Organize • Collaborate • Deliver",
+    "emailPlaceholder": "you@email.com",
+    "namePlaceholder": "John Smith"
   },
   "meta": {
     "description": "Kanban task management",
@@ -83,7 +89,9 @@
     "board": "Board",
     "boardSettings": "Board settings",
     "boardDashboard": "Board dashboard",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "pipeline": "Pipeline",
+    "task": "Task"
   },
   "guest": {
     "banner": "You're exploring a demo sandbox — data resets in 24h.",
@@ -91,7 +99,7 @@
   },
   "boards": {
     "title": "Your boards",
-    "description": "Everything you own or collaborate on.",
+    "description": "Organize your projects with boards, pipelines and custom stages",
     "create": "Create board",
     "newBoard": "New board",
     "emptyTitle": "You have no boards yet",
@@ -99,14 +107,46 @@
     "name": "Name",
     "descriptionField": "Description",
     "submit": "Create",
-    "submitting": "Creating..."
+    "submitting": "Creating...",
+    "activeCount": "{count, plural, one {# active board} other {# active boards}}",
+    "namePlaceholder": "e.g. Digital marketing project",
+    "descriptionPlaceholder": "Describe the purpose of this board...",
+    "activeCountPage": "{count, plural, one {# active board on this page} other {# active boards on this page}}"
   },
   "pipeline": {
-    "heading": "Pipelines",
+    "heading": "Board pipelines",
     "create": "Create pipeline",
     "newPipeline": "New pipeline",
-    "none": "No pipelines yet.",
-    "defaultStages": "A new pipeline starts with the stages To do, In progress and Done."
+    "submit": "Create pipeline",
+    "submitting": "Creating...",
+    "namePlaceholder": "e.g. Frontend development",
+    "descriptionPlaceholder": "What is this pipeline for?",
+    "form": {
+      "stages": "Pipeline stages",
+      "addStage": "Add stage",
+      "help": "Define the stages your tasks will move through. The last one marks tasks as done.",
+      "stageName": "Stage {n} name",
+      "stagePlaceholder": "Stage {n}",
+      "moveUp": "Move stage {n} up",
+      "moveDown": "Move stage {n} down",
+      "remove": "Remove stage {n}",
+      "preview": "Flow preview",
+      "previewHeading": "Flow preview:"
+    },
+    "defaultNames": {
+      "todo": "To do",
+      "inProgress": "In progress",
+      "done": "Done"
+    },
+    "description": "Each pipeline has its own stages to organize tasks",
+    "count": "{count, plural, one {# pipeline} other {# pipelines}}",
+    "stagesLabel": "Pipeline stages:",
+    "stageCount": "{count, plural, one {# stage} other {# stages}}",
+    "viewOnly": "View only",
+    "emptyTitle": "No pipelines on this board",
+    "emptyOwner": "Create your first pipeline with custom stages to organize your tasks",
+    "emptyViewer": "The board owner has not created any pipelines yet",
+    "countPage": "{count, plural, one {# pipeline on this page} other {# pipelines on this page}}"
   },
   "board": {
     "dashboard": "Dashboard",
@@ -152,6 +192,22 @@
       "removing": "Removing...",
       "loseAccessSelf": "I will lose access to this board",
       "loseAccess": "{name} will lose access to this board"
+    },
+    "header": {
+      "back": "Back to boards"
+    },
+    "dialog": {
+      "manage": "Manage members",
+      "addTitle": "Add new member",
+      "current": "Current members ({count})",
+      "you": "(You)",
+      "permissions": "Role permissions:",
+      "permission": {
+        "owner": "Full control of the board, pipelines, tasks and members",
+        "member": "Creates and edits tasks, comments and attaches files",
+        "guest": "Views the board and comments, without editing tasks"
+      },
+      "truncated": "Showing the first {count} members. The board settings list everyone."
     }
   },
   "dashboard": {
@@ -178,5 +234,292 @@
       "inactive": "Inactive",
       "overdue": "Overdue"
     }
+  },
+  "kanban": {
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "pipelines": "Pipelines",
+    "tasks": "{count, plural, one {{count, number, ::group-off} task} other {{count, number, ::group-off} tasks}}",
+    "columnLabel": "{name}, {count, plural, one {{count, number, ::group-off} task} other {{count, number, ::group-off} tasks}}",
+    "doneStage": "Done stage",
+    "noTasks": "No tasks",
+    "unassigned": "Unassigned",
+    "formerMember": "Former member",
+    "untitled": "task",
+    "due": "Due {date}",
+    "overdue": "Overdue",
+    "completed": "Completed",
+    "doneChip": "Done",
+    "dragAria": "Drag {title}",
+    "moveOptions": "Move options for {title}",
+    "moveUp": "Move {title} up",
+    "moveDown": "Move {title} down",
+    "moveToStage": "Move {title} to {stage}",
+    "moveToPipelineStage": "Move {title} to {pipeline} / {stage}",
+    "pipelineGroup": "{name} pipeline",
+    "boardUpdates": "Board updates",
+    "moveFailed": "The task could not be moved. Try again.",
+    "dragInstructions": "To pick up a task, focus the card and press Space. While dragging, use the arrow keys to move it. Press Space again to drop it in its new position, or press Escape to cancel.",
+    "announce": {
+      "pickedUp": "Picked up {title}.",
+      "notOver": "{title} is not over a drop area.",
+      "original": "{title} is in its original place.",
+      "over": "{title} is over {where}.",
+      "dropped": "Dropped {title} on {where}.",
+      "droppedOutside": "{title} was dropped outside the board and stays where it was.",
+      "cancelled": "Move cancelled. {title} stays where it was.",
+      "wherePipeline": "pipeline {name}",
+      "whereColumn": "the {name} column",
+      "whereCard": "{title} in {stage}",
+      "moving": "Moving {title} to {destination}",
+      "moved": "Moved {title} to {destination}",
+      "restored": "Couldn't move {title} — restored",
+      "failedAcross": "Couldn't move {title}",
+      "destination": "{stage} in {pipeline}",
+      "anotherPipeline": "another pipeline"
+    },
+    "addTask": "Add task",
+    "addTaskTo": "Add task to {stage}",
+    "newTask": "New task",
+    "adding": "Adding...",
+    "addStageFirst": "Add a stage first: tasks live inside stages.",
+    "fields": {
+      "stage": "Stage",
+      "title": "Title",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "assignee": "Assignee"
+    },
+    "page": {
+      "breadcrumb": "Breadcrumb",
+      "back": "Back to board",
+      "backShort": "Back",
+      "pipelineBadge": "Pipeline",
+      "subtitle": "{board} • {description}",
+      "stagesTitle": "Stages of the pipeline",
+      "stagesHelp": "Drag and drop tasks between stages to manage their progress",
+      "stagesReadOnly": "Read-only view: you cannot move tasks",
+      "truncatedTasks": "Showing the first {count} tasks of this pipeline.",
+      "truncatedStages": "Showing the first {count} stages of this pipeline.",
+      "truncatedMembers": "Showing the first {count} members to choose as assignee."
+    },
+    "placeholders": {
+      "title": "e.g. Implement authentication",
+      "description": "Describe the details of the task..."
+    }
+  },
+  "stages": {
+    "menu": {
+      "trigger": "Stage options for {name}",
+      "rename": "Rename",
+      "moveLeft": "Move left",
+      "moveRight": "Move right",
+      "markDone": "Mark as done stage",
+      "unmarkDone": "Unmark done stage",
+      "delete": "Delete stage",
+      "doneCannotDelete": "The done stage cannot be deleted. Mark another stage as done first.",
+      "lastStage": "A pipeline needs at least one stage.",
+      "failed": "The stage could not be updated. Try again."
+    },
+    "rename": {
+      "label": "Stage name",
+      "save": "Save name",
+      "cancel": "Cancel rename"
+    },
+    "delete": {
+      "title": "Delete stage “{name}”",
+      "withTasks": "Its tasks move to the stage you choose.",
+      "empty": "This stage has no tasks.",
+      "moveTo": "Move tasks to",
+      "confirm": "Delete stage",
+      "deleting": "Deleting..."
+    },
+    "add": {
+      "open": "Add stage",
+      "name": "Stage name",
+      "save": "Add",
+      "adding": "Adding...",
+      "cancel": "Cancel adding a stage"
+    }
+  },
+  "task": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "editTitle": "Edit task",
+    "deleteTitle": "Delete task",
+    "deletePrompt": "Delete “{title}”? This cannot be undone.",
+    "save": "Save task",
+    "saving": "Saving...",
+    "deleteConfirm": "I want to delete this task",
+    "deleteSubmit": "Delete task",
+    "deleting": "Deleting...",
+    "move": {
+      "heading": "Move task",
+      "field": "Move to stage",
+      "submit": "Move task",
+      "pending": "Moving..."
+    },
+    "detail": {
+      "loading": "Loading task…",
+      "back": "Back to pipeline",
+      "aside": "Task details",
+      "details": "Details",
+      "unknownStage": "Unknown stage",
+      "noDueDate": "No due date",
+      "created": "Created"
+    }
+  },
+  "comments": {
+    "heading": "Comments ({count})",
+    "truncated": "Showing the first {count} comments of this task.",
+    "empty": "No comments yet.",
+    "by": "Comment by {name}",
+    "posted": "Posted",
+    "attachments": "Attachments",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add a comment",
+    "posting": "Posting...",
+    "submit": "Comment",
+    "guestNote": "Guests can comment, but only members can attach files.",
+    "editLabel": "Edit comment",
+    "saving": "Saving...",
+    "save": "Save comment",
+    "deleteConfirm": "I want to delete this comment",
+    "deleteSubmit": "Delete comment",
+    "deleting": "Deleting..."
+  },
+  "attachments": {
+    "label": "Attach files",
+    "help": "PNG, JPEG, WebP, PDF or plain text, up to {size} each and {max} per comment.",
+    "demoQuota": "Demo sessions can attach up to 5 files in total.",
+    "uploading": "uploading...",
+    "ready": "ready",
+    "failed": "failed",
+    "retry": "Retry",
+    "retryAria": "Retry {name}",
+    "remove": "Remove",
+    "removeAria": "Remove {name}",
+    "errors": {
+      "tooLarge": "The file is larger than {size}",
+      "tooMany": "You can attach up to {max, plural, one {# file} other {# files}} to a comment",
+      "refused": "The upload was refused.",
+      "uploadFailed": "The upload failed. Try again.",
+      "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "internal": "Something went wrong. Please try again."
+    }
+  },
+  "errors": {
+    "code": {
+      "VALIDATION": "Invalid input",
+      "UNAUTHENTICATED": "Authentication required",
+      "FORBIDDEN": "Insufficient permissions",
+      "NOT_FOUND": "Resource not found",
+      "CONFLICT": "Conflict",
+      "RATE_LIMITED": "Too many requests",
+      "STORAGE": "Storage operation failed",
+      "UNAVAILABLE": "The service is temporarily unavailable",
+      "INTERNAL": "Something went wrong"
+    },
+    "reason": {
+      "guest": {
+        "boardLimit": "Guest limit reached: at most {max} boards. Sign up to create more.",
+        "taskLimit": "Guest limit reached: at most {max} tasks. Sign up to create more.",
+        "attachmentLimit": "Guest limit reached: at most {max} attachments. Sign up to attach more.",
+        "cannotInvite": "Create an account to invite people"
+      },
+      "stage": {
+        "doneExists": "The pipeline already has a done stage",
+        "nameTaken": "A stage with this name already exists in the pipeline",
+        "doneCannotDelete": "The done stage cannot be deleted: move the done flag to another stage first",
+        "hasTasks": "Stage has tasks: choose a destination stage",
+        "sameDestination": "Destination must be a different stage"
+      },
+      "member": {
+        "alreadyMember": "User is already a member of this board",
+        "lastOwner": "A board needs at least one owner"
+      },
+      "task": {
+        "movedConcurrently": "The task changed column concurrently; retry"
+      },
+      "attachment": {
+        "alreadyAttached": "This file is already attached to a comment"
+      },
+      "auth": {
+        "invalidCredentials": "Invalid email or password",
+        "emailTaken": "Email already registered",
+        "alreadyGuest": "Already signed in as a guest",
+        "alreadySignedIn": "Already signed in"
+      },
+      "confirmationRequired": "Confirmation required"
+    },
+    "validation": {
+      "tooSmall": "Too small: expected string to have >={min, plural, one {# characters} other {# characters}}",
+      "tooBig": "Too big: expected string to have <={max, plural, one {# characters} other {# characters}}",
+      "invalidEmail": "Invalid email address",
+      "name": {
+        "tooSmall": "Name is required",
+        "tooBig": "Name must be at most {max} characters"
+      },
+      "description": {
+        "tooBig": "Description must be at most {max} characters"
+      },
+      "stages": {
+        "tooSmall": "A pipeline needs at least one stage",
+        "tooBig": "A pipeline can have at most {max} stages",
+        "custom": "Stage names must be unique"
+      },
+      "stageName": {
+        "required": "Stage name is required"
+      },
+      "body": {
+        "tooSmall": "Write something first",
+        "tooBig": "Comments are limited to {max} characters"
+      },
+      "fileName": {
+        "tooSmall": "File name is required"
+      },
+      "size": {
+        "tooSmall": "The file is empty",
+        "tooBig": "Files can be at most {maxMb} MB"
+      },
+      "contentType": {
+        "invalid": "This file type is not allowed"
+      },
+      "email": {
+        "notFound": "No account found with that email",
+        "custom": "Use a real email address"
+      },
+      "assigneeId": {
+        "notMember": "Assignee must be a member of the board"
+      },
+      "attachmentIds": {
+        "expired": "A file took too long to attach. Upload it again.",
+        "notUploaded": "A file did not finish uploading. Try attaching it again."
+      },
+      "confirm": {
+        "deleteBoard": "Confirm that you want to delete this board",
+        "deleteTask": "Confirm that you want to delete this task",
+        "deleteComment": "Confirm that you want to delete this comment",
+        "removeMember": "Confirm that you want to remove this member"
+      }
+    }
+  },
+  "errorPages": {
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you are looking for does not exist or you do not have access to it."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "body": "An unexpected error occurred. You can try again or go back.",
+      "retry": "Try again"
+    },
+    "toHome": "Go to the home page",
+    "toBoards": "Go to your boards"
   }
 }

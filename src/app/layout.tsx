@@ -4,6 +4,7 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
+import { clientMessages } from "@/i18n/client-messages";
 import { ThemeProvider } from "@/components/shell/theme-context";
 import { resolveTheme, THEME_COOKIE } from "@/theme/config";
 import "./globals.css";
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // S16: when the server-only `errors` catalog arrives, prune `messages` by namespace here so it never reaches the client.
+  // `errors` is read only by the server chokepoints that translate failures; `clientMessages` keeps it out of the bundle.
   const [locale, messages, jar] = await Promise.all([getLocale(), getMessages(), cookies()]);
   // Rendered by the server, so the first paint already has the right palette (no inline script, no flash). `system` is
   // resolved by the stylesheet with `prefers-color-scheme`.
@@ -31,7 +32,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} data-theme={theme} className={geist.variable}>
       <body className="bg-canvas font-sans text-fg antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={clientMessages(messages)}>
           <ThemeProvider theme={theme}>{children}</ThemeProvider>
         </NextIntlClientProvider>
       </body>

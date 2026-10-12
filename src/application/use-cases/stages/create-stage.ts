@@ -3,6 +3,8 @@ import type { Actor } from "../../actor";
 import type { AppDeps } from "../../deps";
 import { placeAtEnd } from "../../placement";
 import { loadPipeline } from "../../resources";
+import { MAX_STAGES } from "../../stage-limits";
+import { ValidationError } from "@/domain/errors";
 import { parseInput } from "../../schemas/parse";
 import { createStageSchema } from "../../schemas/stage";
 import { recomputeCompletion } from "./_completion";
@@ -15,6 +17,11 @@ export function makeCreateStage(deps: AppDeps) {
     const now = deps.clock.now();
     return deps.uow.run(async (tx) => {
       const siblings = await tx.stages.listByPipeline(pipelineId);
+      // The same cap the create-pipeline form enforces, with the same reason, so a board cannot grow wider than it can be created.
+      if (siblings.length >= MAX_STAGES) {
+        const message = `A pipeline can have at most ${MAX_STAGES} stages`;
+        throw new ValidationError(message, { name: [message] }, { name: [{ reason: "stages.tooBig", params: { max: MAX_STAGES } }] });
+      }
       const placement = placeAtEnd(siblings);
       for (const relocated of placement.relocated) await tx.stages.update(relocated);
       const stage: Stage = {
