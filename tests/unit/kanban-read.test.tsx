@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError, ValidationError } from "@/domain/errors";
 
@@ -10,8 +10,10 @@ const notFound = vi.fn(() => {
 });
 vi.mock("next/navigation", () => ({ redirect, notFound, useRouter: () => ({ refresh: vi.fn() }) }));
 
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
+
 const getActor = vi.fn();
-const useCases = { getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn() };
+const useCases = { getBoard: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn(), getBoardDashboard: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
 
@@ -19,7 +21,7 @@ const { buildColumns } = await import("@/components/kanban/columns");
 const { TaskCard } = await import("@/components/kanban/task-card");
 const { KanbanColumn } = await import("@/components/kanban/kanban-column");
 const { loadCapped, toStageView, toTaskCardView } = await import("@/app/_shared/kanban-data");
-const { default: PipelinePage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
+const { default: PipelinePage, generateMetadata } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
 const { PipelineList } = await import("@/components/boards/pipeline-list");
 
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";
@@ -29,15 +31,38 @@ const task = (id: string, stageId: string, overrides: Record<string, unknown> = 
   id, boardId: BOARD_ID, pipelineId: PIPELINE_ID, stageId, title: `Task ${id}`, description: "", priority: "medium", status: "active",
   dueDate: null, assigneeId: null, completedAt: null, position: id, createdAt: new Date("2026-10-01T00:00:00Z"), overdue: false, ...overrides,
 });
+const counts = (total: number) => ({ total, byPriority: { low: 0, medium: total, high: 0 }, byStatus: { active: total, inactive: 0 }, overdue: 0 });
+const dashboardOf = (...pipelines: [string, string, number][]) => ({
+  members: 1, tasks: counts(0),
+  pipelines: pipelines.map(([id, name, total]) => ({ id, name, tasks: counts(total), stages: [{ id: `${id}-s1`, name: `${name} stage`, isDone: false, tasks: counts(total) }] })),
+});
 const params = (boardId = BOARD_ID, pipelineId = PIPELINE_ID) => Promise.resolve({ boardId, pipelineId });
 
 beforeEach(() => {
   vi.clearAllMocks();
   getActor.mockResolvedValue({ userId: "u", isGuest: false });
+  useCases.getBoard.mockResolvedValue({ board: { id: BOARD_ID, name: "Roadmap" } });
   useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "Two weeks" }, role: "owner" });
   useCases.listStages.mockResolvedValue([stage("s1", "To do"), stage("s2", "Done", true)]);
   useCases.listTasksByPipeline.mockResolvedValue([task("t1", "s1"), task("t2", "s2", { completedAt: new Date("2026-10-09T10:00:00Z") })]);
   useCases.listMemberProfiles.mockResolvedValue([{ userId: "u", role: "owner", name: "Olivia", email: null }]);
+  useCases.getBoardDashboard.mockResolvedValue(dashboardOf([PIPELINE_ID, "Sprint", 2]));
+});
+
+describe("PipelinePage tabs", () => {
+  it("links every pipeline of the board with its count, marking the one on screen", async () => {
+    useCases.getBoardDashboard.mockResolvedValue(dashboardOf(["p-other", "Backlog", 3], [PIPELINE_ID, "Sprint", 2]));
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(useCases.getBoardDashboard).toHaveBeenCalledWith({ boardId: BOARD_ID });
+    expect(html).toContain('aria-label="Pipelines"');
+    expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/p-other"`);
+    expect(html).toMatch(new RegExp(`aria-current="page"[^>]*href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"|href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"[^>]*aria-current="page"`));
+    expect(html).toContain("Backlog");
+  });
+
+  it("shows no tabs for a board with a single pipeline", async () => {
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain('aria-label="Pipelines"');
+  });
 });
 
 describe("buildColumns", () => {
@@ -128,22 +153,36 @@ describe("PipelinePage", () => {
     expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200, offset: 0 });
   });
 
-  it("offers stage management to owners only, with each stage's task count", async () => {
+  it("offers stage management to owners only, in each column header, and no separate panel", async () => {
     const owner = renderToStaticMarkup(await PipelinePage({ params: params() }));
-    expect(owner).toContain("Manage stages");
-    expect(owner).toContain('aria-label="Move To do right"');
+    expect(owner).toContain('aria-label="Stage options for To do"');
+    expect(owner).toContain('aria-label="Stage options for Done"');
+    expect(owner).toContain("Add stage");
+    expect(owner).not.toContain("Manage stages");
     for (const role of ["member", "guest"]) {
       useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role });
-      expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Manage stages");
+      const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+      expect(html).not.toContain("Stage options for");
+      expect(html).not.toContain(">Add stage<");
     }
   });
 
-  it("offers task creation to owners and members, not to viewers", async () => {
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+  it("offers task creation to owners and members as a button in each column, not to viewers, and no longer as an inline form", async () => {
+    const owner = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(owner).toContain('aria-label="Add task to To do"');
+    expect(owner).toContain('aria-label="Add task to Done"');
+    expect(owner).not.toContain("Add a task");
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "member" });
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a task");
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain('aria-label="Add task to To do"');
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
-    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add a task");
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add task to");
+  });
+
+  it("tells a writer to add a stage first when the pipeline has none, and a viewer nothing", async () => {
+    useCases.listStages.mockResolvedValue([]);
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Add a stage first");
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Add a stage first");
   });
 
   it("authorizes through getPipeline first and never reads the rest for a foreign pipeline", async () => {
@@ -165,6 +204,32 @@ describe("PipelinePage", () => {
     getActor.mockResolvedValue(null);
     await expect(PipelinePage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
     expect(useCases.getPipeline).not.toHaveBeenCalled();
+  });
+
+  it("titles the page from the catalog and names the breadcrumb and back link", async () => {
+    expect(await generateMetadata()).toEqual({ title: "Pipeline" });
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).toContain('aria-label="Breadcrumb"');
+    expect(html).toContain("Back to board");
+  });
+
+  it("puts the board's name and the pipeline's description in the header, reading the board only after the pipeline authorized the visit", async () => {
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).toContain("Roadmap • Two weeks");
+    expect(html).toContain("Stages of the pipeline");
+    expect(useCases.getBoard).toHaveBeenCalledWith({ boardId: BOARD_ID });
+    useCases.getBoard.mockClear();
+    useCases.getPipeline.mockRejectedValue(new NotFoundError());
+    await expect(PipelinePage({ params: params() })).rejects.toBeTruthy();
+    expect(useCases.getBoard).not.toHaveBeenCalled();
+  });
+
+  it("tells viewers the board is read-only and writers that tasks can be dragged", async () => {
+    expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).toContain("Drag and drop tasks between stages");
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role: "guest" });
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).toContain("Read-only view: you cannot move tasks");
+    expect(html).not.toContain("Drag and drop tasks");
   });
 
   it("warns when only part of a very large pipeline is shown", async () => {
@@ -215,7 +280,7 @@ describe("PipelinePage beyond the load caps", () => {
 
 describe("PipelineList links", () => {
   it("links each pipeline to its Kanban page when given the board", () => {
-    const html = renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: PIPELINE_ID, name: "Sprint", description: "" }]} />);
+    const html = renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: PIPELINE_ID, name: "Sprint", description: "", stages: [] }]} role="owner" />);
     expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"`);
   });
 });

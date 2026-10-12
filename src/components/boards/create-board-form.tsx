@@ -1,23 +1,26 @@
 "use client";
 
-import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { createBoardAction } from "@/app/_actions/boards";
-import { failureOf } from "@/app/_shared/mutation-state";
-import { FormError } from "@/components/auth/form-error";
-import { FormField } from "@/components/auth/form-field";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { MutationForm } from "@/components/ui/mutation-form";
+import { FormFooter } from "@/components/ui/form-footer";
 
-export function CreateBoardForm() {
-  const [state, formAction] = useActionState(createBoardAction, undefined);
-  const failure = failureOf(state);
+export function CreateBoardForm({ onCancel }: { onCancel?: () => void }) {
+  const t = useTranslations("boards");
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <FormField label="Name" name="name" maxLength={100} errors={failure?.fieldErrors?.name} />
-      <FormField label="Description" name="description" multiline required={false} maxLength={2000} errors={failure?.fieldErrors?.description} />
-      <FormError failure={failure} inlineFields={["name", "description"]} />
-      <div>
-        <SubmitButton pendingLabel="Creating...">Create board</SubmitButton>
-      </div>
-    </form>
+    <MutationForm action={createBoardAction} inlineFields={["name", "description"]} className="flex flex-col gap-4">
+      {(failure) => (
+        <>
+          <Field label={t("name")} required error={failure?.fieldErrors?.name?.join(" ")}>
+            <Input name="name" maxLength={100} placeholder={t("namePlaceholder")} required />
+          </Field>
+          <Field label={t("descriptionField")} error={failure?.fieldErrors?.description?.join(" ")}>
+            <Textarea name="description" rows={3} maxLength={2000} placeholder={t("descriptionPlaceholder")} />
+          </Field>
+          <FormFooter submitLabel={t("submit")} pendingLabel={t("submitting")} onCancel={onCancel} />
+        </>
+      )}
+    </MutationForm>
   );
 }

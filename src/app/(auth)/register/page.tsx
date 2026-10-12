@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signUpAction } from "@/app/_actions/auth";
@@ -6,18 +7,21 @@ import { CredentialsForm } from "@/components/auth/credentials-form";
 import { AuthShell } from "@/components/shell/auth-shell";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Create account - GestTask" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("createAccount") };
+}
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const t = await getTranslations("auth");
   const next = safeNext((await searchParams).next);
   // Guests still see the form: signing in or up from a guest session upgrades it (the sandbox moves along).
   const actor = await getContainer().session.getActor();
   if (actor && !actor.isGuest) redirect(next);
   return (
-    <AuthShell title="Create your account">
+    <AuthShell title={t("signUpTitle")} subtitle={t("signUpSubtitle")}>
       <CredentialsForm mode="sign-up" action={signUpAction} next={next} />
-      <p className="text-sm">
-        Already registered? <Link href="/login" className="font-medium text-brand-700 underline">Sign in</Link>
+      <p className="text-center text-sm text-fg-muted">
+        {t("alreadyRegistered")} <Link href="/login" className="font-medium text-brand-link underline underline-offset-2">{t("signInLink")}</Link>
       </p>
     </AuthShell>
   );

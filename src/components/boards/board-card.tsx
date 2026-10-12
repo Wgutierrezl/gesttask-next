@@ -1,26 +1,45 @@
+import { LayoutGrid } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { ROLE_LABEL, type RoleName } from "./role-label";
+import { LocalDay } from "@/components/kanban/local-time";
+import type { RoleName } from "./role-label";
 
-/** One board in the list: name, description, the caller's role and whether it is archived. */
+/** One board in the list: name, description, whether it is archived, the caller's role and when it was created. */
 interface BoardSummary {
   id: string;
   name: string;
   description: string;
   status: "active" | "inactive";
+  createdAt: Date;
 }
 
+/** v1's status pill: green while the board is in use, neutral once archived. */
+const STATUS = {
+  active: "border-success-edge bg-success-soft text-success-fg",
+  inactive: "border-border bg-surface-muted text-fg-muted",
+} as const;
+
 export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName | undefined }) {
+  const t = useTranslations("common");
+  const created = board.createdAt.toISOString();
   return (
-    <li className="rounded border border-gray-200 p-4 hover:border-gray-400">
-      <Link href={`/boards/${board.id}`} className="block">
-        <span className="flex items-center justify-between gap-2">
-          <span className="font-medium">{board.name}</span>
-          <span className="flex gap-2 text-xs">
-            {board.status === "inactive" ? <span className="rounded bg-gray-200 px-2 py-0.5">Archived</span> : null}
-            {role ? <span className="rounded bg-blue-100 px-2 py-0.5">{ROLE_LABEL[role]}</span> : null}
+    <li>
+      <Link
+        href={`/boards/${board.id}`}
+        className="group flex h-full flex-col rounded-2xl border border-border bg-surface p-6 transition duration-[var(--duration-base)] ease-[var(--ease-out-soft)] hover:border-border-hover hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <span className="mb-4 flex items-start justify-between gap-2">
+          <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-xl bg-linear-to-br from-icon-from to-icon-to text-icon-fg transition-all">
+            <LayoutGrid className="size-6" />
           </span>
+          <span className={`rounded-lg border px-2.5 py-1 text-xs ${STATUS[board.status]}`}>{board.status === "active" ? t("active") : t("archived")}</span>
         </span>
-        {board.description ? <span className="mt-1 block text-sm text-gray-600">{board.description}</span> : null}
+        <h3 className="mb-2 line-clamp-2 text-lg text-fg transition-colors group-hover:text-brand-link">{board.name}</h3>
+        <span className="mb-4 line-clamp-2 min-h-10 text-sm text-fg-muted">{board.description}</span>
+        <span className="mt-auto flex items-center justify-between gap-2 border-t border-border-subtle pt-4 text-xs text-fg-subtle">
+          <span>{role ? t(`roles.${role}`) : null}</span>
+          <LocalDay iso={created} />
+        </span>
       </Link>
     </li>
   );

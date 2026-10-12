@@ -38,6 +38,61 @@ describe("pipelines", () => {
     expect(stages.every((s) => s.boardId === boardId && s.pipelineId === created.id)).toBe(true);
   });
 
+  it("creates the stages the caller names, in order, trimmed, with only the last one flagged done", async () => {
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: [" Backlog ", "Review", "Shipped"] });
+    const stages = await ctx.repos.stages.listByPipeline(created.id);
+    expect(stages.map((s) => [s.name, s.isDone])).toEqual([
+      ["Backlog", false],
+      ["Review", false],
+      ["Shipped", true],
+    ]);
+    expect(stages.every((s) => s.boardId === boardId && s.pipelineId === created.id)).toBe(true);
+    // The input keeps its shape for the response: the pipeline itself never carries the stage list.
+    expect(created).not.toHaveProperty("stages");
+  });
+
+  it("flags the only stage of a single-stage pipeline as done", async () => {
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["Everything"] });
+    expect((await ctx.repos.stages.listByPipeline(created.id)).map((s) => [s.name, s.isDone])).toEqual([["Everything", true]]);
+  });
+
+  it.each([
+    ["an empty list", []],
+    ["a blank name", ["Ok", "   "]],
+    ["a name over 60 characters", ["x".repeat(61)]],
+    ["more than 20 stages", Array.from({ length: 21 }, (_, i) => `S${i}`)],
+    ["a duplicate ignoring case and padding", ["Review", " review "]],
+  ])("rejects %s without creating anything", async (_label, stages) => {
+    await expect(makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages })).rejects.toBeInstanceOf(ValidationError);
+    expect(ctx.store.pipelines.size).toBe(0);
+    expect(ctx.store.stages.size).toBe(0);
+  });
+
+  it("accepts exactly 20 stages", async () => {
+    const stages = Array.from({ length: 20 }, (_, i) => `S${i}`);
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages });
+    expect(await ctx.repos.stages.listByPipeline(created.id)).toHaveLength(20);
+  });
+
+  it("folds Unicode composition before comparing, and stores the names composed", async () => {
+    await expect(makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["É", "e\u0301"] })).rejects.toBeInstanceOf(ValidationError);
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["Cafe\u0301", "Autre"] });
+    expect((await ctx.repos.stages.listByPipeline(created.id)).map((s) => s.name)).toEqual(["Café", "Autre"]);
+  });
+
+  it("says a blank stage name is required, on that row, with its own reason", async () => {
+    const error = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["A", "   ", ""] }).catch((e) => e);
+    expect(error.fieldErrors["stages.1"]).toEqual(["Stage name is required"]);
+    expect(error.fieldErrors["stages.2"]).toEqual(["Stage name is required"]);
+    expect(error.fieldReasons["stages.1"]).toEqual([{ reason: "stageName.required" }]);
+  });
+
+  it("explains a duplicate on the stages field with a reason", async () => {
+    const error = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["A", "a"] }).catch((e) => e);
+    expect(error.fieldErrors.stages).toEqual(["Stage names must be unique"]);
+    expect(error.fieldReasons.stages).toEqual([{ reason: "stages.custom" }]);
+  });
+
   it("creates the pipeline and its stages atomically", async () => {
     const base = ctx.uow;
     let inserts = 0;

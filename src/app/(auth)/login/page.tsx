@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signInEmailAction } from "@/app/_actions/auth";
@@ -7,21 +8,23 @@ import { GuestButton } from "@/components/auth/guest-button";
 import { AuthShell } from "@/components/shell/auth-shell";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Sign in - GestTask" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("signIn") };
+}
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const t = await getTranslations("auth");
   const next = safeNext((await searchParams).next);
   // Guests still see the form: signing in or up from a guest session upgrades it (the sandbox moves along).
   const actor = await getContainer().session.getActor();
   if (actor && !actor.isGuest) redirect(next);
   return (
-    <AuthShell title="Sign in">
+    <AuthShell title={t("signInTitle")} subtitle={t("signInSubtitle")}>
       <CredentialsForm mode="sign-in" action={signInEmailAction} next={next} />
-      <p className="text-sm">
-        No account? <Link href="/register" className="font-medium text-brand-700 underline">Create one</Link>
-      </p>
-      <hr className="border-slate-200" />
       <GuestButton variant="secondary" />
+      <p className="text-center text-sm text-fg-muted">
+        {t("noAccount")} <Link href="/register" className="font-medium text-brand-link underline underline-offset-2">{t("createOne")}</Link>
+      </p>
     </AuthShell>
   );
 }

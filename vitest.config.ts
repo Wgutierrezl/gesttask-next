@@ -28,6 +28,7 @@ export default defineConfig({
           name: "unit",
           include: ["tests/unit/**/*.test.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
           environment: "node",
+          setupFiles: ["tests/support/setup-unit.ts"],
           // Tests that import the auth library cold take seconds to transform on a loaded machine.
           testTimeout: 20_000,
         },
@@ -41,6 +42,7 @@ export default defineConfig({
           // Every file truncates the same Postgres database, so files must not overlap.
           fileParallelism: false,
           globalSetup: ["tests/integration/global-setup.ts"],
+          setupFiles: ["tests/support/setup-unit.ts"],
           testTimeout: 30_000,
         },
       },

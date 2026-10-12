@@ -22,3 +22,9 @@ test.describe("dashboards (REQ-DSH-01..03)", () => {
     for (const stage of ["To do", "In progress", "Done"]) await expect(page.getByRole("rowheader", { name: new RegExp(`^${stage}`) })).toBeVisible();
   });
 });
+
+// REQ-BRD-01
+test("the header shows the logo as a link named GestTask", async ({ page }) => {
+  await page.goto("/boards");
+  await expect(page.getByRole("link", { name: "GestTask", exact: true })).toBeVisible();
+});

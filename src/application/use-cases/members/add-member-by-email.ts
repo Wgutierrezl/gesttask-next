@@ -25,11 +25,11 @@ export function makeAddMemberByEmail(
   return async (actor: Actor, input: unknown): Promise<BoardMember> => {
     const { boardId, email, role } = parseInput(addMemberByEmailSchema, input);
     await requireBoardAccess(deps.repos.members, actor, boardId, "member:manage");
-    if (actor.isGuest) throw new ForbiddenError("Create an account to invite people");
+    if (actor.isGuest) throw new ForbiddenError("Create an account to invite people", { reason: "guest.cannotInvite" });
     await enforceRateLimit(ext.limiter, `add-member-lookup:${actor.userId}`, LOOKUPS_PER_ACTOR);
     await enforceRateLimit(ext.limiter, `add-member-lookup-client:${await ext.clientKey()}`, LOOKUPS_PER_CLIENT);
     const found = await ext.users.findByEmail(email);
-    if (!found) throw new ValidationError("Invalid input", { email: ["No account found with that email"] });
+    if (!found) throw new ValidationError("Invalid input", { email: ["No account found with that email"] }, { email: [{ reason: "email.notFound" }] });
     const member: BoardMember = { boardId, userId: found.id, role };
     await deps.uow.run((tx) => tx.members.insert(member));
     return member;

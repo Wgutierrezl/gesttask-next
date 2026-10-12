@@ -157,13 +157,11 @@ describe("concurrency hardening", () => {
       expect(ctx.store.stages.has(k.todoId)).toBe(true);
     });
 
-    it("moveTask answers Conflict when the task changed column since the pre-flight read", async () => {
+    it("moveTask retries once with a fresh snapshot when the task changed column since the pre-flight read", async () => {
       put(T1, k.todoId);
       const racing = withInterleavedWrite(ctx, (store) => void Object.assign(store.tasks.get(T1)!, { stageId: k.progressId }));
-      await expect(
-        makeMoveTask(racing)(OWNER, { taskId: T1, toStageId: k.doneId, afterTaskId: null }),
-      ).rejects.toBeInstanceOf(ConflictError);
-      expect(ctx.store.tasks.get(T1)?.stageId).toBe(k.progressId);
+      await makeMoveTask(racing)(OWNER, { taskId: T1, toStageId: k.doneId, afterTaskId: null });
+      expect(ctx.store.tasks.get(T1)?.stageId).toBe(k.doneId);
     });
   });
 

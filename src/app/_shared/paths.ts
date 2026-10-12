@@ -10,3 +10,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function pipelinePath(boardId: string, pipelineId: string): string {
   return UUID.test(boardId) && UUID.test(pipelineId) ? `/boards/${boardId}/pipelines/${pipelineId}` : "/boards";
 }
+
+/** Task detail path for ids that came from a use case result; anything that is not a UUID triple falls back to the board list. */
+export function taskPath(boardId: string, pipelineId: string, taskId: string): string {
+  const pipeline = pipelinePath(boardId, pipelineId);
+  return pipeline !== "/boards" && UUID.test(taskId) ? `${pipeline}/tasks/${taskId}` : "/boards";
+}
