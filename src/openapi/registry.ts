@@ -16,7 +16,7 @@ function failures(operation: Operation): ResponseMap {
   const responses: ResponseMap = { 401: problem("No valid session") };
   if (operation.method !== "get") responses[403] = problem("Your role on the board does not allow this (or the request came from another origin)");
   if (operation.params) responses[404] = problem("No such resource, or it belongs to a board you are not on: both read the same");
-  if (operation.method !== "get") responses[409] = problem("The request conflicts with the current state (duplicate, last owner, stage with tasks, reused upload)");
+  if (operation.method !== "get") responses[409] = problem(`The request conflicts with the current state (duplicate, last owner, stage with tasks, reused upload)${operation.conflict ? `; ${operation.conflict}` : ""}`);
   if (operation.body) responses[400] = problem("The body is not a JSON object (malformed JSON, an array, a bare value)");
   if (operation.body) responses[413] = problem("The body is larger than 64 KB");
   const paged = operation.response.kind === "list" && operation.response.paginated;

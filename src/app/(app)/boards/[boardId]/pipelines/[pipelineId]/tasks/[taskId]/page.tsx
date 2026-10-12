@@ -1,100 +1,44 @@
+import { ChevronLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { LIST_LOAD_CAP, loadAssigneeNames, loadCapped } from "@/app/_shared/kanban-data";
-import { toCommentRow } from "@/app/_shared/comments-data";
-import { loadPage } from "@/app/_shared/load-page";
+import { loadTaskDetail, StagesTruncatedNotice, TaskComments, TaskDescription, TaskDetailsCard, TaskMoveCard, type TaskRouteParams } from "@/app/_shared/task-detail";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
-import { CommentsSection } from "@/components/comments/comments-section";
-import { DeleteTaskForm } from "@/components/kanban/delete-task-form";
-import { MoveTaskForm } from "@/components/kanban/move-task-form";
-import { LocalTime } from "@/components/kanban/local-time";
-import { EditTaskForm } from "@/components/kanban/edit-task-form";
-import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
-import { getContainer } from "@/infrastructure/container";
+import { TaskActions } from "@/components/kanban/task-actions";
+import { PageHeader } from "@/components/ui/page-header";
 
-export const metadata = { title: "Task - GestTask" };
-
-interface TaskPageProps {
-  params: Promise<{ boardId: string; pipelineId: string; taskId: string }>;
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("task") };
 }
 
+interface TaskPageProps {
+  params: Promise<TaskRouteParams>;
+}
+
+/** The full page: reached by a direct link or a reload. From the board the same task opens as a modal (see `@modal`). */
 export default async function TaskPage({ params }: TaskPageProps) {
   const actor = await requirePageActor();
-  const { boardId, pipelineId, taskId } = await params;
-  const data = await loadPage(async () => {
-    const { getTask, getPipeline, listStages, listMemberProfiles, listComments } = getContainer().useCases;
-    // `getTask` goes first: it is the authorization check, and a foreign task must not trigger the other reads.
-    const task = await getTask({ taskId });
-    if (task.boardId !== boardId || task.pipelineId !== pipelineId) return null;
-    const [{ role }, stages, members, assignee, comments] = await Promise.all([
-      getPipeline({ pipelineId }),
-      loadCapped((page) => listStages({ pipelineId, ...page }), LIST_LOAD_CAP),
-      loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
-      // The assignee is looked up by id: a member beyond the capped list is still named and stays selected when editing.
-      loadAssigneeNames((userIds) => listMemberProfiles({ boardId, userIds }), [task.assigneeId]),
-      loadCapped((page) => listComments({ taskId, ...page }), LIST_LOAD_CAP),
-    ]);
-    return { task, role, stages, members, assignee, comments };
-  });
-  // A task reached through the wrong board or pipeline in the URL is indistinguishable from a missing one.
-  if (!data) notFound();
-  const { task, role } = data;
-  const stages = data.stages.items;
-  const members = data.members.items.map(({ userId, name }) => ({ userId, name }));
-  const assignee = task.assigneeId ? (data.assignee.get(task.assigneeId) ?? null) : null;
-  if (task.assigneeId && assignee && !members.some((m) => m.userId === task.assigneeId)) members.push({ userId: task.assigneeId, name: assignee });
-  const stage = stages.find((s) => s.id === task.stageId);
-  const canWrite = role !== "guest";
+  const route = await params;
+  const detail = await loadTaskDetail(route, actor);
+  const t = await getTranslations("task.detail");
+  const k = await getTranslations("kanban.page");
+  const { task, members, canWrite } = detail;
   return (
-    <main className="flex max-w-2xl flex-col gap-6">
-      <nav aria-label="Breadcrumb" className="text-sm">
-        <Link href={`/boards/${boardId}/pipelines/${pipelineId}`} className="underline">Back to pipeline</Link>
+    <main className="flex flex-col gap-6">
+      <nav aria-label={k("breadcrumb")} className="text-sm">
+        <Link href={`/boards/${route.boardId}/pipelines/${route.pipelineId}`} className="inline-flex items-center gap-1 rounded text-fg-muted hover:text-brand-link hover:underline focus-visible:outline-2 focus-visible:outline-ring"><ChevronLeft aria-hidden="true" className="size-4" />{t("back")}</Link>
       </nav>
-      <header>
-        <h1 className="text-2xl font-semibold">{task.title}</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          {stage?.name ?? "Unknown stage"}
-          {stage?.isDone ? " (Done stage)" : ""}
-        </p>
-      </header>
-      {data.stages.truncated ? <p role="status" className="rounded bg-yellow-50 px-3 py-2 text-sm">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</p> : null}
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt className="font-medium">Priority</dt>
-        <dd>{PRIORITY_LABELS[task.priority]}</dd>
-        <dt className="font-medium">Assignee</dt>
-        <dd>{assigneeLabel(task.assigneeId, assignee)}</dd>
-        <dt className="font-medium">Due date</dt>
-        <dd>
-          {task.dueDate ? `Due ${formatDate(task.dueDate)}` : "No due date"}
-          {task.overdue ? <span className="ml-2 rounded bg-red-700 px-2 py-0.5 text-xs text-white">Overdue</span> : null}
-        </dd>
-        {task.completedAt ? (
-          <>
-            <dt className="font-medium">Completed</dt>
-            <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
-          </>
-        ) : null}
-        <dt className="font-medium">Created</dt>
-        <dd>{formatDate(task.createdAt.toISOString())}</dd>
-      </dl>
-      {task.description ? <p className="whitespace-pre-wrap text-sm">{task.description}</p> : null}
-      <CommentsSection taskId={task.id} comments={data.comments.items.map(toCommentRow)} truncated={data.comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />
-      {canWrite ? (
-        <>
-          <section aria-labelledby="move-heading">
-            <h2 id="move-heading" className="mb-3 text-lg font-medium">Move task</h2>
-            <MoveTaskForm taskId={task.id} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} />
-          </section>
-          <section aria-labelledby="edit-heading">
-            <h2 id="edit-heading" className="mb-3 text-lg font-medium">Edit task</h2>
-            <EditTaskForm task={task} members={members} />
-          </section>
-          <section aria-labelledby="delete-heading">
-            <h2 id="delete-heading" className="mb-3 text-lg font-medium">Delete task</h2>
-            <DeleteTaskForm taskId={task.id} />
-          </section>
-        </>
-      ) : null}
+      <PageHeader title={task.title} actions={canWrite ? <TaskActions task={task} members={members} /> : undefined} />
+      <StagesTruncatedNotice detail={detail} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
+          <TaskDescription description={task.description} />
+          <TaskComments detail={detail} />
+        </div>
+        <aside aria-label={t("aside")} className="flex flex-col gap-6">
+          <TaskDetailsCard detail={detail} level={2} />
+          {canWrite ? <TaskMoveCard detail={detail} level={2} /> : null}
+        </aside>
+      </div>
     </main>
   );
 }

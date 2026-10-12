@@ -1,10 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { ConflictError } from "@/domain/errors";
 import type { AppDeps } from "@/application/deps";
 import type { Repos } from "@/application/ports/repositories";
 import { makeDeleteBoard } from "@/application/use-cases/boards/delete-board";
 import { makeAddMember } from "@/application/use-cases/members/add-member";
 import { makeRemoveMember } from "@/application/use-cases/members/remove-member";
 import { makeDeletePipeline } from "@/application/use-cases/pipelines/delete-pipeline";
+import { makeCreatePipeline } from "@/application/use-cases/pipelines/create-pipeline";
 import { makeDeleteStage } from "@/application/use-cases/stages/delete-stage";
 import { makeCreateTask } from "@/application/use-cases/tasks/create-task";
 import { makeMoveTask } from "@/application/use-cases/tasks/move-task";
@@ -163,6 +165,76 @@ describe("task writers and parent deletes keep the global lock order (boards, me
     noDeadlock(deleted);
     expect(written).toEqual({ value: expect.objectContaining({ stageId: k.doing.id }) });
     expect(deleted).toEqual({ value: undefined });
+  });
+
+  async function crossScenario() {
+    const { k, existing } = await scenario();
+    const pipeline = await makeCreatePipeline(deps)(OWNER, { boardId: k.boardId, name: "Backlog" });
+    const [siblingTodo] = await deps.repos.stages.listByPipeline(pipeline.id);
+    const other = await addTask(deps, siblingTodo!.id);
+    return { k, existing, pipeline, siblingTodo: siblingTodo!, other };
+  }
+
+  it("two cross-pipeline moves in opposite directions, the first frozen holding only ONE pipeline lock: no deadlock", async () => {
+    const { k, existing, siblingTodo, other } = await crossScenario();
+    // Frozen right after its first stage-list lock: sorted, that is the lower pipeline id; unsorted, its own origin.
+    const { written, deleted } = await race(
+      pausedBetween(["stages", "listByPipeline"], ["stages", "listByPipeline"]),
+      (paused) => makeMoveTask(paused)(OWNER, { taskId: existing.id, toStageId: siblingTodo.id, toEnd: true }),
+      () => makeMoveTask(deps)(OWNER, { taskId: other.id, toStageId: k.todo.id, toEnd: true }),
+    );
+    noDeadlock(written);
+    noDeadlock(deleted);
+    expect(written).toEqual({ value: expect.objectContaining({ stageId: siblingTodo.id }) });
+    expect(deleted).toEqual({ value: expect.objectContaining({ stageId: k.todo.id }) });
+  });
+
+  it("cross-pipeline moves fired in parallel in both directions end in a valid state", async () => {
+    const { k, existing, siblingTodo, other } = await crossScenario();
+    const outcomes = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        i % 2 === 0
+          ? settle(makeMoveTask(deps)(OWNER, { taskId: existing.id, toStageId: siblingTodo.id, toEnd: true }))
+          : settle(makeMoveTask(deps)(OWNER, { taskId: other.id, toStageId: k.todo.id, toEnd: true })),
+      ),
+    );
+    for (const outcome of outcomes) {
+      noDeadlock(outcome);
+      if ("error" in outcome) expect(outcome.error).toBeInstanceOf(ConflictError);
+    }
+    const valid = [k.todo.id, siblingTodo.id];
+    for (const id of [existing.id, other.id]) {
+      const task = await deps.repos.tasks.findById(id);
+      expect(valid).toContain(task?.stageId);
+      expect(task?.pipelineId).toBe(task?.stageId === k.todo.id ? k.pipelineId : siblingTodo.pipelineId);
+    }
+  });
+
+  it("cross-pipeline moveTask holding both pipelines while deletePipeline of the destination arrives: no deadlock", async () => {
+    const { existing, pipeline, siblingTodo } = await crossScenario();
+    const { written, deleted } = await race(
+      pausedBefore("tasks", "listByStage"),
+      (paused) => makeMoveTask(paused)(OWNER, { taskId: existing.id, toStageId: siblingTodo.id, toEnd: true }),
+      () => makeDeletePipeline(deps)(OWNER, { pipelineId: pipeline.id }),
+    );
+    noDeadlock(written);
+    noDeadlock(deleted);
+    expect(written).toEqual({ value: expect.objectContaining({ stageId: siblingTodo.id }) });
+    expect(deleted).toEqual({ value: undefined });
+  });
+
+  it("cross-pipeline moveTask holding the stage lists while deleteStage of the destination arrives: no deadlock", async () => {
+    const { existing, siblingTodo } = await crossScenario();
+    const { written, deleted } = await race(
+      pausedBefore("tasks", "listByStage"),
+      (paused) => makeMoveTask(paused)(OWNER, { taskId: existing.id, toStageId: siblingTodo.id, toEnd: true }),
+      () => makeDeleteStage(deps)(OWNER, { stageId: siblingTodo.id }),
+    );
+    noDeadlock(written);
+    noDeadlock(deleted);
+    expect(written).toEqual({ value: expect.objectContaining({ stageId: siblingTodo.id }) });
+    // The move committed first, so the stage now holds tasks and, without a destination, cannot be deleted.
+    expect(deleted).toEqual({ error: expect.any(ConflictError) });
   });
 
   it("updateTask freezing between its task lock and its assignee check while removeMember arrives: no deadlock", async () => {

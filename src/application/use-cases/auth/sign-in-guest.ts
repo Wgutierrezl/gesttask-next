@@ -21,7 +21,7 @@ interface Deps {
 export function makeSignInGuest(deps: Deps) {
   return async (caller: AnonymousCaller): Promise<Actor> => {
     const current = await deps.session.getActor();
-    if (current && !current.isGuest) throw new ConflictError("Already signed in");
+    if (current && !current.isGuest) throw new ConflictError("Already signed in", { reason: "auth.alreadySignedIn" });
     if (current && (await deps.sandbox.hasBoards(current))) return current;
     await enforceRateLimit(deps.limiter, `guest-login:${caller.clientKey}`, GUEST_LOGIN_RULE);
     const guest = current ?? (await deps.auth.signInGuest());
