@@ -60,6 +60,25 @@ describe("theme tokens", () => {
     it.each(surfaces)("the focus ring reaches 3:1 on %s", (surface) => expect(contrast(t["--ring"]!, t[surface]!)).toBeGreaterThanOrEqual(3));
   });
 
+  it("the avatar lightness tokens keep initials at 4.5:1 for every hue, in both themes", () => {
+    const rgbOf = (h: number, l: number) => {
+      const a = 0.6 * Math.min(l, 1 - l);
+      const channel = (n: number) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+      return "#" + [0, 8, 4].map((n) => Math.round(channel(n) * 255).toString(16).padStart(2, "0")).join("");
+    };
+    for (const [name, t] of [["light", light], ["dark", dark]] as const) {
+      const [bg, fg] = [t["--avatar-l-bg"]!, t["--avatar-l-fg"]!].map((v) => parseFloat(v) / 100) as [number, number];
+      for (let hue = 0; hue < 360; hue += 15) expect(contrast(rgbOf(hue, fg), rgbOf(hue, bg)), `${name} hue ${hue}`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(parseFloat(dark["--avatar-l-bg"]!)).toBeLessThan(50);
+    expect(parseFloat(light["--avatar-l-bg"]!)).toBeGreaterThan(50);
+  });
+
+  it("the loading skeleton keeps its light value and is visible (1.5:1) on every surface in dark", () => {
+    expect(light["--skeleton"]).toBe("#e2e8f0");
+    for (const surface of ["--canvas", "--surface", "--elevated"]) expect(contrast(dark["--skeleton"]!, dark[surface]!), surface).toBeGreaterThanOrEqual(1.5);
+  });
+
   it("white on the primary gradient and the danger fill keeps 4.5:1 (these fills are theme independent)", () => {
     const theme = (name: string) => css.match(new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1] ?? "";
     const gradient = css.match(/bg-brand-gradient[\s\S]*?linear-gradient\(135deg, var\(--color-([\w-]+)\), var\(--color-([\w-]+)\)\)/)!;

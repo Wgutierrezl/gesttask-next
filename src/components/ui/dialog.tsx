@@ -6,6 +6,10 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { cn } from "./cn";
 
 const SIZES = { md: "max-w-lg", lg: "max-w-2xl" } as const;
+const ICON_TONES = {
+  brand: "from-icon-from to-icon-to text-icon-fg",
+  violet: "from-tint-violet-from to-tint-violet-to text-tint-violet-fg",
+} as const;
 
 interface DialogProps {
   title: string;
@@ -19,14 +23,18 @@ interface DialogProps {
   size?: keyof typeof SIZES;
   /** A decorative glyph shown in a tinted box before the title. */
   icon?: ReactNode;
+  /** The tint of that box: the brand blue, or violet for the pipeline flows. */
+  iconTone?: keyof typeof ICON_TONES;
   /** A line under the title, e.g. where a task lives. */
   subtitle?: ReactNode;
   /** Extra controls in the header, before the Close button. */
   actions?: ReactNode;
+  /** A bar under the scrolling body that stays put, e.g. a Close button; rendered only while the dialog is open. */
+  footer?: ReactNode;
 }
 
 /** Modal on the native `<dialog>`: the browser provides the focus trap, Esc and focus return. */
-export function Dialog({ title, open, onClose, children, size = "md", icon, subtitle, actions }: DialogProps) {
+export function Dialog({ title, open, onClose, children, size = "md", icon, iconTone = "brand", subtitle, actions, footer }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const pressedOnBackdrop = useRef(false);
   const titleId = useId();
@@ -63,7 +71,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border p-6">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? (
-            <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-icon-from to-icon-to text-icon-fg">
+            <span aria-hidden="true" className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br", ICON_TONES[iconTone])}>
               {icon}
             </span>
           ) : null}
@@ -85,6 +93,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, subt
         </div>
       </div>
       {open && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">{children}</div>}
+      {open && footer ? <footer className="flex shrink-0 justify-end border-t border-border px-6 py-4">{footer}</footer> : null}
     </dialog>
   );
 }
