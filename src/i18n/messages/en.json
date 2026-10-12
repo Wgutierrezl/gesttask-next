@@ -73,7 +73,13 @@
       "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "internal": "Something went wrong. Please try again.",
       "fixFields": "Please fix the highlighted fields."
-    }
+    },
+    "signInSubtitle": "Manage projects with boards and pipelines",
+    "signUpSubtitle": "Create your account and start today",
+    "footerTagline": "Organize • Collaborate • Deliver",
+    "emailPlaceholder": "you@email.com",
+    "namePlaceholder": "John Smith",
+    "passwordPlaceholder": "••••••••"
   },
   "meta": {
     "description": "Kanban task management",

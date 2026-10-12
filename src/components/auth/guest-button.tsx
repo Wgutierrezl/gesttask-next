@@ -13,7 +13,7 @@ export function GuestButton({ variant = "primary" }: { variant?: "primary" | "se
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <FormError failure={state} />
-      <Button type="submit" variant={variant} disabled={pending} className="w-full">
+      <Button type="submit" variant={variant} disabled={pending} className="h-12 w-full rounded-xl">
         {pending ? t("preparingDemo") : t("tryDemo")}
       </Button>
     </form>

@@ -73,7 +73,13 @@
       "rateLimited": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
       "internal": "Algo salió mal. Inténtalo de nuevo.",
       "fixFields": "Corrige los campos resaltados."
-    }
+    },
+    "signInSubtitle": "Gestiona proyectos con tableros y pipelines",
+    "signUpSubtitle": "Crea tu cuenta y comienza hoy",
+    "footerTagline": "Organiza • Colabora • Entrega",
+    "emailPlaceholder": "tu@email.com",
+    "namePlaceholder": "Juan Pérez",
+    "passwordPlaceholder": "••••••••"
   },
   "meta": {
     "description": "Gestión de tareas Kanban",
