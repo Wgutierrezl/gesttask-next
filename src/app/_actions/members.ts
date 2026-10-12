@@ -1,7 +1,7 @@
 "use server";
 
 import type { MutationState } from "../_shared/mutation-state";
-import { runMutation, text } from "../_shared/run-mutation";
+import { confirmationRequired, runMutation, text } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
 const memberPaths = (boardId: string) => [`/boards/${boardId}`, `/boards/${boardId}/settings`];
@@ -39,7 +39,7 @@ export async function removeMemberAction(_previous: MutationState, form: FormDat
   const boardId = text(form, "boardId");
   const userId = text(form, "userId");
   if (text(form, "confirm") !== "yes") {
-    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to remove this member"] } };
+    return confirmationRequired("removeMember");
   }
   return runMutation(
     async () => {

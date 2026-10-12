@@ -13,11 +13,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations("shell");
   return (
     <>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-40 focus:rounded-control focus:bg-white focus:px-4 focus:py-2 focus:shadow-pop">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-40 focus:rounded-control focus:bg-surface focus:px-4 focus:py-2 focus:shadow-pop">
         {t("skipToContent")}
       </a>
       <AppHeader />
-      <div id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 focus:outline-none sm:px-6 lg:px-8">
+      <div id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none sm:px-6 lg:px-8">
         {actor.isGuest ? <GuestBanner /> : null}
         {children}
       </div>

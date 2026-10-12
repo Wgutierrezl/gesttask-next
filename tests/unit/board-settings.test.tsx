@@ -10,6 +10,7 @@ const notFound = vi.fn(() => {
 });
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 vi.mock("next/cache", () => ({ revalidatePath }));
 const scheduleStorageCleanup = vi.fn();
 vi.mock("@/app/_shared/storage-cleanup", () => ({ scheduleStorageCleanup }));

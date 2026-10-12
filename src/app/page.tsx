@@ -1,5 +1,6 @@
 import { Columns3, ShieldCheck, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Logo } from "@/components/brand/logo";
 import { GuestButton } from "@/components/auth/guest-button";
 import { GridMask } from "@/components/shell/grid-mask";
 import { PreferencesMenu } from "@/components/shell/preferences-menu";
@@ -20,8 +21,8 @@ export default function HomePage() {
         <GridMask />
         <PreferencesMenu floating />
         <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-24 text-center sm:py-32">
-          <h1 className="text-4xl font-bold tracking-tight text-fg sm:text-5xl">
-            GestTask
+          <h1 className="text-4xl font-bold sm:text-5xl">
+            <Logo markClassName="size-12 sm:size-16" wordmarkClassName="font-bold" />
           </h1>
           <p className="text-lg text-fg-strong">{t("tagline")}</p>
           <div className="flex flex-wrap items-center justify-center gap-3">

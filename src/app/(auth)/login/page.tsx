@@ -19,13 +19,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const actor = await getContainer().session.getActor();
   if (actor && !actor.isGuest) redirect(next);
   return (
-    <AuthShell title={t("signInTitle")}>
+    <AuthShell title={t("signInTitle")} subtitle={t("signInSubtitle")}>
       <CredentialsForm mode="sign-in" action={signInEmailAction} next={next} />
-      <p className="text-sm">
-        {t("noAccount")} <Link href="/register" className="font-medium text-brand-700 underline">{t("createOne")}</Link>
-      </p>
-      <hr className="border-slate-200" />
       <GuestButton variant="secondary" />
+      <p className="text-center text-sm text-fg-muted">
+        {t("noAccount")} <Link href="/register" className="font-medium text-brand-link underline underline-offset-2">{t("createOne")}</Link>
+      </p>
     </AuthShell>
   );
 }
