@@ -1,5 +1,5 @@
 import { ChangeRoleForm } from "./change-role-form";
-import type { MemberView } from "./members-panel";
+import type { MemberView } from "./member-view";
 import { RemoveMemberForm } from "./remove-member-form";
 
 /** One member in the settings: who they are, with the owner's controls to change their role or remove them. */

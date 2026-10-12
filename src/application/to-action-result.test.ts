@@ -31,6 +31,13 @@ describe("runAction", () => {
     expect(limited).toEqual({ ok: false, code: "RATE_LIMITED", message: "Too many requests", retryAfterSeconds: 90 });
   });
 
+  it("carries the reason, its params and the field reasons so the adapter can translate", async () => {
+    const conflict = await runAction(async () => { throw new ConflictError("Stage has tasks", { reason: "stage.hasTasks", params: { count: 2 } }); });
+    expect(conflict).toEqual({ ok: false, code: "CONFLICT", message: "Stage has tasks", reason: "stage.hasTasks", params: { count: 2 } });
+    const invalid = await runAction(async () => { throw new ValidationError("Invalid input", { email: ["bad"] }, { email: [{ reason: "invalidEmail" }] }); });
+    expect(invalid).toEqual({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { email: ["bad"] }, fieldReasons: { email: [{ reason: "invalidEmail" }] } });
+  });
+
   it("reports unexpected errors to the callback and hides their details from the caller", async () => {
     const seen: unknown[] = [];
     const result = await runAction(async () => { throw new Error("db password=hunter2"); }, (error) => seen.push(error));

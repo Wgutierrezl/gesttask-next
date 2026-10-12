@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { createCommentAction } from "@/app/_actions/comments";
 import { Field, Textarea } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
@@ -17,6 +18,7 @@ interface CommentFormProps {
 }
 
 export function CommentForm({ taskId, canAttach, demoGuest }: CommentFormProps) {
+  const t = useTranslations("comments");
   const attachments = useAttachments(taskId);
   return (
     <MutationForm action={createCommentAction} hidden={{ taskId }} inlineFields={["body"]} onSuccess={attachments.clear} className="flex flex-col gap-2">
@@ -24,16 +26,16 @@ export function CommentForm({ taskId, canAttach, demoGuest }: CommentFormProps) 
         const error = failure?.fieldErrors?.body;
         return (
           <>
-            <Field label="Add a comment" error={error?.join(" ")}>
+            <Field label={t("add")} error={error?.join(" ")}>
               <Textarea id="comment-body" name="body" required maxLength={COMMENT_MAX_LENGTH} rows={3} />
             </Field>
             {canAttach ? (
               <AttachmentPicker files={attachments.files} onPick={attachments.add} onRemove={attachments.remove} onRetry={attachments.retry} demoGuest={demoGuest} />
             ) : (
-              <p className="text-sm text-fg-muted">Guests can comment, but only members can attach files.</p>
+              <p className="text-sm text-fg-muted">{t("guestNote")}</p>
             )}
             <div>
-              <SubmitButton pendingLabel="Posting..." disabled={attachments.busy}>Comment</SubmitButton>
+              <SubmitButton pendingLabel={t("posting")} disabled={attachments.busy}>{t("submit")}</SubmitButton>
             </div>
           </>
         );

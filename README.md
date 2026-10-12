@@ -27,6 +27,14 @@ are text only. An end-to-end test measures the path from the landing page to a p
 - Comments with up to 5 attachments, uploaded straight from the browser to the storage with a size-capped, type-pinned
   ticket ([ADR 0010](docs/adr/0010-presigned-post.md)) and downloaded through five-minute signed URLs.
 - Dashboards per user and per board, each computed by one SQL statement.
+- English and Spanish (next-intl, no URL prefix): the language comes from a cookie, then the browser's `Accept-Language`,
+  and is switched from the Preferences menu with a plain form that also works without JavaScript. Error messages from the
+  server are localized too; the REST API keeps English.
+- Light, dark and system themes through semantic tokens (a `theme` cookie, no flash, no inline script), checked with axe
+  (WCAG 2 A/AA, contrast included) in both themes and both languages.
+- Modals for creating boards, pipelines and tasks and for the task detail (the full page is a reload away), and a members dialog.
+- Stages UX: a Create pipeline modal where you name, add, reorder and remove your own stages, a menu on each column header
+  (rename, move, mark as done, delete moving its tasks) and an "Add stage" column.
 - A documented REST API (OpenAPI 3.1, Scalar reference) over the same use cases as the web app.
 
 ## Architecture
@@ -80,14 +88,29 @@ Postgres is published on port 5433 to avoid clashing with a local instance on 54
 
 The interface runs on one design system: Tailwind tokens in `src/app/globals.css` and primitives in `src/components/ui`
 ([ADR 0020](docs/adr/0020-design-system.md)). Cards can also move between the pipelines of a board
-([ADR 0019](docs/adr/0019-cross-pipeline-move.md)). To look at it:
+([ADR 0019](docs/adr/0019-cross-pipeline-move.md)). To look at it on port 3002 (leaving 3000 free):
 
-1. Follow [Local setup](#local-setup) (`pnpm db:up`, `pnpm db:migrate && pnpm db:seed`, `pnpm dev`). Re-run `pnpm db:seed` after pulling, it adds anything the demo board is missing.
-2. Open http://localhost:3000 and press "Try the demo".
-3. Walk the demo board: the dashboard, the "Launch plan" and "Backlog" pipelines (drag a card onto the other pipeline's tab), a task with its comments and attachments (a click on a card opens it in a modal; reload for the full page), the dashed "Add task" button under each column, and a phone-width window.
+1. Start the local stack and set up the database with the environment spelled out, so nothing depends on a stray `.env.local`. Re-run the seed after pulling, it adds anything the demo board is missing:
+
+```bash
+export DB_DRIVER=pg DATABASE_URL=postgres://gesttask:gesttask@localhost:5433/gesttask STORAGE_DRIVER=local
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+```
+2. Run the app with the same variables (the secret below is for this local review ONLY: never reuse it anywhere else):
+
+```bash
+BETTER_AUTH_SECRET=local-review-secret-0123456789abcdef BETTER_AUTH_URL=http://localhost:3002 \
+pnpm dev -p 3002
+```
+
+   `BETTER_AUTH_URL` must match the origin you open. For a production build run `pnpm build` and `pnpm exec next start -p 3002`
+   with the same variables plus `TRUSTED_PROXY_HOPS=1`.
+3. Open http://localhost:3002 and press "Try the demo".
+4. Walk the demo board: the dashboard, the "Launch plan" and "Backlog" pipelines (drag a card by its body onto the other pipeline's tab), a task with its comments and attachments (a click on a card opens it in a modal; reload for the full page), the Create pipeline modal and the column header menus, and a phone-width window.
+5. Switch language and theme from the Preferences menu (try it with JavaScript disabled too).
 
 Accessibility is part of the contract: one `main` landmark and one `h1` per page, visible focus rings, labelled controls, and
-no animation when the system asks for reduced motion (`e2e/a11y.spec.ts`).
+no animation when the system asks for reduced motion (`e2e/a11y.spec.ts`), and axe runs on the key pages in light and dark, English and Spanish (`e2e/axe.spec.ts`).
 
 ## Scripts
 

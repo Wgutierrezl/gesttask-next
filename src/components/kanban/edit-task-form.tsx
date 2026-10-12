@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { updateTaskAction } from "@/app/_actions/tasks";
 import { MutationForm } from "@/components/ui/mutation-form";
 import { FormFooter } from "@/components/ui/form-footer";
@@ -14,6 +15,7 @@ interface EditTaskFormProps {
 }
 
 export function EditTaskForm({ task, members, onSuccess, onCancel }: EditTaskFormProps) {
+  const t = useTranslations("task");
   // A former member is not an option any more, so the select falls back to Unassigned rather than showing a stranger.
   const assigneeId = members.some((member) => member.userId === task.assigneeId) ? task.assigneeId : null;
   return (
@@ -21,7 +23,7 @@ export function EditTaskForm({ task, members, onSuccess, onCancel }: EditTaskFor
       {(failure) => (
         <>
           <TaskFields prefix={`edit-${task.id}`} members={members} failure={failure} defaults={{ ...task, assigneeId }} />
-          <FormFooter submitLabel="Save task" pendingLabel="Saving..." onCancel={onCancel} />
+          <FormFooter submitLabel={t("save")} pendingLabel={t("saving")} onCancel={onCancel} />
         </>
       )}
     </MutationForm>

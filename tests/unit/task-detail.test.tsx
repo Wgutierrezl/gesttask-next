@@ -10,11 +10,13 @@ const notFound = vi.fn(() => {
 });
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const active = vi.hoisted(() => ({ locale: "en" as "en" | "es" }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServerFor(active));
 const getActor = vi.fn();
 const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn(), getBoardDashboard: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger: { error: vi.fn() } }) }));
 
-const { default: TaskPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
+const { default: TaskPage, generateMetadata } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
 const { loadTaskDetail } = await import("@/app/_shared/task-detail");
 
 const BOARD = "00000000-0000-4000-8000-000000000001";
@@ -28,6 +30,7 @@ const task = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  active.locale = "en";
   getActor.mockResolvedValue({ userId: "u1", isGuest: false });
   useCases.getTask.mockResolvedValue(task());
   useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "owner" });
@@ -233,5 +236,41 @@ describe("TaskPage", () => {
     getActor.mockResolvedValue(null);
     await expect(TaskPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
     expect(useCases.getTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("TaskPage in Spanish", () => {
+  const comment = { id: "c1", taskId: TASK, authorId: "u1", authorName: "Olivia", body: "Needs a changelog", createdAt: new Date("2026-10-09T10:00:00Z"), canManage: true, attachments: [{ id: "a1", fileName: "plan.pdf", contentType: "application/pdf", size: 1536 }] };
+
+  it("titles the page from the catalog in both languages", async () => {
+    expect(await generateMetadata()).toEqual({ title: "Task" });
+    active.locale = "es";
+    expect(await generateMetadata()).toEqual({ title: "Tarea" });
+  });
+
+  it("translates the chrome, details, move form and comments while task and user data stay as written", async () => {
+    active.locale = "es";
+    useCases.getTask.mockResolvedValue(task({ stageId: "s2", completedAt: new Date("2026-10-09T10:00:00Z"), overdue: true }));
+    useCases.listComments.mockResolvedValue([comment]);
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" });
+    for (const text of [
+      "Volver al pipeline", 'aria-label="Ruta de navegación"', 'aria-label="Detalles de la tarea"', ">Detalles<", "Etapa final", "Prioridad", ">Alta<", "Responsable", "Olivia",
+      "Fecha de vencimiento", "Vence 1 oct 2026", "Vencida", "Completada 9 oct 2026", "Creada", "20 sept 2026", "Mover a la etapa", "Mover tarea",
+      "Comentarios (1)", 'aria-label="Comentario de Olivia"', "Publicado 9 oct 2026", "(1,5 KB)", ">Editar<", ">Eliminar<", "Añadir un comentario", "Adjuntar archivos",
+      "hasta 5,0 MB cada uno y 5 por comentario",
+    ]) expect(html, text).toContain(text);
+    for (const text of ["Ship the release", "Cut the tag", "To do", "plan.pdf", "Needs a changelog"]) expect(html, text).toContain(text);
+    for (const text of ["Back to pipeline", "Details", "Comments (", "Overdue", "Add a comment"]) expect(html, text).not.toContain(text);
+  });
+
+  it("names an unassigned task and a former member in Spanish, and a viewer reads the guest note", async () => {
+    active.locale = "es";
+    useCases.getTask.mockResolvedValue(task({ assigneeId: null }));
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
+    const unassigned = renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" });
+    expect(unassigned).toContain("Sin asignar");
+    expect(unassigned).toContain("Los invitados pueden comentar, pero solo los miembros pueden adjuntar archivos.");
+    useCases.getTask.mockResolvedValue(task({ assigneeId: "gone" }));
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" })).toContain("Ex miembro");
   });
 });

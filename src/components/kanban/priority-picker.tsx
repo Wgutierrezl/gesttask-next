@@ -1,6 +1,7 @@
+import { CircleAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useId } from "react";
 import { cn } from "@/components/ui/cn";
-import { PRIORITY_LABELS } from "./format";
 import type { PriorityName } from "./types";
 
 /** Active look per option; literal class names so Tailwind can see them. */
@@ -20,13 +21,17 @@ interface PriorityPickerProps {
  * submits without JavaScript and keeps arrow-key navigation and screen-reader semantics.
  */
 export function PriorityPicker({ defaultValue = "medium", error }: PriorityPickerProps) {
+  const t = useTranslations("kanban");
   const errorId = useId();
   return (
     <div className="flex flex-col gap-1">
       <fieldset role="radiogroup" aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined} className="m-0 flex min-w-0 flex-col gap-1 border-0 p-0">
-        <legend className="mb-1 p-0 text-sm font-medium text-fg-strong">Priority</legend>
+        <legend className="mb-1 flex items-center gap-2 p-0 text-sm font-medium text-fg-strong">
+          <CircleAlert aria-hidden="true" className="size-4 text-fg-subtle" />
+          {t("fields.priority")}
+        </legend>
         <div className="grid grid-cols-3 gap-2">
-          {(Object.keys(PRIORITY_LABELS) as PriorityName[]).map((value) => (
+          {(Object.keys(ACTIVE) as PriorityName[]).map((value) => (
             <label
               key={value}
               className={cn(
@@ -36,7 +41,7 @@ export function PriorityPicker({ defaultValue = "medium", error }: PriorityPicke
               )}
             >
               <input type="radio" name="priority" value={value} defaultChecked={value === defaultValue} className="sr-only" />
-              {PRIORITY_LABELS[value]}
+              {t(`priority.${value}`)}
             </label>
           ))}
         </div>
