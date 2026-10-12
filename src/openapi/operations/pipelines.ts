@@ -11,7 +11,7 @@ export const pipelineOperations: Operation[] = [
   },
   {
     id: "createPipeline", method: "post", path: "/boards/{boardId}/pipelines", tag: "Pipelines",
-    summary: "Create a pipeline with the default stages (owner)",
+    summary: "Create a pipeline with the given stages, or the default ones when `stages` is omitted (owner)",
     params: boardIdSchema, body: createPipelineSchema.omit({ boardId: true }), response: { kind: "item", status: 201, schema: pipelineResponse },
   },
   {

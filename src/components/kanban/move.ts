@@ -1,4 +1,4 @@
-import type { ColumnView, TaskCardView } from "./types";
+import type { ColumnView, PipelineOption, TaskCardView } from "./types";
 
 /**
  * What the server needs to place a task: the stage, and the task it goes after (null = top), or `toEnd` to let
@@ -104,4 +104,46 @@ export function neighborMoves(columns: ColumnView[], taskId: string): NeighborMo
         request: { taskId, toStageId: other.stage.id, afterTaskId: null, toEnd: true },
       })),
   };
+}
+
+/** Droppable ids of pipeline tabs, prefixed so they can never collide with a task or a column. */
+export const PIPELINE_PREFIX = "pipeline:";
+export const pipelineTabId = (pipelineId: string) => `${PIPELINE_PREFIX}${pipelineId}`;
+
+/** The pipeline a tab droppable id names, or null for any other id. */
+export const pipelineOfDroppable = (id: string): string | null => (id.startsWith(PIPELINE_PREFIX) ? id.slice(PIPELINE_PREFIX.length) : null);
+
+export interface TabDrop {
+  request: MoveRequest;
+  pipelineName: string;
+  stageName: string;
+}
+
+/**
+ * Dropping a card on another pipeline's tab sends it to the END of that pipeline's first stage. Null when the id is not
+ * another pipeline's tab, the pipeline has no stage to land in, or the card is not on this board.
+ */
+export function resolveTabDrop(pipelines: PipelineOption[], currentPipelineId: string, columns: ColumnView[], activeId: string, overId: string): TabDrop | null {
+  const pipelineId = pipelineOfDroppable(overId);
+  const target = pipelines.find((pipeline) => pipeline.id === pipelineId && pipeline.id !== currentPipelineId);
+  const first = target?.stages[0];
+  if (!target || !first || !locate(columns, activeId)) return null;
+  return { request: { taskId: activeId, toStageId: first.id, afterTaskId: null, toEnd: true }, pipelineName: target.name, stageName: first.name };
+}
+
+export interface CrossMoveGroup {
+  pipelineId: string;
+  name: string;
+  stages: { stageId: string; name: string; request: MoveRequest }[];
+}
+
+/** The end of every stage of every OTHER pipeline, grouped by pipeline: what the Move menu offers beyond this board's columns. */
+export function crossMoves(pipelines: PipelineOption[], currentPipelineId: string, taskId: string): CrossMoveGroup[] {
+  return pipelines
+    .filter((pipeline) => pipeline.id !== currentPipelineId && pipeline.stages.length > 0)
+    .map((pipeline) => ({
+      pipelineId: pipeline.id,
+      name: pipeline.name,
+      stages: pipeline.stages.map((stage) => ({ stageId: stage.id, name: stage.name, request: { taskId, toStageId: stage.id, afterTaskId: null, toEnd: true } })),
+    }));
 }

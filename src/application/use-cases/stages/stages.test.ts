@@ -60,6 +60,24 @@ describe("stages", () => {
     expect(await names()).toEqual(["Todo"]);
   });
 
+  it("treats names that differ only by case or by Unicode composition as the same name", async () => {
+    await addStage("Écran");
+    await expect(addStage("e\u0301cran")).rejects.toBeInstanceOf(ConflictError); // decomposed É folds onto the stored one
+    const other = await addStage("Autre");
+    await expect(makeRenameStage(ctx)(OWNER, { stageId: other.id, name: "E\u0301CRAN" })).rejects.toBeInstanceOf(ConflictError);
+    expect((await addStage("Cafe\u0301")).name).toBe("Café"); // names are stored composed (NFC)
+    expect(await names()).toEqual(["Écran", "Autre", "Café"]);
+  });
+
+  it("caps a pipeline at 20 stages when adding one, with the reason the create form uses", async () => {
+    for (let i = 0; i < 20; i++) await addStage(`S${i}`);
+    const error = await addStage("One too many").catch((e) => e);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error.fieldErrors.name).toEqual(["A pipeline can have at most 20 stages"]);
+    expect(error.fieldReasons.name).toEqual([{ reason: "stages.tooBig", params: { max: 20 } }]);
+    expect(await names()).toHaveLength(20);
+  });
+
   it("renames a stage, allowing its own name but not a sibling's", async () => {
     const todo = await addStage("Todo");
     await addStage("Doing");
@@ -84,6 +102,17 @@ describe("stages", () => {
     expect(await makeReorderStage(ctx)(OWNER, { stageId: b.id, afterStageId: b.id })).toEqual(b);
     expect(JSON.stringify([...ctx.store.stages])).toBe(before);
     await expect(makeReorderStage(ctx)(STRANGER, { stageId: a.id, afterStageId: a.id })).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("rejects reordering relative to a neighbour that is gone or lives in another pipeline, leaving the order alone", async () => {
+    const [a, b, c] = [await addStage("A"), await addStage("B"), await addStage("C")];
+    await makeDeleteStage(ctx)(OWNER, { stageId: b!.id });
+    await expect(makeReorderStage(ctx)(OWNER, { stageId: c!.id, afterStageId: b!.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const other = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "Other" });
+    const foreign = (await makeListStages(ctx)(OWNER, { pipelineId: other.id }))[0]!;
+    await expect(makeReorderStage(ctx)(OWNER, { stageId: c!.id, afterStageId: foreign.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await names()).toEqual(["A", "C"]);
+    expect(a!.id).not.toBe(c!.id);
   });
 
   it("rejects reordering relative to an unknown stage", async () => {

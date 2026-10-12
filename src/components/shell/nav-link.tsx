@@ -14,7 +14,7 @@ export function NavLink({ href, icon, children }: { href: string; icon: ReactNod
     <Link
       href={href}
       aria-current={current ? "page" : undefined}
-      className={cn(buttonClasses({ variant: "ghost", size: "sm" }), "px-2 sm:px-3", current && "bg-brand-50 text-brand-700")}
+      className={cn(buttonClasses({ variant: "ghost", size: "sm" }), "px-2 sm:px-3", current && "bg-brand-soft text-brand-link")}
     >
       {icon}
       <span className="sr-only sm:not-sr-only">{children}</span>

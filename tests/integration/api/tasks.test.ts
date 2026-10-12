@@ -127,6 +127,18 @@ describe("tasks", () => {
     expect(await order(todo)).toEqual(["b", "c"]);
   });
 
+  it("moveTask reaches a stage of a sibling pipeline of the same board and re-parents the task (ADR 0019)", async () => {
+    const sibling = (await expectDocumented("createPipeline", await call(pipelinesRoute.POST, "POST", owner, { params: { boardId }, body: { name: "Backlog" } }))).id as string;
+    const stages = (await (await call(stagesRoute.GET, "GET", owner, { params: { pipelineId: sibling } })).json()).items as { id: string; isDone: boolean }[];
+    const task = await createTask(todo);
+    const moved = await expectDocumented("moveTask", await call(moveRoute.POST, "POST", member, { params: { taskId: task.id }, body: { toStageId: stages.find((s) => s.isDone)!.id, toEnd: true } }));
+    expect(moved).toMatchObject({ pipelineId: sibling, completedAt: expect.any(String) });
+    expect(await order(todo)).toEqual([]);
+    const back = await expectDocumented("moveTask", await call(moveRoute.POST, "POST", owner, { params: { taskId: task.id }, body: { toStageId: todo, afterTaskId: null } }));
+    expect(back).toMatchObject({ pipelineId, stageId: todo, completedAt: null });
+    await expectError(await call(moveRoute.POST, "POST", viewer, { params: { taskId: task.id }, body: { toStageId: stages[0]!.id, toEnd: true } }), 403, "FORBIDDEN");
+  });
+
   it("moveTask needs exactly one anchor, and a stage of another board reads as missing (REQ-ISO-07)", async () => {
     const task = await createTask(todo);
     const both = await expectError(await call(moveRoute.POST, "POST", owner, { params: { taskId: task.id }, body: { toStageId: doing, toEnd: true, afterTaskId: null } }), 422, "VALIDATION");

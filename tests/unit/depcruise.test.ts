@@ -96,4 +96,13 @@ describe("dependency boundaries", () => {
       expect(ruleNamesFor(violations, "openapi/uses-repo.ts")).toContain("openapi-declares-over-application-only");
     });
   });
+
+  describe("i18n", () => {
+    it("is a leaf for the server-side layers: infrastructure and openapi may not import it, app may", async () => {
+      const violations = await violationsIn("violations");
+      expect(ruleNamesFor(violations, "infrastructure/uses-i18n.ts")).toContain("i18n-is-leaf");
+      expect(ruleNamesFor(violations, "openapi/uses-i18n.ts")).toContain("i18n-is-leaf");
+      expect(ruleNamesFor(await violationsIn("valid"), "app/page.ts")).toEqual([]);
+    });
+  });
 });

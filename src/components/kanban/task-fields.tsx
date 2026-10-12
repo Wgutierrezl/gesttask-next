@@ -1,6 +1,8 @@
+import { Calendar, User } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ActionFailure } from "@/application/result";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { PRIORITY_LABELS } from "./format";
+import { PriorityPicker } from "./priority-picker";
 import type { MemberOption, PriorityName } from "./types";
 
 export interface TaskDefaults {
@@ -16,32 +18,27 @@ export const TASK_FIELD_NAMES = ["title", "description", "priority", "dueDate", 
 
 /** The fields a task is created and edited with; `prefix` keeps ids unique when several forms share a page. */
 export function TaskFields({ prefix, members, defaults = {}, failure }: { prefix: string; members: MemberOption[]; defaults?: TaskDefaults; failure?: ActionFailure }) {
+  const t = useTranslations("kanban");
   const errors = failure?.fieldErrors;
   return (
     <>
-      <Field label="Title" error={errors?.title?.join(" ")}>
-        <Input id={`${prefix}-title`} name="title" required maxLength={120} defaultValue={defaults.title} />
+      <Field label={t("fields.title")} error={errors?.title?.join(" ")}>
+        <Input id={`${prefix}-title`} name="title" required maxLength={120} placeholder={t("placeholders.title")} defaultValue={defaults.title} />
       </Field>
-      <Field label="Description" error={errors?.description?.join(" ")}>
-        <Textarea id={`${prefix}-description`} name="description" rows={3} maxLength={5000} defaultValue={defaults.description} />
+      <Field label={t("fields.description")} error={errors?.description?.join(" ")}>
+        <Textarea id={`${prefix}-description`} name="description" rows={3} maxLength={5000} placeholder={t("placeholders.description")} defaultValue={defaults.description} />
       </Field>
-      <Field label="Priority" error={errors?.priority?.join(" ")}>
-        <Select id={`${prefix}-priority`} name="priority" defaultValue={defaults.priority ?? "medium"}>
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Due date" error={errors?.dueDate?.join(" ")}>
-        <Input id={`${prefix}-due`} name="dueDate" type="date" defaultValue={defaults.dueDate ?? ""} />
-      </Field>
-      <Field label="Assignee" error={errors?.assigneeId?.join(" ")}>
+      <PriorityPicker defaultValue={defaults.priority} error={errors?.priority?.join(" ")} />
+      <Field label={t("fields.assignee")} labelIcon={<User />} error={errors?.assigneeId?.join(" ")}>
         <Select id={`${prefix}-assignee`} name="assigneeId" defaultValue={defaults.assigneeId ?? ""}>
-          <option value="">Unassigned</option>
+          <option value="">{t("unassigned")}</option>
           {members.map((member) => (
             <option key={member.userId} value={member.userId}>{member.name}</option>
           ))}
         </Select>
+      </Field>
+      <Field label={t("fields.dueDate")} labelIcon={<Calendar />} error={errors?.dueDate?.join(" ")}>
+        <Input id={`${prefix}-due`} name="dueDate" type="date" defaultValue={defaults.dueDate ?? ""} />
       </Field>
     </>
   );

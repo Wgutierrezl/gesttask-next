@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPage } from "@/app/_shared/load-page";
@@ -11,7 +12,9 @@ import { MemberRow } from "@/components/boards/member-row";
 import { PastTheEnd, Pager } from "@/components/boards/pager";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board settings - GestTask" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("boardSettings") };
+}
 
 interface SettingsPageProps {
   params: Promise<{ boardId: string }>;
@@ -20,6 +23,7 @@ interface SettingsPageProps {
 
 export default async function BoardSettingsPage({ params, searchParams }: SettingsPageProps) {
   const actor = await requirePageActor();
+  const t = await getTranslations("board");
   const { boardId } = await params;
   const page = parsePage((await searchParams).page);
   const { board, role } = await loadPage(() => getContainer().useCases.getBoard({ boardId }));
@@ -31,17 +35,17 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
     <main className="flex flex-col gap-10">
       <header>
         <Link href={`/boards/${board.id}`} className="text-sm underline">
-          Back to {board.name}
+          {t("settingsPage.back", { name: board.name })}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">Board settings</h1>
+        <h1 className="mt-2 text-2xl font-semibold">{t("settingsPage.title")}</h1>
       </header>
       <section aria-labelledby="details-heading">
-        <h2 id="details-heading" className="mb-3 text-lg font-medium">Details</h2>
+        <h2 id="details-heading" className="mb-3 text-lg font-medium">{t("settingsPage.details")}</h2>
         <EditBoardForm board={{ id: board.id, name: board.name, description: board.description }} />
       </section>
       <section aria-labelledby="members-heading" className="flex flex-col gap-4">
-        <h2 id="members-heading" className="text-lg font-medium">Members</h2>
-        <ul className="divide-y divide-gray-100 rounded border border-gray-200">
+        <h2 id="members-heading" className="text-lg font-medium">{t("members")}</h2>
+        <ul className="divide-y divide-border-subtle rounded-card border border-border bg-surface">
           {members.items.map((member) => (
             <MemberRow key={member.userId} boardId={board.id} member={member} isSelf={member.userId === actor.userId} />
           ))}
@@ -51,11 +55,11 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
         <AddMemberForm boardId={board.id} />
       </section>
       <section aria-labelledby="status-heading">
-        <h2 id="status-heading" className="mb-3 text-lg font-medium">Status</h2>
+        <h2 id="status-heading" className="mb-3 text-lg font-medium">{t("settingsPage.status")}</h2>
         <ArchiveBoardForm board={{ id: board.id, status: board.status }} />
       </section>
-      <section aria-labelledby="danger-heading" className="rounded border border-red-200 p-4">
-        <h2 id="danger-heading" className="mb-3 text-lg font-medium text-red-800">Delete board</h2>
+      <section aria-labelledby="danger-heading" className="rounded-card border border-danger-edge bg-surface p-4">
+        <h2 id="danger-heading" className="mb-3 text-lg font-medium text-danger-fg">{t("settingsPage.delete")}</h2>
         <DeleteBoardForm board={{ id: board.id, name: board.name }} />
       </section>
     </main>
