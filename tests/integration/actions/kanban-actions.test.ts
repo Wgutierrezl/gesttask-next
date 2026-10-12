@@ -436,7 +436,7 @@ describe("Kanban pages on Postgres", () => {
     const [pipeline] = await handle.db.select().from(schema.pipelines).where(eq(schema.pipelines.boardId, g.boardId));
     const page = html(await PipelinePage({ params: Promise.resolve({ boardId: g.boardId, pipelineId: pipeline!.id }) }));
     expect(page).toContain("Add task to ");
-    expect(page).toContain("Manage stages");
+    expect(page).toContain("Stage options for ");
     expect((await taskRows(pipeline!.id)).length).toBeGreaterThan(0);
   });
 });

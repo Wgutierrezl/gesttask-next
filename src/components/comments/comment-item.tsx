@@ -15,7 +15,7 @@ export function CommentItem({ comment }: { comment: CommentRow }) {
   const t = useTranslations("comments");
   const locale = useLocale() as Locale;
   return (
-    <article aria-label={t("by", { name: comment.authorName })} className="flex gap-3 rounded-card border border-border bg-surface p-4 shadow-card">
+    <article aria-label={t("by", { name: comment.authorName })} className="flex gap-3 rounded-xl border border-border bg-surface-hover p-4">
       <Avatar name={comment.authorName} />
       <div className="min-w-0 flex-1">
         <header className="flex flex-wrap items-baseline gap-2 text-sm">

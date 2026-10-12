@@ -16,7 +16,8 @@
       "boards": "No hay tableros en esta página.",
       "members": "No hay miembros en esta página.",
       "pipelines": "No hay pipelines en esta página."
-    }
+    },
+    "active": "Activo"
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -73,7 +74,12 @@
       "rateLimited": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
       "internal": "Algo salió mal. Inténtalo de nuevo.",
       "fixFields": "Corrige los campos resaltados."
-    }
+    },
+    "signInSubtitle": "Gestiona proyectos con tableros y pipelines",
+    "signUpSubtitle": "Crea tu cuenta y comienza hoy",
+    "footerTagline": "Organiza • Colabora • Entrega",
+    "emailPlaceholder": "tu@email.com",
+    "namePlaceholder": "Juan Pérez"
   },
   "meta": {
     "description": "Gestión de tareas Kanban",
@@ -93,7 +99,7 @@
   },
   "boards": {
     "title": "Tus tableros",
-    "description": "Todo lo que posees o en lo que colaboras.",
+    "description": "Organiza tus proyectos con tableros, pipelines y etapas personalizables",
     "create": "Crear tablero",
     "newBoard": "Nuevo tablero",
     "emptyTitle": "Aún no tienes tableros",
@@ -101,14 +107,46 @@
     "name": "Nombre",
     "descriptionField": "Descripción",
     "submit": "Crear",
-    "submitting": "Creando..."
+    "submitting": "Creando...",
+    "activeCount": "{count, plural, one {# tablero activo} other {# tableros activos}}",
+    "namePlaceholder": "Ej: Proyecto de marketing digital",
+    "descriptionPlaceholder": "Describe el propósito de este tablero...",
+    "activeCountPage": "{count, plural, one {# tablero activo en esta página} other {# tableros activos en esta página}}"
   },
   "pipeline": {
-    "heading": "Pipelines",
+    "heading": "Pipelines del tablero",
     "create": "Crear pipeline",
     "newPipeline": "Nuevo pipeline",
-    "none": "Aún no hay pipelines.",
-    "defaultStages": "Un pipeline nuevo empieza con las etapas To do, In progress y Done."
+    "submit": "Crear pipeline",
+    "submitting": "Creando...",
+    "namePlaceholder": "Ej.: Desarrollo frontend",
+    "descriptionPlaceholder": "¿Para qué sirve este pipeline?",
+    "form": {
+      "stages": "Etapas del pipeline",
+      "addStage": "Agregar etapa",
+      "help": "Define las etapas por las que pasarán tus tareas. La última marca las tareas como completadas.",
+      "stageName": "Etapa {n}: nombre",
+      "stagePlaceholder": "Etapa {n}",
+      "moveUp": "Subir la etapa {n}",
+      "moveDown": "Bajar la etapa {n}",
+      "remove": "Quitar la etapa {n}",
+      "preview": "Vista previa del flujo",
+      "previewHeading": "Vista previa del flujo:"
+    },
+    "defaultNames": {
+      "todo": "Por hacer",
+      "inProgress": "En progreso",
+      "done": "Completado"
+    },
+    "description": "Cada pipeline tiene sus propias etapas para organizar tareas",
+    "count": "{count, plural, one {# pipeline} other {# pipelines}}",
+    "stagesLabel": "Etapas del pipeline:",
+    "stageCount": "{count, plural, one {# etapa} other {# etapas}}",
+    "viewOnly": "Solo lectura",
+    "emptyTitle": "No hay pipelines en este tablero",
+    "emptyOwner": "Crea tu primer pipeline con etapas personalizadas para organizar tus tareas",
+    "emptyViewer": "El propietario del tablero aún no ha creado pipelines",
+    "countPage": "{count, plural, one {# pipeline en esta página} other {# pipelines en esta página}}"
   },
   "board": {
     "dashboard": "Panel",
@@ -154,6 +192,22 @@
       "removing": "Quitando...",
       "loseAccessSelf": "Perderé el acceso a este tablero",
       "loseAccess": "{name} perderá el acceso a este tablero"
+    },
+    "header": {
+      "back": "Volver a los tableros"
+    },
+    "dialog": {
+      "manage": "Gestionar miembros",
+      "addTitle": "Agregar nuevo miembro",
+      "current": "Miembros actuales ({count})",
+      "you": "(Tú)",
+      "permissions": "Permisos por rol:",
+      "permission": {
+        "owner": "Control total del tablero, los pipelines, las tareas y los miembros",
+        "member": "Crea y edita tareas, comenta y adjunta archivos",
+        "guest": "Ve el tablero y comenta, sin editar tareas"
+      },
+      "truncated": "Se muestran los primeros {count} miembros. Los ajustes del tablero listan a todos."
     }
   },
   "dashboard": {
@@ -198,9 +252,8 @@
     "due": "Vence {date}",
     "overdue": "Vencida",
     "completed": "Completada",
-    "drag": "Arrastrar",
+    "doneChip": "Hecho",
     "dragAria": "Arrastrar {title}",
-    "move": "Mover",
     "moveOptions": "Opciones para mover {title}",
     "moveUp": "Mover {title} arriba",
     "moveDown": "Mover {title} abajo",
@@ -209,7 +262,7 @@
     "pipelineGroup": "Pipeline {name}",
     "boardUpdates": "Actualizaciones del tablero",
     "moveFailed": "No se pudo mover la tarea. Inténtalo de nuevo.",
-    "dragInstructions": "Para levantar un elemento, pulsa la barra espaciadora. Mientras lo arrastras, usa las flechas para moverlo. Pulsa espacio de nuevo para soltarlo en su nueva posición, o escape para cancelar.",
+    "dragInstructions": "Para levantar una tarea, enfoca la tarjeta y pulsa Espacio. Mientras la arrastras, usa las flechas para moverla. Pulsa Espacio de nuevo para soltarla en su nueva posición, o Escape para cancelar.",
     "announce": {
       "pickedUp": "Has levantado {title}.",
       "notOver": "{title} no está sobre una zona de destino.",
@@ -244,36 +297,54 @@
     "page": {
       "breadcrumb": "Ruta de navegación",
       "back": "Volver al tablero",
+      "backShort": "Volver",
+      "pipelineBadge": "Pipeline",
+      "subtitle": "{board} • {description}",
+      "stagesTitle": "Etapas del pipeline",
+      "stagesHelp": "Arrastra y suelta las tareas entre etapas para gestionar su progreso",
+      "stagesReadOnly": "Vista de solo lectura: no puedes mover tareas",
       "truncatedTasks": "Se muestran las primeras {count} tareas de este pipeline.",
       "truncatedStages": "Se muestran las primeras {count} etapas de este pipeline.",
       "truncatedMembers": "Se muestran los primeros {count} miembros para elegir responsable."
+    },
+    "placeholders": {
+      "title": "Ej: Implementar autenticación",
+      "description": "Describe los detalles de la tarea..."
     }
   },
   "stages": {
-    "manage": "Gestionar etapas",
-    "list": "Etapas",
-    "add": "Añadir una etapa",
-    "addStage": "Añadir etapa",
-    "adding": "Añadiendo...",
-    "name": "Nombre",
-    "left": "Izquierda",
-    "right": "Derecha",
-    "moveLeft": "Mover {name} a la izquierda",
-    "moveRight": "Mover {name} a la derecha",
-    "rename": "Renombrar {name}",
-    "save": "Guardar",
-    "saveAria": "Guardar el nombre de {name}",
-    "clearDone": "Quitar la marca de final",
-    "markDone": "Marcar como etapa final",
-    "clearDoneAria": "Quitar la marca de final en {name}",
-    "markDoneAria": "Marcar {name} como etapa final",
-    "cannotDelete": "La etapa final no se puede eliminar. Marca antes otra etapa como final.",
-    "moveTasksTo": "Mover las tareas de {name} a",
-    "noTasksToMove": "No hay tareas que mover",
-    "delete": "Eliminar",
-    "deleting": "Eliminando...",
-    "deleteAria": "Eliminar {name}",
-    "suggestDone": "Marcar como etapa final (las tareas que entren se cuentan como completadas)"
+    "menu": {
+      "trigger": "Opciones de la etapa {name}",
+      "rename": "Renombrar",
+      "moveLeft": "Mover a la izquierda",
+      "moveRight": "Mover a la derecha",
+      "markDone": "Marcar como etapa final",
+      "unmarkDone": "Quitar la marca de etapa final",
+      "delete": "Eliminar etapa",
+      "doneCannotDelete": "La etapa final no se puede eliminar. Marca otra etapa como final primero.",
+      "lastStage": "Un pipeline necesita al menos una etapa.",
+      "failed": "No se pudo actualizar la etapa. Inténtalo de nuevo."
+    },
+    "rename": {
+      "label": "Nombre de la etapa",
+      "save": "Guardar nombre",
+      "cancel": "Cancelar el cambio de nombre"
+    },
+    "delete": {
+      "title": "Eliminar la etapa “{name}”",
+      "withTasks": "Sus tareas pasan a la etapa que elijas.",
+      "empty": "Esta etapa no tiene tareas.",
+      "moveTo": "Mover las tareas a",
+      "confirm": "Eliminar etapa",
+      "deleting": "Eliminando..."
+    },
+    "add": {
+      "open": "Agregar etapa",
+      "name": "Nombre de la etapa",
+      "save": "Agregar",
+      "adding": "Agregando...",
+      "cancel": "Cancelar la nueva etapa"
+    }
   },
   "task": {
     "edit": "Editar",
@@ -396,6 +467,14 @@
       },
       "description": {
         "tooBig": "La descripción admite como máximo {max} caracteres"
+      },
+      "stages": {
+        "tooSmall": "Un pipeline necesita al menos una etapa",
+        "tooBig": "Un pipeline puede tener como máximo {max} etapas",
+        "custom": "Los nombres de las etapas deben ser únicos"
+      },
+      "stageName": {
+        "required": "El nombre de la etapa es obligatorio"
       },
       "body": {
         "tooSmall": "Escribe algo primero",

@@ -26,7 +26,7 @@ export default async function TaskModalPage({ params }: TaskModalProps) {
       title={task.title}
       subtitle={`${pipeline.name} → ${stage?.name ?? t("unknownStage")}`}
       icon={<ClipboardList className="size-5" />}
-      actions={canWrite ? <TaskActions task={task} members={members} /> : undefined}
+      actions={canWrite ? <TaskActions task={task} members={members} iconOnly /> : undefined}
     >
       <StagesTruncatedNotice detail={detail} />
       <TaskDescription description={task.description} />

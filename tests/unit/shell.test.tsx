@@ -47,6 +47,23 @@ describe("AppHeader", () => {
   });
 });
 
+describe("AppHeader like v1", () => {
+  it("is as tall as v1's bar, with a roomy logo mark and a quiet sign-out button", () => {
+    render(<AppHeader />);
+    const header = screen.getByRole("banner");
+    expect(header.firstElementChild?.className).toContain("h-[4.5rem]");
+    expect(header.querySelector("svg.size-10")).toBeTruthy();
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    expect(signOut.className).not.toContain("border");
+    expect(signOut.className).toContain("text-fg-muted");
+  });
+
+  it("keeps the content width and gutters of the pages under it", () => {
+    render(<AppHeader />);
+    expect(screen.getByRole("banner").firstElementChild?.className).toContain("max-w-7xl");
+  });
+});
+
 describe("shell in Spanish", () => {
   it("translates the header while keeping one banner and a named navigation", () => {
     pathname.current = "/boards";

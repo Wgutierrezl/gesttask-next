@@ -25,7 +25,7 @@ export function AddTaskButton({ stage, stages, members }: AddTaskButtonProps) {
         type="button"
         aria-label={t("addTaskTo", { stage: stage.name })}
         onClick={() => setOpen(true)}
-        className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border-strong px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-ring hover:bg-brand-soft hover:text-brand-link focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border-strong px-4 py-2.5 text-sm text-fg-muted transition-colors hover:border-border-hover hover:bg-brand-soft hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
       >
         <Plus aria-hidden="true" className="size-4" />
         {t("addTask")}

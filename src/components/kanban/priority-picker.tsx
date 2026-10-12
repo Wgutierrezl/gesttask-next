@@ -1,3 +1,4 @@
+import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 import { cn } from "@/components/ui/cn";
@@ -25,7 +26,10 @@ export function PriorityPicker({ defaultValue = "medium", error }: PriorityPicke
   return (
     <div className="flex flex-col gap-1">
       <fieldset role="radiogroup" aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined} className="m-0 flex min-w-0 flex-col gap-1 border-0 p-0">
-        <legend className="mb-1 p-0 text-sm font-medium text-fg-strong">{t("fields.priority")}</legend>
+        <legend className="mb-1 flex items-center gap-2 p-0 text-sm font-medium text-fg-strong">
+          <CircleAlert aria-hidden="true" className="size-4 text-fg-subtle" />
+          {t("fields.priority")}
+        </legend>
         <div className="grid grid-cols-3 gap-2">
           {(Object.keys(ACTIVE) as PriorityName[]).map((value) => (
             <label

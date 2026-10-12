@@ -31,6 +31,7 @@
   --radius-pill: 9999px;
 
   --shadow-brand: 0 4px 14px rgb(79 70 229 / 25%);
+  --shadow-violet: 0 10px 15px -3px rgb(124 58 237 / 30%), 0 4px 6px -4px rgb(124 58 237 / 30%);
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -39,6 +40,7 @@
   --animate-fade-in: fade-in var(--duration-base) var(--ease-out-soft);
   --animate-pop-in: pop-in var(--duration-base) var(--ease-out-soft);
   --animate-modal-in: modal-in var(--duration-base) var(--ease-out-soft);
+  --animate-row-in: row-in var(--duration-base) var(--ease-out-soft);
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -47,6 +49,10 @@
   @keyframes modal-in {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
@@ -87,13 +93,22 @@
   --color-fg-strong: var(--fg-strong);
   --color-surface-hover: var(--surface-hover);
   --color-border-subtle: var(--border-subtle);
+  --color-border-hover: var(--border-hover);
   --color-border-control: var(--border-control);
   --color-accent: var(--accent);
   --color-icon-from: var(--icon-from);
   --color-icon-to: var(--icon-to);
   --color-icon-fg: var(--icon-fg);
+  --color-tint-violet-from: var(--tint-violet-from);
+  --color-tint-violet-to: var(--tint-violet-to);
+  --color-tint-violet-fg: var(--tint-violet-fg);
   --color-wordmark-from: var(--wordmark-from);
   --color-wordmark-to: var(--wordmark-to);
+  --color-stat-blue: var(--stat-blue);
+  --color-stat-violet: var(--stat-violet);
+  --color-stat-green: var(--stat-green);
+  --color-stat-orange: var(--stat-orange);
+  --color-stat-pink: var(--stat-pink);
   --color-elevated-edge: var(--elevated-edge);
   --shadow-dialog: var(--elev-dialog);
   --shadow-card: var(--elev-card);
@@ -130,11 +145,20 @@
   --avatar-l-fg: 25%;
   --surface-hover: #f8fafc;
   --border-subtle: #f1f5f9;
+  --border-hover: #93b5ff;
   --border-control: #7b8aa0;
   --accent: #4f46e5;
   --icon-from: #eff6ff;
   --icon-to: #eef2ff;
   --icon-fg: #2563eb;
+  --tint-violet-from: #f5f3ff;
+  --tint-violet-to: #faf5ff;
+  --tint-violet-fg: #7c3aed;
+  --stat-blue: #1d4ed8;
+  --stat-violet: #7e22ce;
+  --stat-green: #047857;
+  --stat-orange: #c2410c;
+  --stat-pink: #be185d;
   --wordmark-from: #2563eb;
   --wordmark-to: #4f46e5;
   --elevated-edge: transparent;
@@ -180,11 +204,20 @@
   --avatar-l-fg: 88%;
   --surface-hover: #18223a;
   --border-subtle: #1c2639;
+  --border-hover: #4a5f9e;
   --border-control: #66779a;
   --accent: #628cff;
   --icon-from: #1b2650;
   --icon-to: #232a5c;
   --icon-fg: #93b5ff;
+  --tint-violet-from: #2a1f52;
+  --tint-violet-to: #33225e;
+  --tint-violet-fg: #c4b0ff;
+  --stat-blue: #93b5ff;
+  --stat-violet: #d8b4fe;
+  --stat-green: #6ee7b7;
+  --stat-orange: #fdba74;
+  --stat-pink: #f9a8d4;
   --wordmark-from: #60a5fa;
   --wordmark-to: #818cf8;
   --elevated-edge: #263248;
@@ -229,11 +262,20 @@
     --avatar-l-fg: 88%;
     --surface-hover: #18223a;
     --border-subtle: #1c2639;
+    --border-hover: #4a5f9e;
     --border-control: #66779a;
     --accent: #628cff;
     --icon-from: #1b2650;
     --icon-to: #232a5c;
     --icon-fg: #93b5ff;
+    --tint-violet-from: #2a1f52;
+    --tint-violet-to: #33225e;
+    --tint-violet-fg: #c4b0ff;
+    --stat-blue: #93b5ff;
+    --stat-violet: #d8b4fe;
+    --stat-green: #6ee7b7;
+    --stat-orange: #fdba74;
+    --stat-pink: #f9a8d4;
     --wordmark-from: #60a5fa;
     --wordmark-to: #818cf8;
     --elevated-edge: #263248;
@@ -251,6 +293,28 @@
 /* Starts at brand-600 so white text keeps >= 4.5:1 on the whole gradient. */
 @utility bg-brand-gradient {
   background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
+}
+
+/* The pipeline's own accent: saturated enough to carry a white icon on both themes (decorative, never text). */
+@utility bg-violet-gradient {
+  background-image: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+
+/* Icon boxes of the dashboard cards: saturated enough to carry a white glyph on both themes (decorative, never text). */
+@utility bg-stat-blue-gradient {
+  background-image: linear-gradient(135deg, #3b82f6, #4f46e5);
+}
+@utility bg-stat-violet-gradient {
+  background-image: linear-gradient(135deg, #a855f7, #9333ea);
+}
+@utility bg-stat-green-gradient {
+  background-image: linear-gradient(135deg, #10b981, #059669);
+}
+@utility bg-stat-orange-gradient {
+  background-image: linear-gradient(135deg, #f97316, #ea580c);
+}
+@utility bg-stat-pink-gradient {
+  background-image: linear-gradient(135deg, #ec4899, #db2777);
 }
 
 /* Wordmark text: lighter stops in dark keep it readable on the dark canvas. */
