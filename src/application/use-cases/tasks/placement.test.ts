@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { MAX_POSITION_LENGTH, generatePositions } from "@/domain/value-objects/position";
-import { ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/domain/errors";
 import { createTestContext, type TestContext } from "@tests/support/app-context";
 import { GUEST, MEMBER, OWNER, STRANGER, buildTask, seedKanban } from "@tests/support/fixtures";
 import { makeCreateBoard } from "../boards/create-board";
@@ -8,6 +8,7 @@ import { makeCreatePipeline } from "../pipelines/create-pipeline";
 import { makeCreateStage } from "../stages/create-stage";
 import { makeCreateTask } from "./create-task";
 import { makeMoveTask } from "./move-task";
+import { placeTask } from "./_place-task";
 import { makeReorderTask } from "./reorder-task";
 
 describe("task placement", () => {
@@ -57,19 +58,144 @@ describe("task placement", () => {
       expect(back.completedAt).toBeNull();
     });
 
-    it("answers NotFound for destinations in another board or pipeline and leaves the task untouched", async () => {
+    it("answers NotFound for destinations in another board or a missing stage and leaves the task untouched", async () => {
       const t = await add("T");
       const other = await makeCreateBoard(ctx)(STRANGER, { name: "Other" });
       const foreignPipeline = await makeCreatePipeline(ctx)(STRANGER, { boardId: other.id, name: "P" });
       const foreignStage = await makeCreateStage(ctx)(STRANGER, { pipelineId: foreignPipeline.id, name: "S" });
-      const sibling = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
-      const siblingStage = await makeCreateStage(ctx)(OWNER, { pipelineId: sibling.id, name: "S" });
-      for (const toStageId of [foreignStage.id, siblingStage.id, ghost]) {
+      for (const toStageId of [foreignStage.id, ghost]) {
         await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId, afterTaskId: null })).rejects.toBeInstanceOf(
           NotFoundError,
         );
       }
       expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, position: t.position });
+    });
+
+    describe("to a stage of a sibling pipeline of the same board (ADR 0019)", () => {
+      const sibling = async () => {
+        const pipeline = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
+        const stages = await ctx.repos.stages.listByPipeline(pipeline.id);
+        const byName = (name: string) => stages.find((s) => s.name === name)!.id;
+        return { pipelineId: pipeline.id, todoId: byName("To do"), doneId: byName("Done") };
+      };
+
+      it("moves the task there, re-parents it and lands it per the requested position", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        const x = await makeCreateTask(ctx)(OWNER, { stageId: p2.todoId, title: "X" });
+        const y = await makeCreateTask(ctx)(OWNER, { stageId: p2.todoId, title: "Y" });
+        const moved = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: x.id });
+        expect(moved).toMatchObject({ id: t.id, stageId: p2.todoId, pipelineId: p2.pipelineId, boardId: k.boardId });
+        expect(await order(p2.todoId)).toEqual(["X", "T", "Y"]);
+        expect(await order(k.todoId)).toEqual([]);
+        expect(y.pipelineId).toBe(p2.pipelineId);
+        expect((await ctx.repos.tasks.findById(t.id))?.pipelineId).toBe(p2.pipelineId);
+        await makeMoveTask(ctx)(OWNER, { taskId: x.id, toStageId: k.todoId, toEnd: true });
+        expect(await order(k.todoId)).toEqual(["X"]);
+        expect((await ctx.repos.tasks.findById(x.id))?.pipelineId).toBe(k.pipelineId);
+      });
+
+      it("sets completedAt entering a done stage of the other pipeline and clears it leaving", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        const done = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.doneId, toEnd: true });
+        expect(done).toMatchObject({ pipelineId: p2.pipelineId, completedAt: ctx.clock.now() });
+        const back = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect(back.completedAt).toBeNull();
+        const p1Done = await add("D", k.doneId);
+        expect(p1Done.completedAt).not.toBeNull();
+        const kept = await makeMoveTask(ctx)(OWNER, { taskId: p1Done.id, toStageId: p2.doneId, toEnd: true });
+        expect(kept.completedAt).toEqual(p1Done.completedAt);
+      });
+
+      it("keeps the permission of a move: viewers and strangers are refused with no effect", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        await expect(makeMoveTask(ctx)(GUEST, { taskId: t.id, toStageId: p2.todoId, toEnd: true })).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(makeMoveTask(ctx)(STRANGER, { taskId: t.id, toStageId: p2.todoId, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, pipelineId: k.pipelineId });
+        await makeMoveTask(ctx)(MEMBER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect((await ctx.repos.tasks.findById(t.id))?.pipelineId).toBe(p2.pipelineId);
+      });
+
+      it("clears completedAt moving from a done stage to a non-done stage of the other pipeline", async () => {
+        const p2 = await sibling();
+        const t = await add("T", k.doneId);
+        expect(t.completedAt).not.toBeNull();
+        const moved = await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, toEnd: true });
+        expect(moved).toMatchObject({ pipelineId: p2.pipelineId, completedAt: null });
+      });
+
+      it("rebalances an oversized destination column and persists the relocated siblings", async () => {
+        const p2 = await sibling();
+        const ids = ["a", "b"].map((c) => `00000000-0000-4000-8000-0000000000${c}1`);
+        for (const [i, id] of ids.entries()) {
+          await ctx.repos.tasks.insert(buildTask({ id, title: `S${i}`, position: "a0", stageId: p2.todoId, pipelineId: p2.pipelineId, boardId: k.boardId }));
+        }
+        const t = await add("T");
+        await makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: ids[0]! });
+        const column = await ctx.repos.tasks.listByStage(p2.todoId);
+        expect(column.map((c) => c.title)).toEqual(["S0", "T", "S1"]);
+        expect(new Set(column.map((c) => c.position)).size).toBe(3);
+        expect(column.every((c) => c.pipelineId === p2.pipelineId)).toBe(true);
+      });
+
+      it("lets a guest sandbox actor move across pipelines of its own board", async () => {
+        const guest = { userId: "sandbox", isGuest: true };
+        const mine = await seedKanban(ctx, guest);
+        const second = await makeCreatePipeline(ctx)(guest, { boardId: mine.boardId, name: "P2" });
+        const target = (await ctx.repos.stages.listByPipeline(second.id))[0]!;
+        const t = await makeCreateTask(ctx)(guest, { stageId: mine.todoId, title: "G" });
+        const moved = await makeMoveTask(ctx)(guest, { taskId: t.id, toStageId: target.id, toEnd: true });
+        expect(moved).toMatchObject({ pipelineId: second.id, stageId: target.id });
+      });
+
+      it("answers NotFound for an anchor that is the task itself when the destination is another pipeline", async () => {
+        const p2 = await sibling();
+        const t = await add("T");
+        await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: p2.todoId, afterTaskId: t.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId, pipelineId: k.pipelineId });
+      });
+
+      describe("when the snapshot is stale (task moved since the pre-flight read)", () => {
+        const staleDeps = (t: { id: string }, staleCalls: number) => {
+          let calls = 0;
+          return {
+            ...ctx,
+            repos: {
+              ...ctx.repos,
+              tasks: {
+                ...ctx.repos.tasks,
+                findById: async (id: string) => {
+                  const real = await ctx.repos.tasks.findById(id);
+                  return real && id === t.id && calls++ < staleCalls ? { ...real, stageId: k.doneId } : real;
+                },
+              },
+            },
+          };
+        };
+
+        it("retries once with a fresh snapshot and succeeds", async () => {
+          const p2 = await sibling();
+          const t = await add("T");
+          const moved = await placeTask(staleDeps(t, 1), t.id, p2.todoId, "end");
+          expect(moved).toMatchObject({ stageId: p2.todoId, pipelineId: p2.pipelineId });
+        });
+
+        it("answers Conflict when the snapshot is still stale on the retry", async () => {
+          const p2 = await sibling();
+          const t = await add("T");
+          await expect(placeTask(staleDeps(t, 2), t.id, p2.todoId, "end")).rejects.toBeInstanceOf(ConflictError);
+          expect(await ctx.repos.tasks.findById(t.id)).toMatchObject({ stageId: k.todoId });
+        });
+      });
+
+      it("refuses an anchor that is not in the destination column", async () => {
+        const p2 = await sibling();
+        const [a, b] = [await add("A"), await add("B")];
+        await expect(makeMoveTask(ctx)(OWNER, { taskId: a.id, toStageId: p2.todoId, afterTaskId: b.id })).rejects.toBeInstanceOf(NotFoundError);
+        expect((await ctx.repos.tasks.findById(a.id))?.pipelineId).toBe(k.pipelineId);
+      });
     });
 
     it("answers NotFound when the anchor task is unknown or in another stage", async () => {
@@ -155,11 +281,12 @@ describe("task placement", () => {
       }
     });
 
-    it("keeps the destination rules: foreign stage, other pipeline and viewers are refused", async () => {
+    it("keeps the destination rules: foreign stage and viewers are refused", async () => {
       const t = await add("T");
-      const sibling = await makeCreatePipeline(ctx)(OWNER, { boardId: k.boardId, name: "P2" });
-      const siblingStage = await makeCreateStage(ctx)(OWNER, { pipelineId: sibling.id, name: "S" });
-      await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: siblingStage.id, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
+      const other = await makeCreateBoard(ctx)(STRANGER, { name: "Other" });
+      const foreignPipeline = await makeCreatePipeline(ctx)(STRANGER, { boardId: other.id, name: "P" });
+      const foreignStage = await makeCreateStage(ctx)(STRANGER, { pipelineId: foreignPipeline.id, name: "S" });
+      await expect(makeMoveTask(ctx)(OWNER, { taskId: t.id, toStageId: foreignStage.id, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
       await expect(makeMoveTask(ctx)(GUEST, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(ForbiddenError);
       await expect(makeMoveTask(ctx)(STRANGER, { taskId: t.id, toStageId: k.doneId, toEnd: true })).rejects.toBeInstanceOf(NotFoundError);
     });

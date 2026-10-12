@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, NotFoundError, ValidationError } from "@/domain/errors";
 
@@ -10,16 +10,16 @@ const notFound = vi.fn(() => {
 });
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => undefined }));
 
 const getActor = vi.fn();
-const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), createPipeline: vi.fn() };
+const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), listStages: vi.fn(), createPipeline: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
 
 const { BoardHeader } = await import("@/components/boards/board-header");
-const { MembersPanel } = await import("@/components/boards/members-panel");
 const { PipelineList } = await import("@/components/boards/pipeline-list");
 const { CreatePipelineForm } = await import("@/components/boards/create-pipeline-form");
 const { default: BoardPage } = await import("@/app/(app)/boards/[boardId]/page");
@@ -29,7 +29,7 @@ const { createPipelineAction } = await vi.importActual<typeof import("@/app/_act
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";
 const board = { id: BOARD_ID, name: "Roadmap", description: "Q4 plans", status: "active", createdAt: new Date() };
 const params = (boardId = BOARD_ID) => Promise.resolve({ boardId });
-const search = (query: { membersPage?: string; pipelinesPage?: string } = {}) => Promise.resolve(query);
+const search = (query: { pipelinesPage?: string } = {}) => Promise.resolve(query);
 const member = (userId: string, role: string, name: string, email: string | null = null) => ({ userId, role, name, email });
 
 beforeEach(() => {
@@ -38,6 +38,7 @@ beforeEach(() => {
   useCases.getBoard.mockResolvedValue({ board, role: "owner" });
   useCases.listMemberProfiles.mockResolvedValue([member("u", "owner", "Olivia", "olivia@example.com"), member("v", "guest", "Demo Viewer")]);
   useCases.listPipelines.mockResolvedValue([{ id: "p1", boardId: BOARD_ID, name: "Sprint", description: "Two weeks" }]);
+  useCases.listStages.mockResolvedValue([{ name: "To do" }]);
 });
 
 describe("components", () => {
@@ -50,24 +51,16 @@ describe("components", () => {
     expect(renderToStaticMarkup(<BoardHeader board={board as never} role="member" />)).not.toContain("/settings");
   });
 
-  it("MembersPanel lists names, emails and role labels, naming the deleted accounts", () => {
-    const html = renderToStaticMarkup(<MembersPanel members={[member("u", "owner", "Olivia", "olivia@example.com") as never, member("v", "guest", "Demo Viewer") as never]} />);
-    expect(html).toContain("Olivia");
-    expect(html).toContain("olivia@example.com");
-    expect(html).toContain("Owner");
-    expect(html).toContain("Viewer");
-    expect(html).toContain('aria-label="Members"');
-  });
-
   it("PipelineList shows pipelines or an empty message", () => {
-    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: "p1", name: "Sprint", description: "Two weeks" }]} />)).toContain("Two weeks");
-    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[]} />)).toContain("No pipelines yet");
+    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: "p1", name: "Sprint", description: "Two weeks", stages: [] }]} role="owner" />)).toContain("Two weeks");
+    expect(renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[]} role="owner" />)).toContain("No pipelines on this board");
   });
 
   it("CreatePipelineForm sends the board id and submits", () => {
     const html = renderToStaticMarkup(<CreatePipelineForm boardId={BOARD_ID} />);
-    expect(html).toContain(">Create</button>");
+    expect(html).toContain(">Create pipeline</button>");
     expect(html).toContain(`name="boardId" value="${BOARD_ID}"`);
+    expect(html.match(/name="stages"/g)).toHaveLength(3);
   });
 });
 
@@ -75,8 +68,10 @@ describe("BoardPage", () => {
   it("renders the board, its members and pipelines, with the create form for owners", async () => {
     const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search() }));
     expect(html).toContain("Roadmap");
-    expect(html).toContain("Olivia");
     expect(html).toContain("Sprint");
+    expect(html).toContain("To do"); // the stage chips come from the pipeline stages
+    expect(html).toContain("Manage members"); // the member list itself only renders once the dialog is open
+    expect(useCases.listMemberProfiles).toHaveBeenCalled();
     expect(html).toContain("Create pipeline");
     expect(useCases.getBoard).toHaveBeenCalledWith({ boardId: BOARD_ID });
   });
@@ -103,29 +98,25 @@ describe("BoardPage", () => {
 describe("BoardPage paging", () => {
   const many = (n: number, make: (i: number) => object) => Array.from({ length: n }, (_v, i) => make(i));
 
-  it("asks for one page of members and one of pipelines, each with a lookahead row", async () => {
-    await BoardPage({ params: params(), searchParams: search({ membersPage: "2", pipelinesPage: "3" }) });
-    expect(useCases.listMemberProfiles).toHaveBeenCalledWith({ boardId: BOARD_ID, limit: 13, offset: 12 });
+  it("asks for one page of pipelines with a lookahead row, and for the members once, up to the load cap", async () => {
+    await BoardPage({ params: params(), searchParams: search({ pipelinesPage: "3" }) });
     expect(useCases.listPipelines).toHaveBeenCalledWith({ boardId: BOARD_ID, limit: 13, offset: 24 });
+    expect(useCases.listMemberProfiles).toHaveBeenCalledTimes(1);
+    expect(useCases.listMemberProfiles).toHaveBeenCalledWith({ boardId: BOARD_ID, limit: 200, offset: 0 });
   });
 
-  it("links to the next page of each list while keeping the other list's page", async () => {
-    useCases.listMemberProfiles.mockResolvedValue(many(13, (i) => member(`u${i}`, "member", `Person ${i}`)));
+  it("links to the next page of pipelines and hides the lookahead row", async () => {
     useCases.listPipelines.mockResolvedValue(many(13, (i) => ({ id: `p${i}`, name: `Flow ${i}`, description: "" })));
-    const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search({ pipelinesPage: "1", membersPage: "1" }) }));
-    expect(html).toContain(`href="/boards/${BOARD_ID}?membersPage=2"`);
+    const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search({ pipelinesPage: "1" }) }));
     expect(html).toContain(`href="/boards/${BOARD_ID}?pipelinesPage=2"`);
-    expect(html).not.toContain("Person 12<");
     expect(html).not.toContain("Flow 12<");
   });
 
-  it("says so when a page is past the end of a list", async () => {
-    useCases.listMemberProfiles.mockResolvedValue([]);
+  it("says so when a page is past the end of the pipelines", async () => {
     useCases.listPipelines.mockResolvedValue([]);
-    const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search({ membersPage: "5", pipelinesPage: "5" }) }));
-    expect(html).toContain("No members on this page");
+    const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search({ pipelinesPage: "5" }) }));
     expect(html).toContain("No pipelines on this page");
-    expect(html).not.toContain("No pipelines yet");
+    expect(html).not.toContain("No pipelines on this board");
   });
 });
 

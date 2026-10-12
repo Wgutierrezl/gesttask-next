@@ -1,27 +1,36 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { addMemberAction } from "@/app/_actions/members";
 import { failureOf } from "@/app/_shared/mutation-state";
 import { FormError } from "@/components/auth/form-error";
-import { FormField } from "@/components/auth/form-field";
+import { Alert, Field, Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { RoleSelect } from "./role-select";
 
-/** Invite a registered account by email. Demo-session users cannot invite; the server explains why. */
-export function AddMemberForm({ boardId }: { boardId: string }) {
+/** Invite a registered account by email. Demo-session users cannot invite; the server explains why. `inline` lays the fields out in one row, for the members dialog. */
+export function AddMemberForm({ boardId, inline = false }: { boardId: string; inline?: boolean }) {
+  const t = useTranslations("board.member");
   const [state, formAction] = useActionState(addMemberAction, undefined);
   const failure = failureOf(state);
   return (
-    <form action={formAction} className="flex max-w-md flex-col gap-4">
+    <form action={formAction} className={inline ? "flex flex-col gap-3" : "flex max-w-md flex-col gap-4"}>
       <input type="hidden" name="boardId" value={boardId} />
-      <FormField label="Email" name="email" type="email" autoComplete="off" errors={failure?.fieldErrors?.email} />
-      <RoleSelect id="role" label="Role" defaultValue="member" />
-      <FormError failure={failure} inlineFields={["email"]} />
-      {state?.ok ? <p role="status" className="text-sm text-green-800">Member added.</p> : null}
-      <div>
-        <SubmitButton pendingLabel="Adding...">Add member</SubmitButton>
+      <div className={inline ? "flex flex-wrap items-end gap-3 [&>:first-child]:min-w-48 [&>:first-child]:flex-1" : "contents"}>
+        <Field label={t("email")} required error={failure?.fieldErrors?.email?.join(" ")}>
+          <Input id={inline ? "dialog-email" : "email"} name="email" type="email" autoComplete="off" required />
+        </Field>
+        <RoleSelect id={inline ? "dialog-role" : "role"} label={t("role")} defaultValue="member" />
+        {inline ? <SubmitButton pendingLabel={t("adding")} className="rounded-xl">{t("add")}</SubmitButton> : null}
       </div>
+      <FormError failure={failure} inlineFields={["email"]} />
+      {state?.ok ? <Alert tone="success">{t("added")}</Alert> : null}
+      {inline ? null : (
+        <div>
+          <SubmitButton pendingLabel={t("adding")}>{t("add")}</SubmitButton>
+        </div>
+      )}
     </form>
   );
 }

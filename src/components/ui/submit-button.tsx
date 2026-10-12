@@ -13,13 +13,14 @@ interface SubmitButtonProps {
   ariaLabel?: string;
   /** Keeps the button disabled for reasons outside its form's action, e.g. files still uploading. */
   disabled?: boolean;
+  className?: string;
 }
 
 /** Submit button that disables itself while its form's action runs, so a double click cannot submit twice. */
-export function SubmitButton({ children, pendingLabel, variant = "primary", ariaLabel, disabled = false }: SubmitButtonProps) {
+export function SubmitButton({ children, pendingLabel, variant = "primary", ariaLabel, disabled = false, className }: SubmitButtonProps) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant={variant} disabled={pending || disabled} aria-label={ariaLabel}>
+    <Button type="submit" variant={variant} disabled={pending || disabled} aria-label={ariaLabel} className={className}>
       {pending && <Loader2 aria-hidden="true" className="size-4 animate-spin" />}
       {pending ? (pendingLabel ?? children) : children}
     </Button>

@@ -67,6 +67,14 @@ describe("pipelines", () => {
     expect(stages.map((s) => [s.name, s.isDone])).toEqual([["To do", false], ["In progress", false], ["Done", true]]);
   });
 
+  it("createPipeline accepts an ordered list of stage names and still works without one", async () => {
+    const created = await expectDocumented("createPipeline", await call(pipelinesRoute.POST, "POST", owner, { params: { boardId }, body: { name: "Custom", stages: [" Backlog ", "Review", "Shipped"] } }));
+    const listed = (await call(stagesRoute.GET, "GET", owner, { params: { pipelineId: created.id } }).then((r) => r.json())).items;
+    expect(listed.map((s: { name: string; isDone: boolean }) => [s.name, s.isDone])).toEqual([["Backlog", false], ["Review", false], ["Shipped", true]]);
+    const invalid = await expectError(await call(pipelinesRoute.POST, "POST", owner, { params: { boardId }, body: { name: "Dup", stages: ["A", "a"] } }), 422, "VALIDATION");
+    expect(invalid.error.details).toHaveProperty("stages", ["Stage names must be unique"]);
+  });
+
   it("createPipeline validates, and only the owner may create (a member gets 403)", async () => {
     const invalid = await expectError(await call(pipelinesRoute.POST, "POST", owner, { params: { boardId }, body: { name: "" } }), 422, "VALIDATION");
     expect(invalid.error.details).toHaveProperty("name");

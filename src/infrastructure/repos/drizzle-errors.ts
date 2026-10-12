@@ -6,12 +6,12 @@ import { pgConstraint, pgErrorCode } from "../db/pg-error";
  * Everything else (a duplicate id, a storage-key clash, a mismatched denormalized board id...) is a bug
  * or an infrastructure fact, and must surface as itself instead of being disguised as a user error.
  */
-const CONFLICTS: Record<string, string> = {
-  board_members_board_id_user_id_pk: "User is already a member of this board",
-  stages_pipeline_lower_name_uq: "A stage with this name already exists in the pipeline",
-  stages_pipeline_done_uq: "The pipeline already has a done stage",
+const CONFLICTS: Record<string, [message: string, reason?: string]> = {
+  board_members_board_id_user_id_pk: ["User is already a member of this board", "member.alreadyMember"],
+  stages_pipeline_lower_name_uq: ["A stage with this name already exists in the pipeline", "stage.nameTaken"],
+  stages_pipeline_done_uq: ["The pipeline already has a done stage", "stage.doneExists"],
   // Two concurrent creates of the same board id (the idempotent demo seed relies on this one).
-  boards_pkey: "Conflict",
+  boards_pkey: ["Conflict"],
 };
 
 /** Foreign keys whose violation means "the parent was deleted under us" (REQ: indistinguishable from missing). */
@@ -35,7 +35,10 @@ const VANISHED_PARENTS = new Set([
 export function translateDbError(error: unknown): unknown {
   const code = pgErrorCode(error);
   const constraint = pgConstraint(error) ?? "";
-  if (code === "23505" && Object.hasOwn(CONFLICTS, constraint)) return new ConflictError(CONFLICTS[constraint]);
+  if (code === "23505" && Object.hasOwn(CONFLICTS, constraint)) {
+    const [message, reason] = CONFLICTS[constraint]!;
+    return new ConflictError(message, reason ? { reason } : undefined);
+  }
   if (code === "23503" && VANISHED_PARENTS.has(constraint)) return new NotFoundError();
   return error;
 }
