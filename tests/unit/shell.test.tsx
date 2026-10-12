@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pathname = vi.hoisted(() => ({ current: "/boards" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
-vi.mock("@/app/_actions/preferences", () => ({ setLocaleAction: async () => undefined }));
+vi.mock("@/app/_actions/preferences", () => ({ setLocaleAction: async () => undefined, setThemeAction: async () => undefined }));
 vi.mock("@/app/_actions/auth", () => ({
   signInGuestAction: async () => undefined,
   signOutAction: async () => undefined,
@@ -44,6 +44,23 @@ describe("AppHeader", () => {
     const button = screen.getByRole("button", { name: "Sign out" });
     expect(button.getAttribute("type")).toBe("submit");
     expect(button.closest("form")).not.toBeNull();
+  });
+});
+
+describe("AppHeader like v1", () => {
+  it("is as tall as v1's bar, with a roomy logo mark and a quiet sign-out button", () => {
+    render(<AppHeader />);
+    const header = screen.getByRole("banner");
+    expect(header.firstElementChild?.className).toContain("h-[4.5rem]");
+    expect(header.querySelector("svg.size-10")).toBeTruthy();
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    expect(signOut.className).not.toContain("border");
+    expect(signOut.className).toContain("text-fg-muted");
+  });
+
+  it("keeps the content width and gutters of the pages under it", () => {
+    render(<AppHeader />);
+    expect(screen.getByRole("banner").firstElementChild?.className).toContain("max-w-7xl");
   });
 });
 

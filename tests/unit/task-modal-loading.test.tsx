@@ -35,4 +35,10 @@ describe("task modal while it loads", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(back).toHaveBeenCalledTimes(1);
   });
+
+  it("says it is loading in Spanish", () => {
+    render(<Loading />, { locale: "es" });
+    const dialog = screen.getByRole("dialog", { name: "Cargando tarea…" });
+    expect(within(dialog).getByRole("status", { name: "Cargando tarea…" }).getAttribute("aria-busy")).toBe("true");
+  });
 });

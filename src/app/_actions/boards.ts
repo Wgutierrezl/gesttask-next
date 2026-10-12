@@ -1,7 +1,7 @@
 "use server";
 
 import type { MutationState } from "../_shared/mutation-state";
-import { runMutation, text } from "../_shared/run-mutation";
+import { confirmationRequired, runMutation, text } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
 /** Every action calls the container's guarded use cases: the actor comes from the session, never the form. */
@@ -34,7 +34,7 @@ export async function setBoardStatusAction(_previous: MutationState, form: FormD
 export async function deleteBoardAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   const boardId = text(form, "boardId");
   if (text(form, "confirm") !== "yes") {
-    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this board"] } };
+    return confirmationRequired("deleteBoard");
   }
   return runMutation(() => getContainer().useCases.deleteBoard({ boardId }), { revalidate: ["/boards"], cleanupStorage: true, redirectTo: () => "/boards" });
 }

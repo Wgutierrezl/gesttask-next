@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "./button";
 import { SubmitButton } from "./submit-button";
 import type { ComponentProps } from "react";
@@ -14,11 +15,12 @@ interface FormFooterProps {
 
 /** The action row of a form in a modal: Cancel (outline) and the primary submit share the width. Must sit inside the form. */
 export function FormFooter({ submitLabel, pendingLabel, variant, onCancel }: FormFooterProps) {
+  const t = useTranslations("common");
   return (
     <div className="flex gap-3 pt-1">
       {onCancel ? (
         <Button variant="secondary" className="flex-1" onClick={onCancel}>
-          Cancel
+          {t("cancel")}
         </Button>
       ) : null}
       <SubmitButton variant={variant} pendingLabel={pendingLabel} className="flex-1">

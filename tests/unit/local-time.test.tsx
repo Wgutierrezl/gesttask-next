@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, screen } from "@testing-library/react";
-import { renderWithIntl as render } from "@tests/support/render";
-import { renderToString } from "react-dom/server";
+import { renderToStaticMarkupWithIntl, renderWithIntl as render } from "@tests/support/render";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatInstant } from "@/components/kanban/format";
+import { formatDate, formatDay, formatInstant } from "@/components/kanban/format";
 import { LocalTime } from "@/components/kanban/local-time";
 
 const ISO = "2026-10-09T10:00:00.000Z";
@@ -14,18 +13,49 @@ afterEach(() => {
 
 describe("formatInstant", () => {
   it("writes an instant in UTC with an explicit label when no zone is given", () => {
-    expect(formatInstant(ISO)).toBe("Oct 9, 2026, 10:00 AM UTC");
+    expect(formatInstant(ISO, "UTC", "en")).toBe("Oct 9, 2026, 10:00 AM UTC");
   });
 
   it("writes it in the given zone, labelled with that zone", () => {
-    expect(formatInstant(ISO, "America/Bogota")).toBe("Oct 9, 2026, 5:00 AM GMT-5");
+    expect(formatInstant(ISO, "America/Bogota", "en")).toBe("Oct 9, 2026, 5:00 AM GMT-5");
+  });
+});
+
+describe("locale-aware formatting", () => {
+  it("keeps the English output as it was", () => {
+    expect(formatDate("2026-10-09", "en")).toBe("Oct 9, 2026");
+    expect(formatInstant(ISO, "UTC", "en")).toBe("Oct 9, 2026, 10:00 AM UTC");
+  });
+
+  it("follows Spanish conventions for dates and instants", () => {
+    expect(formatDate("2026-10-09", "es")).toBe("9 oct 2026");
+    expect(formatInstant(ISO, "UTC", "es")).toBe("9 oct 2026, 10:00 UTC");
+  });
+});
+
+describe("formatDay", () => {
+  it("writes a calendar date as a short day without the year, in each language", () => {
+    expect(formatDay("2026-10-16", "en")).toBe("Oct 16");
+    expect(formatDay("2026-10-16", "es")).toBe("16 oct");
+  });
+
+  it("reads an ISO timestamp in UTC so the server and the browser agree on the day", () => {
+    expect(formatDay("2026-10-09T23:30:00.000Z", "en")).toBe("Oct 9");
+    expect(formatDay("2026-01-05", "es")).toBe("5 ene");
   });
 });
 
 describe("LocalTime", () => {
+  it("renders Spanish on the server and in the browser from the active locale", async () => {
+    process.env.TZ = "America/Bogota";
+    expect(renderToStaticMarkupWithIntl(<LocalTime iso={ISO} label="Completada" />, { locale: "es" })).toContain("<time dateTime=\"2026-10-09T10:00:00.000Z\">Completada 9 oct 2026, 10:00 UTC</time>");
+    render(<LocalTime iso={ISO} label="Completada" />, { locale: "es" });
+    expect((await screen.findByText("Completada 9 oct 2026, 5:00 GMT-5")).tagName).toBe("TIME");
+  });
+
   it("renders UTC on the server, so there is no time zone to guess and no hydration mismatch", () => {
     process.env.TZ = "America/Bogota";
-    expect(renderToString(<LocalTime iso={ISO} label="Completed" />)).toContain("Completed Oct 9, 2026, 10:00 AM UTC");
+    expect(renderToStaticMarkupWithIntl(<LocalTime iso={ISO} label="Completed" />)).toContain("Completed Oct 9, 2026, 10:00 AM UTC");
   });
 
   it("switches to the viewer's own time zone in the browser, with its label", async () => {

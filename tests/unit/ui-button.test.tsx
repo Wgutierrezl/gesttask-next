@@ -21,6 +21,19 @@ describe("buttonClasses", () => {
     expect(buttonClasses({ size: "sm" })).not.toBe(buttonClasses({ size: "icon" }));
   });
 
+  it("danger-secondary reads as a secondary button with a danger label and no conflicting text color", () => {
+    const classes = buttonClasses({ variant: "danger-secondary" }).split(" ");
+    expect(classes).toContain("text-danger-fg");
+    expect(classes.filter((c) => /^text-(?!sm$|xs$|base$|lg$)/.test(c))).toEqual(["text-danger-fg"]);
+  });
+
+  it("no variant carries two text colors (class order would decide which one wins)", () => {
+    for (const variant of ["primary", "secondary", "ghost", "danger", "danger-secondary"] as const) {
+      const colors = buttonClasses({ variant }).split(" ").filter((c) => /^text-(?!sm$|xs$|base$|lg$)/.test(c));
+      expect(colors, variant).toHaveLength(1);
+    }
+  });
+
   it("defaults to primary md", () => {
     expect(buttonClasses()).toBe(buttonClasses({ variant: "primary", size: "md" }));
   });

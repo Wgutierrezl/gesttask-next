@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens (ADR 0020). Light theme only. */
+/* Design tokens (ADR 0020). Palette and elevation switch with the theme (ADR 0022). */
 @theme {
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
@@ -30,9 +30,8 @@
   --radius-control: 0.75rem;
   --radius-pill: 9999px;
 
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 12px rgb(15 23 42 / 6%);
-  --shadow-pop: 0 8px 30px rgb(15 23 42 / 16%);
   --shadow-brand: 0 4px 14px rgb(79 70 229 / 25%);
+  --shadow-violet: 0 10px 15px -3px rgb(124 58 237 / 30%), 0 4px 6px -4px rgb(124 58 237 / 30%);
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -41,6 +40,7 @@
   --animate-fade-in: fade-in var(--duration-base) var(--ease-out-soft);
   --animate-pop-in: pop-in var(--duration-base) var(--ease-out-soft);
   --animate-modal-in: modal-in var(--duration-base) var(--ease-out-soft);
+  --animate-row-in: row-in var(--duration-base) var(--ease-out-soft);
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -50,15 +50,288 @@
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
   }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
   }
 }
 
+/* Semantic colors resolve through the variables below, so a theme only has to redefine those. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-elevated: var(--elevated);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-link: var(--brand-link);
+  --color-skeleton: var(--skeleton);
+  --color-danger-edge: var(--danger-edge);
+  --color-warning-edge: var(--warning-edge);
+  --color-success-edge: var(--success-edge);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-fg: var(--warning-fg);
+  --color-success-soft: var(--success-soft);
+  --color-success-fg: var(--success-fg);
+  --color-backdrop: var(--backdrop);
+  --color-grid-line: var(--grid-line);
+  --color-hero-from: var(--hero-from);
+  --color-hero-via: var(--hero-via);
+  --color-hero-to: var(--hero-to);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-strong: var(--fg-strong);
+  --color-surface-hover: var(--surface-hover);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-hover: var(--border-hover);
+  --color-border-control: var(--border-control);
+  --color-accent: var(--accent);
+  --color-icon-from: var(--icon-from);
+  --color-icon-to: var(--icon-to);
+  --color-icon-fg: var(--icon-fg);
+  --color-tint-violet-from: var(--tint-violet-from);
+  --color-tint-violet-to: var(--tint-violet-to);
+  --color-tint-violet-fg: var(--tint-violet-fg);
+  --color-wordmark-from: var(--wordmark-from);
+  --color-wordmark-to: var(--wordmark-to);
+  --color-stat-blue: var(--stat-blue);
+  --color-stat-violet: var(--stat-violet);
+  --color-stat-green: var(--stat-green);
+  --color-stat-orange: var(--stat-orange);
+  --color-stat-pink: var(--stat-pink);
+  --color-elevated-edge: var(--elevated-edge);
+  --shadow-dialog: var(--elev-dialog);
+  --shadow-card: var(--elev-card);
+  --shadow-pop: var(--elev-pop);
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --elevated: #ffffff;
+  --fg: #0f172a;
+  --fg-muted: #475569;
+  --fg-subtle: #5b6b82;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --ring: #4f46e5;
+  --brand-soft: #eef4ff;
+  --brand-link: #4338ca;
+  --danger-soft: #fef2f2;
+  --danger-fg: #b91c1c;
+  --warning-soft: #fffbeb;
+  --warning-fg: #b45309;
+  --danger-edge: rgb(220 38 38 / 30%);
+  --warning-edge: rgb(217 119 6 / 30%);
+  --success-edge: rgb(5 150 105 / 30%);
+  --success-soft: #ecfdf5;
+  --success-fg: #047857;
+  --fg-secondary: #1e293b;
+  --fg-strong: #334155;
+  --skeleton: #e2e8f0;
+  --avatar-l-bg: 90%;
+  --avatar-l-fg: 25%;
+  --surface-hover: #f8fafc;
+  --border-subtle: #f1f5f9;
+  --border-hover: #93b5ff;
+  --border-control: #7b8aa0;
+  --accent: #4f46e5;
+  --icon-from: #eff6ff;
+  --icon-to: #eef2ff;
+  --icon-fg: #2563eb;
+  --tint-violet-from: #f5f3ff;
+  --tint-violet-to: #faf5ff;
+  --tint-violet-fg: #7c3aed;
+  --stat-blue: #1d4ed8;
+  --stat-violet: #7e22ce;
+  --stat-green: #047857;
+  --stat-orange: #c2410c;
+  --stat-pink: #be185d;
+  --wordmark-from: #2563eb;
+  --wordmark-to: #4f46e5;
+  --elevated-edge: transparent;
+  --elev-dialog: 0 25px 50px -12px rgb(0 0 0 / 25%);
+  --backdrop: rgb(0 0 0 / 60%);
+  --grid-line: rgb(15 23 42 / 6%);
+  --hero-from: #eef4ff;
+  --hero-via: #ffffff;
+  --hero-to: #dbe7ff;
+  --elev-card: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 12px rgb(15 23 42 / 6%);
+  --elev-pop: 0 8px 30px rgb(15 23 42 / 16%);
+}
+
+/* The dark values exist twice on purpose: pinned by the cookie, and followed from the OS when nothing is pinned.
+   A unit test keeps the two blocks identical. Shadows get stronger because they barely read on dark surfaces. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0b1120;
+  --surface: #111a2e;
+  --surface-muted: #1a2540;
+  --elevated: #1e293b;
+  --fg: #f1f5f9;
+  --fg-muted: #cbd5e1;
+  --fg-subtle: #94a3b8;
+  --border: #263248;
+  --border-strong: #334155;
+  --ring: #628cff;
+  --brand-soft: #1b2650;
+  --brand-link: #bed3ff;
+  --danger-soft: #3b1218;
+  --danger-fg: #fca5a5;
+  --warning-soft: #3a2a0a;
+  --warning-fg: #fcd34d;
+  --danger-edge: rgb(252 165 165 / 30%);
+  --warning-edge: rgb(252 211 77 / 30%);
+  --success-edge: rgb(110 231 183 / 30%);
+  --success-soft: #0b2e22;
+  --success-fg: #6ee7b7;
+  --fg-secondary: #eaeff5;
+  --fg-strong: #e2e8f0;
+  --skeleton: #3b4a66;
+  --avatar-l-bg: 22%;
+  --avatar-l-fg: 88%;
+  --surface-hover: #18223a;
+  --border-subtle: #1c2639;
+  --border-hover: #4a5f9e;
+  --border-control: #66779a;
+  --accent: #628cff;
+  --icon-from: #1b2650;
+  --icon-to: #232a5c;
+  --icon-fg: #93b5ff;
+  --tint-violet-from: #2a1f52;
+  --tint-violet-to: #33225e;
+  --tint-violet-fg: #c4b0ff;
+  --stat-blue: #93b5ff;
+  --stat-violet: #d8b4fe;
+  --stat-green: #6ee7b7;
+  --stat-orange: #fdba74;
+  --stat-pink: #f9a8d4;
+  --wordmark-from: #60a5fa;
+  --wordmark-to: #818cf8;
+  --elevated-edge: #263248;
+  --elev-dialog: 0 25px 50px -12px rgb(0 0 0 / 70%);
+  --backdrop: rgb(0 0 0 / 60%);
+  --grid-line: rgb(255 255 255 / 8%);
+  --hero-from: #141d3a;
+  --hero-via: #0b1120;
+  --hero-to: #1b2650;
+  --elev-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+  --elev-pop: 0 8px 30px rgb(0 0 0 / 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --canvas: #0b1120;
+    --surface: #111a2e;
+    --surface-muted: #1a2540;
+    --elevated: #1e293b;
+    --fg: #f1f5f9;
+    --fg-muted: #cbd5e1;
+    --fg-subtle: #94a3b8;
+    --border: #263248;
+    --border-strong: #334155;
+    --ring: #628cff;
+    --brand-soft: #1b2650;
+    --brand-link: #bed3ff;
+    --danger-soft: #3b1218;
+    --danger-fg: #fca5a5;
+    --warning-soft: #3a2a0a;
+    --warning-fg: #fcd34d;
+    --danger-edge: rgb(252 165 165 / 30%);
+    --warning-edge: rgb(252 211 77 / 30%);
+    --success-edge: rgb(110 231 183 / 30%);
+    --success-soft: #0b2e22;
+    --success-fg: #6ee7b7;
+    --fg-secondary: #eaeff5;
+    --fg-strong: #e2e8f0;
+    --skeleton: #3b4a66;
+    --avatar-l-bg: 22%;
+    --avatar-l-fg: 88%;
+    --surface-hover: #18223a;
+    --border-subtle: #1c2639;
+    --border-hover: #4a5f9e;
+    --border-control: #66779a;
+    --accent: #628cff;
+    --icon-from: #1b2650;
+    --icon-to: #232a5c;
+    --icon-fg: #93b5ff;
+    --tint-violet-from: #2a1f52;
+    --tint-violet-to: #33225e;
+    --tint-violet-fg: #c4b0ff;
+    --stat-blue: #93b5ff;
+    --stat-violet: #d8b4fe;
+    --stat-green: #6ee7b7;
+    --stat-orange: #fdba74;
+    --stat-pink: #f9a8d4;
+    --wordmark-from: #60a5fa;
+    --wordmark-to: #818cf8;
+    --elevated-edge: #263248;
+    --elev-dialog: 0 25px 50px -12px rgb(0 0 0 / 70%);
+    --backdrop: rgb(0 0 0 / 60%);
+    --grid-line: rgb(255 255 255 / 8%);
+    --hero-from: #141d3a;
+    --hero-via: #0b1120;
+    --hero-to: #1b2650;
+    --elev-card: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+    --elev-pop: 0 8px 30px rgb(0 0 0 / 60%);
+  }
+}
+
 /* Starts at brand-600 so white text keeps >= 4.5:1 on the whole gradient. */
 @utility bg-brand-gradient {
   background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
+}
+
+/* The pipeline's own accent: saturated enough to carry a white icon on both themes (decorative, never text). */
+@utility bg-violet-gradient {
+  background-image: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+
+/* Icon boxes of the dashboard cards: saturated enough to carry a white glyph on both themes (decorative, never text). */
+@utility bg-stat-blue-gradient {
+  background-image: linear-gradient(135deg, #3b82f6, #4f46e5);
+}
+@utility bg-stat-violet-gradient {
+  background-image: linear-gradient(135deg, #a855f7, #9333ea);
+}
+@utility bg-stat-green-gradient {
+  background-image: linear-gradient(135deg, #10b981, #059669);
+}
+@utility bg-stat-orange-gradient {
+  background-image: linear-gradient(135deg, #f97316, #ea580c);
+}
+@utility bg-stat-pink-gradient {
+  background-image: linear-gradient(135deg, #ec4899, #db2777);
+}
+
+/* Wordmark text: lighter stops in dark keep it readable on the dark canvas. */
+@utility text-wordmark-gradient {
+  color: var(--color-wordmark-to);
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    background-image: linear-gradient(135deg, var(--color-wordmark-from), var(--color-wordmark-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  @media (forced-colors: active) {
+    background: none;
+    -webkit-text-fill-color: currentcolor;
+    color: CanvasText;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -70,4 +343,10 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Initials badge: the hue comes from the name, the lightness from the theme (pastel in light, deep in dark). */
+.avatar {
+  background-color: hsl(var(--avatar-hue) 60% var(--avatar-l-bg));
+  color: hsl(var(--avatar-hue) 60% var(--avatar-l-fg));
 }

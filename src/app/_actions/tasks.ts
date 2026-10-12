@@ -2,7 +2,7 @@
 
 import type { MutationState } from "../_shared/mutation-state";
 import { PIPELINE_PAGE, TASK_PAGE, pipelinePath, taskPath } from "../_shared/paths";
-import { checked, optionalText, runMutation, text } from "../_shared/run-mutation";
+import { checked, confirmationRequired, optionalText, runMutation, text } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
 const pages = { revalidate: [PIPELINE_PAGE, TASK_PAGE] };
@@ -41,7 +41,7 @@ export async function updateTaskAction(_previous: MutationState, form: FormData)
 /** Deleting asks for confirmation; where to land afterwards comes from the deleted task, never from the form. */
 export async function deleteTaskAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   if (!checked(form, "confirm")) {
-    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] } };
+    return confirmationRequired("deleteTask");
   }
   return runMutation(() => getContainer().useCases.deleteTask({ taskId: text(form, "taskId") }), {
     ...pages,
