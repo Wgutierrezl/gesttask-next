@@ -41,7 +41,7 @@ test.describe("moving cards between pipelines of a board", () => {
     const title = uniqueTitle("Tab drop");
     await openKanban(page);
     await addTask(page, title, "Done");
-    const card = page.getByRole("button", { name: `Drag ${title}` });
+    const card = page.getByRole("article", { name: `Drag ${title}` });
     const tab = pipelines(page).getByRole("link", { name: /^Backlog/ });
     await card.scrollIntoViewIfNeeded();
     const from = (await card.boundingBox())!;

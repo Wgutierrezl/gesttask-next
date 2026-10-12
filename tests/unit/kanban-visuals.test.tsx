@@ -84,7 +84,7 @@ describe("KanbanBoard dragging", () => {
   it("keeps the live region and drag handle", () => {
     render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
     expect(screen.getByRole("status", { name: "Board updates" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Drag Write docs" })).toBeTruthy();
+    expect(screen.getByRole("article", { name: "Drag Write docs" })).toBeTruthy();
   });
 
   it("exposes only one heading for the dragged card while dragging, and clears the dragging state on cancel", async () => {
@@ -92,7 +92,7 @@ describe("KanbanBoard dragging", () => {
     render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
     const scroller = screen.getByTestId("board-scroller");
     expect(scroller.getAttribute("data-dragging")).toBe("false");
-    screen.getByRole("button", { name: "Drag Write docs" }).focus();
+    screen.getByRole("article", { name: "Drag Write docs" }).focus();
     await user.keyboard(" ");
     await waitFor(() => expect(scroller.getAttribute("data-dragging")).toBe("true"));
     expect(screen.getAllByRole("heading", { level: 4, name: "Write docs" })).toHaveLength(1);

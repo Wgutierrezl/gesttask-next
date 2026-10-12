@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
@@ -261,12 +261,12 @@ describe("KanbanBoard moves from the menu", () => {
     render(<KanbanBoard columns={columns()} canWrite {...props} />);
     await user.click(screen.getByLabelText("Move options for Task a"));
     await user.click(screen.getByRole("button", { name: "Move Task a to Done" }));
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Drag Task a" })));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("article", { name: "Drag Task a" })));
     (document.activeElement as HTMLElement).blur();
     await user.click(screen.getByLabelText("Move options for Task b"));
     await user.click(screen.getByRole("button", { name: "Move Task b to Done" }));
     await waitFor(() => expect(status()).toContain("restored"));
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Drag Task b" })));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("article", { name: "Drag Task b" })));
   });
 
   it("offers only the moves that exist", async () => {
@@ -293,12 +293,102 @@ describe("KanbanBoard drag and drop", () => {
     expect(moveTaskAction).not.toHaveBeenCalled();
   });
 
-  it("gives every card a keyboard-focusable drag handle that announces itself as sortable, and speaks in titles", () => {
+  it("makes the whole card the keyboard-focusable draggable: it announces itself as sortable, is named after its title, and has no Drag or Move button", () => {
     render(<KanbanBoard columns={columns()} canWrite {...props} />);
-    const handle = screen.getByRole("button", { name: "Drag Task a" });
-    expect(handle.getAttribute("tabindex")).toBe("0");
-    expect(handle.getAttribute("aria-roledescription")).toBe("sortable");
+    const card = screen.getByRole("article", { name: "Drag Task a" });
+    expect(card.getAttribute("tabindex")).toBe("0");
+    expect(card.getAttribute("aria-roledescription")).toBe("sortable");
+    expect(within(card).getByRole("heading", { level: 4 }).textContent).toBe("Task a");
+    expect(screen.queryByRole("button", { name: /^Drag/ })).toBeNull();
+    expect(screen.queryByText("Drag")).toBeNull();
+    expect(screen.queryByText("Move")).toBeNull();
+    expect(within(card).getByLabelText("Move options for Task a").textContent).toBe("");
     expect(dnd.props!.accessibility!.announcements.onDragStart({ active: { id: "a" } })).toBe("Picked up Task a.");
+  });
+});
+
+describe("KanbanBoard dragging by the card body", () => {
+  const scroller = () => screen.getByTestId("board-scroller");
+  const pointer = (type: "pointerDown" | "pointerMove" | "pointerUp", target: Element | Document, x: number, y: number, pointerType = "mouse") =>
+    fireEvent[type](target, { pointerId: 1, pointerType, isPrimary: true, button: 0, buttons: type === "pointerUp" ? 0 : 1, clientX: x, clientY: y });
+
+  it("starts a drag when a pointer grabbed anywhere on the card moves past the threshold, and ends it on release", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const body = screen.getByRole("article", { name: "Drag Task a" });
+    pointer("pointerDown", body, 20, 20);
+    pointer("pointerMove", document, 22, 22);
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+    pointer("pointerMove", document, 40, 40);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+    pointer("pointerUp", document, 40, 40);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+  });
+
+  it("starts a drag from the title link too, but a plain click never drags", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const link = screen.getByRole("link", { name: "Task a" });
+    expect(link.getAttribute("draggable")).toBe("false");
+    pointer("pointerDown", link, 10, 10);
+    pointer("pointerUp", link, 10, 10);
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+    pointer("pointerDown", link, 10, 10);
+    pointer("pointerMove", document, 30, 30);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+    pointer("pointerUp", document, 30, 30);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+  });
+
+  it("does not start a drag from a touch pointer: touch has its own delayed sensor, so scrolling the board works", () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const body = screen.getByRole("article", { name: "Drag Task a" });
+    pointer("pointerDown", body, 20, 20, "touch");
+    pointer("pointerMove", document, 60, 60, "touch");
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+  });
+
+  it("does not start a drag from the options button, so opening its menu is never mistaken for a grab", () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const options = screen.getByLabelText("Move options for Task a");
+    pointer("pointerDown", options, 20, 20);
+    pointer("pointerMove", document, 60, 60);
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+  });
+
+  it("cancels the click that ends a drag on the card it started from, so the link under the pointer does not navigate, and only that one", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const body = screen.getByRole("article", { name: "Drag Task a" });
+    expect(fireEvent.click(body)).toBe(true); // before any drag: an ordinary click goes through
+    pointer("pointerDown", body, 20, 20);
+    pointer("pointerMove", document, 40, 40);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+    pointer("pointerUp", document, 20, 20);
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+    expect(fireEvent.click(body)).toBe(false); // the release click is swallowed (default prevented, so no hard navigation)
+    await waitFor(() => expect(fireEvent.click(body)).toBe(true)); // and the next real click is not
+  });
+
+  it("starts a keyboard drag from the focused card, not from the controls inside it", async () => {
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    screen.getByLabelText("Move options for Task a").focus();
+    await user.keyboard("{Escape}");
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+    screen.getByRole("article", { name: "Drag Task a" }).focus();
+    await user.keyboard(" ");
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+  });
+
+  it("shows the dragged card in the overlay at the width of its source, hidden from assistive tech", async () => {
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    screen.getByRole("article", { name: "Drag Task a" }).focus();
+    await user.keyboard(" ");
+    const overlay = await screen.findByTestId("drag-overlay");
+    expect(overlay.getAttribute("aria-hidden")).toBe("true");
+    expect(within(overlay).getByRole("heading", { level: 4, hidden: true }).textContent).toBe("Task a");
+    expect(within(overlay).queryByLabelText(/Move options/)).toBeNull();
   });
 });
 
@@ -306,7 +396,7 @@ describe("KanbanBoard for viewers", () => {
   it("shows the columns without drag handles or move menus", () => {
     render(<KanbanBoard columns={columns()} canWrite={false} {...props} />);
     expect(titles("To do")).toEqual(["Task a", "Task b"]);
-    expect(screen.queryByRole("button", { name: /Drag/ })).toBeNull();
+    expect(screen.queryByRole("article", { name: /Drag/ })).toBeNull();
     expect(screen.queryByLabelText(/Move options/)).toBeNull();
     expect(screen.getByRole("link", { name: "Task a" }).getAttribute("href")).toBe("/boards/b/pipelines/p/tasks/a");
   });
@@ -419,7 +509,7 @@ describe("KanbanBoard across pipelines", () => {
     expect(document.activeElement).toBe(screen.getByRole("link", { name: "Backlog, 1 task" }));
     moveTaskToEndAction.mockResolvedValue({ ok: false, code: "NOT_FOUND", message: "Resource not found" });
     await act(async () => dnd.props!.onDragEnd({ active: { id: "b" }, over: { id: "pipeline:p2" } }));
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Drag Task b" }));
+    expect(document.activeElement).toBe(screen.getByRole("article", { name: "Drag Task b" }));
   });
 
   it("drops the old refusal from the status once a later move succeeds", async () => {
@@ -437,7 +527,7 @@ describe("KanbanBoard across pipelines", () => {
     render(<KanbanBoard columns={columns()} canWrite={false} switcher={switcher} {...props} />);
     expect(screen.getByRole("link", { name: "Backlog, 1 task" })).toBeTruthy();
     expect(screen.queryByLabelText("Move options for Task a")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Drag/ })).toBeNull();
+    expect(screen.queryByRole("article", { name: /Drag/ })).toBeNull();
   });
 
   it("shows no tabs when the board has a single pipeline", () => {
