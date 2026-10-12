@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,5 +77,17 @@ describe("TaskActions", () => {
     await user.click(within(screen.getByRole("dialog", { name: "Delete task" })).getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText(/delete this task/i)).toBeNull();
     expect(actions.deleteTaskAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("TaskActions in Spanish", () => {
+  it("names the buttons and both modals in Spanish and quotes the task title as written", async () => {
+    const user = userEvent.setup();
+    render(<TaskActions task={TASK} members={MEMBERS} />, { locale: "es" });
+    await user.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByRole("dialog", { name: "Editar tarea" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    const dialog = screen.getByRole("dialog", { name: "Eliminar tarea" });
+    expect(within(dialog).getByText("¿Eliminar “Ship”? Esta acción no se puede deshacer.")).toBeTruthy();
   });
 });

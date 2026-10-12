@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -188,5 +189,28 @@ describe("MoveTaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Move task" }));
     await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
     expect(fields(actions.moveTaskFromDetailAction.mock.calls[0]![1])).toMatchObject({ toStageId: "i1" });
+  });
+});
+
+describe("task forms in Spanish", () => {
+  it("translates the move and delete forms and keeps stage names as written", async () => {
+    const user = userEvent.setup();
+    render(<MoveTaskForm taskId="t1" pipelineId="p1" pipelineName="Sprint" stages={STAGES} currentStageId="s1" />, { locale: "es" });
+    expect(screen.getByLabelText("Mover a la etapa")).toBeTruthy();
+    expect([...(screen.getByLabelText("Mover a la etapa") as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["To do", "Done"]);
+    await user.click(screen.getByRole("button", { name: "Mover tarea" }));
+    await waitFor(() => expect(actions.moveTaskFromDetailAction).toHaveBeenCalled());
+    cleanup();
+    render(<DeleteTaskForm taskId="t1" onCancel={() => {}} />, { locale: "es" });
+    await user.click(screen.getByLabelText("Quiero eliminar esta tarea"));
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Eliminar tarea" }));
+    await waitFor(() => expect(actions.deleteTaskAction).toHaveBeenCalled());
+  });
+
+  it("translates the edit form's footer", () => {
+    render(<EditTaskForm task={{ id: "t1", title: "Ship", description: "", priority: "low", dueDate: null, assigneeId: null }} members={MEMBERS} onCancel={() => {}} />, { locale: "es" });
+    expect(screen.getByRole("button", { name: "Guardar tarea" })).toBeTruthy();
+    expect(screen.getByLabelText("Responsable")).toBeTruthy();
   });
 });

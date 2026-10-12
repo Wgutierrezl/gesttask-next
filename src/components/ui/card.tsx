@@ -5,7 +5,7 @@ export function Card({ interactive = false, className, ...rest }: ComponentProps
   return (
     <div
       className={cn(
-        "rounded-card border border-slate-200 bg-white shadow-card",
+        "rounded-card border border-border bg-surface shadow-card",
         interactive && "transition duration-[var(--duration-base)] ease-[var(--ease-out-soft)] hover:-translate-y-0.5 hover:shadow-pop",
         className,
       )}
@@ -15,7 +15,7 @@ export function Card({ interactive = false, className, ...rest }: ComponentProps
 }
 
 export function CardHeader({ className, ...rest }: ComponentProps<"div">) {
-  return <div className={cn("border-b border-slate-100 px-5 py-4", className)} {...rest} />;
+  return <div className={cn("border-b border-border-subtle px-5 py-4", className)} {...rest} />;
 }
 
 export function CardBody({ className, ...rest }: ComponentProps<"div">) {

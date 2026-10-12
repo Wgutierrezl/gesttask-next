@@ -1,8 +1,11 @@
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
+import en from "@/i18n/messages/en.json";
 import { announcementsFor } from "@/components/kanban/announcements";
 import { applyMove, crossMoves, neighborMoves, pipelineTabId, resolveTabDrop, resolveDrop } from "@/components/kanban/move";
 import type { ColumnView, PipelineOption, TaskCardView } from "@/components/kanban/types";
 
+const t = createTranslator({ locale: "en", messages: en, namespace: "kanban" });
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const task = (id: string, stageId: string, over: Partial<TaskCardView> = {}): TaskCardView => ({
   id, stageId, title: `Task ${id}`, description: "", priority: "medium", dueDate: null, assigneeId: null, completedAt: null, overdue: false, ...over,
@@ -124,7 +127,7 @@ describe("neighborMoves", () => {
 });
 
 describe("announcementsFor", () => {
-  const say = announcementsFor(board());
+  const say = announcementsFor(board(), [], t);
   it("speaks in task titles and stage names, never ids", () => {
     expect(say.onDragStart({ active: { id: "a" } } as never)).toBe("Picked up Task a.");
     expect(say.onDragOver({ active: { id: "a" }, over: { id: "d" } } as never)).toBe("Task a is over Task d in Done.");
@@ -174,7 +177,7 @@ describe("cross-pipeline moves", () => {
   });
 
   it("announces moves across pipelines by pipeline name", () => {
-    const say = announcementsFor(board(), pipelines);
+    const say = announcementsFor(board(), pipelines, t);
     expect(say.onDragOver({ active: { id: "a" }, over: { id: pipelineTabId("p2") } } as never)).toBe("Task a is over pipeline Backlog.");
     expect(say.onDragEnd({ active: { id: "a" }, over: { id: pipelineTabId("p2") } } as never)).toBe("Dropped Task a on pipeline Backlog.");
   });

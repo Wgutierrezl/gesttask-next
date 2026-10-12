@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, ForbiddenError, RateLimitError, ValidationError } from "@/domain/errors";
 
@@ -10,6 +10,7 @@ const notFound = vi.fn(() => {
 });
 const revalidatePath = vi.fn();
 vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/app/_actions/boards", () => ({ updateBoardAction: async () => undefined, setBoardStatusAction: async () => undefined, deleteBoardAction: async () => undefined }));
 vi.mock("@/app/_actions/members", () => ({ addMemberAction: async () => undefined, changeMemberRoleAction: async () => undefined, removeMemberAction: async () => undefined }));

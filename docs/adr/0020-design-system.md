@@ -29,3 +29,17 @@ accessible names, roles and heading levels.
 - Restyling is class-only: ARIA names, roles and heading levels are frozen and covered by the existing tests.
 - Adding a color means adding a token, not a hex literal in a component.
 - One extra font file (~70 KB) lives in the repository.
+
+## Addendum: Kanban card ARIA contract (S18)
+
+Task cards are draggable by their whole surface, so the "Drag <title>" button is gone. The contract the tests freeze is now:
+
+- A card is an `article` named "Drag <title>", focusable, announced as "sortable" (the default `button` role is overridden
+  because the card contains a link and a menu button, which a button may not contain). Tests find it with
+  `getByRole("article", { name: "Drag <title>" })`.
+- Space on the focused card picks it up; arrows move it; Space or Enter drops it; Escape cancels. Keys on the controls
+  inside the card never start a drag (the card is the dnd-kit activator node). Screen readers hear "focus the card and
+  press Space" (`kanban.dragInstructions`).
+- Pointer: a press that moves 5px grabs the card (mouse and pen); touch needs a 250ms hold, so swiping still scrolls the board.
+- Moving without dragging: the "Move options for <title>" button opens a popover (rendered in the body, fixed, flipping
+  above the button when there is no room below) with the same moves as before.

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -33,5 +34,11 @@ describe("task modal while it loads", () => {
     render(<Loading />);
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("says it is loading in Spanish", () => {
+    render(<Loading />, { locale: "es" });
+    const dialog = screen.getByRole("dialog", { name: "Cargando tarea…" });
+    expect(within(dialog).getByRole("status", { name: "Cargando tarea…" }).getAttribute("aria-busy")).toBe("true");
   });
 });
