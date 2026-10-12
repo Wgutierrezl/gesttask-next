@@ -58,7 +58,7 @@ export default async function BoardSettingsPage({ params, searchParams }: Settin
         <h2 id="status-heading" className="mb-3 text-lg font-medium">{t("settingsPage.status")}</h2>
         <ArchiveBoardForm board={{ id: board.id, status: board.status }} />
       </section>
-      <section aria-labelledby="danger-heading" className="rounded-card border border-danger-600/30 bg-surface p-4">
+      <section aria-labelledby="danger-heading" className="rounded-card border border-danger-edge bg-surface p-4">
         <h2 id="danger-heading" className="mb-3 text-lg font-medium text-danger-fg">{t("settingsPage.delete")}</h2>
         <DeleteBoardForm board={{ id: board.id, name: board.name }} />
       </section>

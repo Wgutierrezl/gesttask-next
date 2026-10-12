@@ -59,9 +59,9 @@ export function Field({ label, hint, error, required = false, children }: FieldP
 }
 
 const ALERT_TONES = {
-  danger: "border-danger-600/30 bg-danger-soft text-danger-fg",
-  warning: "border-warning-600/30 bg-warning-soft text-warning-fg",
-  success: "border-success-600/30 bg-success-soft text-success-fg",
+  danger: "border-danger-edge bg-danger-soft text-danger-fg",
+  warning: "border-warning-edge bg-warning-soft text-warning-fg",
+  success: "border-success-edge bg-success-soft text-success-fg",
 } as const;
 
 /** Inline message: errors are announced assertively (`alert`), the rest politely (`status`). */
