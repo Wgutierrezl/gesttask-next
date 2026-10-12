@@ -16,7 +16,8 @@
       "boards": "No hay tableros en esta página.",
       "members": "No hay miembros en esta página.",
       "pipelines": "No hay pipelines en esta página."
-    }
+    },
+    "active": "Activo"
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -99,7 +100,7 @@
   },
   "boards": {
     "title": "Tus tableros",
-    "description": "Todo lo que posees o en lo que colaboras.",
+    "description": "Organiza tus proyectos con tableros, pipelines y etapas personalizables",
     "create": "Crear tablero",
     "newBoard": "Nuevo tablero",
     "emptyTitle": "Aún no tienes tableros",
@@ -107,7 +108,8 @@
     "name": "Nombre",
     "descriptionField": "Descripción",
     "submit": "Crear",
-    "submitting": "Creando..."
+    "submitting": "Creando...",
+    "activeCount": "{count, plural, one {# tablero activo} other {# tableros activos}}"
   },
   "pipeline": {
     "heading": "Pipelines",

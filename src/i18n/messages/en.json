@@ -16,7 +16,8 @@
       "boards": "No boards on this page.",
       "members": "No members on this page.",
       "pipelines": "No pipelines on this page."
-    }
+    },
+    "active": "Active"
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -99,7 +100,7 @@
   },
   "boards": {
     "title": "Your boards",
-    "description": "Everything you own or collaborate on.",
+    "description": "Organize your projects with boards, pipelines and custom stages",
     "create": "Create board",
     "newBoard": "New board",
     "emptyTitle": "You have no boards yet",
@@ -107,7 +108,8 @@
     "name": "Name",
     "descriptionField": "Description",
     "submit": "Create",
-    "submitting": "Creating..."
+    "submitting": "Creating...",
+    "activeCount": "{count, plural, one {# active board} other {# active boards}}"
   },
   "pipeline": {
     "heading": "Pipelines",

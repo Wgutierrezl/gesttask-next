@@ -54,7 +54,7 @@ afterEach(() => {
   active.locale = "en";
 });
 
-const BOARD = { id: "b1", name: "Roadmap", description: "Plan", status: "inactive" as const };
+const BOARD = { id: "b1", name: "Roadmap", description: "Plan", status: "inactive" as const, createdAt: new Date("2026-09-01T10:00:00Z") };
 const ZEROS = { total: 0, byPriority: { low: 0, medium: 0, high: 0 }, byStatus: { active: 0, inactive: 0 }, overdue: 0 };
 const member = { userId: "u2", role: "guest" as const, name: "Ana", email: "ana@example.com" };
 const stats = (total: number) => ({ id: "p1", name: "Sprint", tasks: { ...ZEROS, total }, stages: [{ id: "s1", name: "To do", isDone: true, tasks: { ...ZEROS, total } }] });

@@ -88,6 +88,15 @@ describe("EmptyState and PageHeader", () => {
     expect(screen.getByRole("button", { name: "Create" })).toBeTruthy();
   });
 
+  it("puts the icon in a rounded box above a heading, like v1's empty state", () => {
+    const { container } = render(<EmptyState icon={<svg data-testid="glyph" />} title="No boards" />);
+    const box = screen.getByTestId("glyph").parentElement!;
+    expect(box.getAttribute("aria-hidden")).toBe("true");
+    expect(box.className).toContain("rounded-2xl");
+    expect(screen.getByRole("heading", { level: 2, name: "No boards" })).toBeTruthy();
+    expect(container.querySelector("p")).toBeNull();
+  });
+
   it("PageHeader renders the h1", () => {
     render(<PageHeader title="Your boards" description="All of them" actions={<a href="/x">New</a>} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your boards" })).toBeTruthy();
