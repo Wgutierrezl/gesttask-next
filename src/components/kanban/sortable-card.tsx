@@ -43,7 +43,7 @@ export function SortableCard({ task, assigneeName, href, columns, otherPipelines
         },
         "aria-label": t("dragAria", { title: task.title }),
         style: { transform: CSS.Transform.toString(transform), transition },
-        className: cn("cursor-grab touch-manipulation active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-ring", isDragging && "opacity-40"),
+        className: cn("cursor-grab touch-manipulation active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-ring", isDragging && "opacity-50"),
       }}
       controls={<MoveMenu columns={columns} otherPipelines={otherPipelines} taskId={task.id} title={task.title} onMove={onMove} />}
     />

@@ -218,6 +218,7 @@
     "due": "Vence {date}",
     "overdue": "Vencida",
     "completed": "Completada",
+    "doneChip": "Hecho",
     "dragAria": "Arrastrar {title}",
     "moveOptions": "Opciones para mover {title}",
     "moveUp": "Mover {title} arriba",

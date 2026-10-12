@@ -218,6 +218,7 @@
     "due": "Due {date}",
     "overdue": "Overdue",
     "completed": "Completed",
+    "doneChip": "Done",
     "dragAria": "Drag {title}",
     "moveOptions": "Move options for {title}",
     "moveUp": "Move {title} up",

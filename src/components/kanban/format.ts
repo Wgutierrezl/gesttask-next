@@ -4,6 +4,15 @@ const DATE = Object.fromEntries(
   (Object.keys(INTL_LOCALE) as Locale[]).map((locale) => [locale, new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })]),
 ) as Record<Locale, Intl.DateTimeFormat>;
 
+const DAY = Object.fromEntries(
+  (Object.keys(INTL_LOCALE) as Locale[]).map((locale) => [locale, new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: "short", day: "numeric", timeZone: "UTC" })]),
+) as Record<Locale, Intl.DateTimeFormat>;
+
+/** "Oct 9" (es: "9 oct"): the compact form for a card's chip, where the year is not worth the room. */
+export function formatDay(value: string, locale: Locale): string {
+  return DAY[locale].format(new Date(value.length === 10 ? `${value}T00:00:00Z` : value));
+}
+
 /** "Oct 9, 2026" (es: "9 oct 2026") for a calendar date or an ISO timestamp; always in UTC so server and browser agree. */
 export function formatDate(value: string, locale: Locale): string {
   return DATE[locale].format(new Date(value.length === 10 ? `${value}T00:00:00Z` : value));

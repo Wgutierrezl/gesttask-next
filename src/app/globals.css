@@ -92,6 +92,7 @@
   --color-fg-strong: var(--fg-strong);
   --color-surface-hover: var(--surface-hover);
   --color-border-subtle: var(--border-subtle);
+  --color-border-hover: var(--border-hover);
   --color-border-control: var(--border-control);
   --color-accent: var(--accent);
   --color-icon-from: var(--icon-from);
@@ -138,6 +139,7 @@
   --avatar-l-fg: 25%;
   --surface-hover: #f8fafc;
   --border-subtle: #f1f5f9;
+  --border-hover: #93b5ff;
   --border-control: #7b8aa0;
   --accent: #4f46e5;
   --icon-from: #eff6ff;
@@ -191,6 +193,7 @@
   --avatar-l-fg: 88%;
   --surface-hover: #18223a;
   --border-subtle: #1c2639;
+  --border-hover: #4a5f9e;
   --border-control: #66779a;
   --accent: #628cff;
   --icon-from: #1b2650;
@@ -243,6 +246,7 @@
     --avatar-l-fg: 88%;
     --surface-hover: #18223a;
     --border-subtle: #1c2639;
+    --border-hover: #4a5f9e;
     --border-control: #66779a;
     --accent: #628cff;
     --icon-from: #1b2650;
