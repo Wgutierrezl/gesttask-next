@@ -3,7 +3,7 @@ import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ColumnView, TaskCardView } from "@/components/kanban/types";
 
 const moveTaskAction = vi.hoisted(() => vi.fn());
@@ -18,6 +18,14 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@dnd-kit/core")>();
   return { ...actual, DndContext: (props: never) => ((dnd.props = props), createElement(actual.DndContext, props)) };
 });
+
+const proto = HTMLDialogElement.prototype;
+const originalDialog = { showModal: proto.showModal, close: proto.close };
+beforeAll(() => {
+  proto.showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute("open", ""); });
+  proto.close = vi.fn(function (this: HTMLDialogElement) { this.removeAttribute("open"); this.dispatchEvent(new Event("close")); });
+});
+afterAll(() => Object.assign(proto, originalDialog));
 
 const { KanbanBoard } = await import("@/components/kanban/kanban-board");
 
@@ -67,6 +75,25 @@ describe("KanbanBoard stage management", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Move left" }));
     await waitFor(() => expect(stageActions.reorderStageAction).toHaveBeenCalled());
     expect(Object.fromEntries([...(stageActions.reorderStageAction.mock.calls[0]![1] as FormData).entries()])).toEqual({ stageId: "done", afterStageId: "" });
+  });
+
+  it("moves the focus to the next column's menu button once a deleted stage is gone, or to Add stage after the last one", async () => {
+    stageActions.deleteStageAction.mockResolvedValue({ ok: true, data: null });
+    const three = (): ColumnView[] => [...columns(), { stage: { id: "extra", name: "Extra", isDone: false }, tasks: [] }];
+    const { rerender } = render(<KanbanBoard columns={three()} {...owner} />);
+    await userEvent.click(within(column("To do")).getByRole("button", { name: "Stage options for To do" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete stage" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete stage" }));
+    await waitFor(() => expect(stageActions.deleteStageAction).toHaveBeenCalled());
+    rerender(<KanbanBoard columns={three().slice(1)} {...owner} />);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Stage options for Done" })));
+
+    await userEvent.click(screen.getByRole("button", { name: "Stage options for Extra" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete stage" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete stage" }));
+    await waitFor(() => expect(stageActions.deleteStageAction).toHaveBeenCalledTimes(2));
+    rerender(<KanbanBoard columns={three().slice(1, 2)} {...owner} />);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add stage" })));
   });
 
   it("creates a stage from the Add stage column", async () => {

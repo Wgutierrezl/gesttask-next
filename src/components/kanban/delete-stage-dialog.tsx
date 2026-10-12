@@ -25,7 +25,7 @@ export function DeleteStageDialog({ stage, manage, count, open, onClose }: Delet
   const hasTasks = count > 0 || manage.mayHaveHiddenTasks;
   return (
     <Dialog title={t("title", { name: stage.name })} icon={<Trash2 className="size-5" />} open={open} onClose={onClose}>
-      <MutationForm action={deleteStageAction} hidden={{ stageId: stage.id }} onSuccess={onClose} className="flex flex-col gap-4">
+      <MutationForm action={deleteStageAction} hidden={{ stageId: stage.id }} onSuccess={onClose} onSubmit={() => manage.onDeleting?.(stage.id, manage.nextStageId)} className="flex flex-col gap-4">
         {() => (
           <>
             {hasTasks ? (

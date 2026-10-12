@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { createPipelineAction } from "@/app/_actions/pipelines";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { MutationForm } from "@/components/ui/mutation-form";
@@ -14,16 +15,19 @@ import { AddStageLink, FlowPreview, StagesEditor, useStageRows } from "./stages-
 export function CreatePipelineForm({ boardId, onSuccess, onCancel }: { boardId: string; onSuccess?: () => void; onCancel?: () => void }) {
   const t = useTranslations();
   const editor = useStageRows([t("pipeline.defaultNames.todo"), t("pipeline.defaultNames.inProgress"), t("pipeline.defaultNames.done")]);
+  // Controlled: a form action resets its fields once it has run, even when it refused, and the visitor must not retype.
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const inlineFields = ["name", "description", "stages", ...editor.rows.map((_, index) => `stages.${index}`)];
   return (
     <MutationForm action={createPipelineAction} hidden={{ boardId }} inlineFields={inlineFields} onSuccess={onSuccess} className="flex flex-col gap-5">
       {(failure) => (
         <>
           <Field label={t("boards.name")} required error={failure?.fieldErrors?.name?.join(" ")}>
-            <Input name="name" maxLength={100} required placeholder={t("pipeline.namePlaceholder")} />
+            <Input name="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required placeholder={t("pipeline.namePlaceholder")} />
           </Field>
           <Field label={t("boards.descriptionField")} error={failure?.fieldErrors?.description?.join(" ")}>
-            <Textarea name="description" rows={3} maxLength={2000} placeholder={t("pipeline.descriptionPlaceholder")} />
+            <Textarea name="description" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} maxLength={2000} placeholder={t("pipeline.descriptionPlaceholder")} />
           </Field>
           <section aria-labelledby="pipeline-stages-heading" className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">

@@ -68,7 +68,11 @@ export function StageMenu({ stage, count, manage, busy, onRename, onMove, onTogg
   useEffect(() => {
     if (!open) return;
     items()[0]?.focus({ preventScroll: true });
-    const dismiss = () => setOpen(false);
+    // The popup is placed from the button, so it cannot follow a scroll or a resize: it closes, and the focus stays on the button.
+    const dismiss = () => {
+      setOpen(false);
+      triggerRef.current?.focus({ preventScroll: true });
+    };
     const pressedElsewhere = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!popup.current?.contains(target) && !triggerRef.current?.contains(target)) setOpen(false);
@@ -102,8 +106,10 @@ export function StageMenu({ stage, count, manage, busy, onRename, onMove, onTogg
       close(true);
     } else if (event.key === "Tab") close(false);
   };
-  const choose = (action: () => void) => {
-    close(false);
+  /** `restoreFocus`: the command leaves the stage where it is, so the focus goes back to its button at once. */
+  const choose = (action: () => void, restoreFocus = false) => {
+    if (busy) return;
+    close(restoreFocus);
     action();
   };
   const deleteBlock = stage.isDone ? t("doneCannotDelete") : manage.others.length === 0 ? t("lastStage") : null;
@@ -116,7 +122,13 @@ export function StageMenu({ stage, count, manage, busy, onRename, onMove, onTogg
         aria-haspopup="menu"
         aria-expanded={open}
         aria-busy={busy || undefined}
-        onClick={() => (open ? close(false) : show())}
+        aria-disabled={busy || undefined}
+        data-stage-menu={stage.id}
+        onClick={() => {
+          if (busy) return;
+          if (open) close(false);
+          else show();
+        }}
         className="rounded-lg p-1.5 text-fg-subtle transition-colors hover:bg-surface hover:text-fg-strong focus-visible:outline-2 focus-visible:outline-ring"
       >
         <MoreHorizontal aria-hidden="true" className="size-4" />
@@ -124,11 +136,11 @@ export function StageMenu({ stage, count, manage, busy, onRename, onMove, onTogg
       {open ? (
         <div ref={popup} style={{ top: position.top, left: position.left, width: MENU_WIDTH }} className="fixed z-30 animate-pop-in rounded-xl border border-elevated-edge bg-elevated p-1 text-fg shadow-dialog motion-reduce:animate-none">
           <div role="menu" aria-label={t("trigger", { name: stage.name })} onKeyDown={onKeyDown} className="flex flex-col">
-            <Item onSelect={() => choose(onRename)}>{t("rename")}</Item>
-            <Item disabled={manage.afterWhenLeft === null} onSelect={() => choose(() => onMove(manage.afterWhenLeft ?? ""))}>{t("moveLeft")}</Item>
-            <Item disabled={manage.afterWhenRight === null} onSelect={() => choose(() => onMove(manage.afterWhenRight ?? ""))}>{t("moveRight")}</Item>
-            <Item onSelect={() => choose(onToggleDone)}>{stage.isDone ? t("unmarkDone") : t("markDone")}</Item>
-            <Item disabled={deleteBlock !== null} describedBy={deleteBlock ? hintId : undefined} onSelect={() => choose(() => setDeleting(true))}>{t("delete")}</Item>
+            <Item disabled={busy} onSelect={() => choose(onRename)}>{t("rename")}</Item>
+            <Item disabled={busy || manage.afterWhenLeft === null} onSelect={() => choose(() => onMove(manage.afterWhenLeft ?? ""), true)}>{t("moveLeft")}</Item>
+            <Item disabled={busy || manage.afterWhenRight === null} onSelect={() => choose(() => onMove(manage.afterWhenRight ?? ""), true)}>{t("moveRight")}</Item>
+            <Item disabled={busy} onSelect={() => choose(onToggleDone, true)}>{stage.isDone ? t("unmarkDone") : t("markDone")}</Item>
+            <Item disabled={busy || deleteBlock !== null} describedBy={deleteBlock ? hintId : undefined} onSelect={() => choose(() => setDeleting(true))}>{t("delete")}</Item>
           </div>
           {deleteBlock ? <p id={hintId} className="px-3 pt-1 pb-2 text-xs text-fg-muted">{deleteBlock}</p> : null}
         </div>

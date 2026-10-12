@@ -22,6 +22,11 @@ describe("manageContextFor", () => {
     expect(manageContextFor([stages[0]!], 0, false)).toMatchObject({ others: [], afterWhenLeft: null, afterWhenRight: null });
   });
 
+  it("names the stage after it, whose menu takes the focus when this one is deleted; none for the last", () => {
+    expect(manageContextFor(stages, 1, false).nextStageId).toBe("s3");
+    expect(manageContextFor(stages, 3, false).nextStageId).toBeNull();
+  });
+
   it("carries the hidden-tasks flag through", () => {
     expect(manageContextFor(stages, 0, true).mayHaveHiddenTasks).toBe(true);
     expect(manageContextFor(stages, 0, false).mayHaveHiddenTasks).toBe(false);

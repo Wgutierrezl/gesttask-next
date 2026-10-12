@@ -50,28 +50,31 @@ function IconSubmit({ label, children }: { label: string; children: React.ReactN
 function RenameForm({ stage, onDone, onCancel }: { stage: StageView; onDone: () => void; onCancel: () => void }) {
   const t = useTranslations("stages.rename");
   const input = useRef<HTMLInputElement>(null);
+  // Controlled: a form action resets its fields after it ran, even when it refused, and the typed name must survive that.
+  const [value, setValue] = useState(stage.name);
   useEffect(() => {
     input.current?.focus();
     input.current?.select();
   }, []);
+  // On the form, so Escape also works with the focus on Save or Cancel.
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
     onCancel();
   };
   return (
-    <MutationForm action={renameStageAction} hidden={{ stageId: stage.id }} inlineFields={["name"]} onSuccess={onDone} className="flex min-w-0 flex-1 flex-wrap items-center gap-1 [&>[role=alert]]:basis-full">
+    <MutationForm action={renameStageAction} hidden={{ stageId: stage.id }} inlineFields={["name"]} onSuccess={onDone} onKeyDown={onKeyDown} className="flex min-w-0 flex-1 flex-wrap items-center gap-1 [&>[role=alert]]:basis-full">
       {(failure) => (
         <>
           <input
             ref={input}
             name="name"
-            defaultValue={stage.name}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
             aria-label={t("label")}
             aria-invalid={failure?.fieldErrors?.name ? true : undefined}
             required
             maxLength={60}
-            onKeyDown={onKeyDown}
             className="min-w-0 flex-1 rounded-lg border border-border-control bg-surface px-2 py-1 text-sm font-semibold text-fg focus-visible:outline-2 focus-visible:outline-ring aria-invalid:border-danger-600"
           />
           <IconSubmit label={t("save")}><Check aria-hidden="true" className="size-4" /></IconSubmit>
@@ -95,6 +98,17 @@ export function StageHeader({ stage, count, manage }: { stage: StageView; count:
   const trigger = useRef<HTMLButtonElement>(null);
   const { run, error, pending } = useStageCommand();
   const refocus = useRef(false);
+  /** After a command that moves or re-flags the stage: its menu button, wherever the column ended up, once the command is over. */
+  const refocusAfterCommand = useRef(false);
+  const command = (action: StageAction, values: Record<string, string>) => {
+    refocusAfterCommand.current = true;
+    run(action, values);
+  };
+  useEffect(() => {
+    if (pending || !refocusAfterCommand.current) return;
+    refocusAfterCommand.current = false;
+    document.querySelector<HTMLElement>(`[data-stage-menu="${stage.id}"]`)?.focus({ preventScroll: true });
+  }, [pending, stage.id]);
   const stopRenaming = () => {
     refocus.current = true;
     setRenaming(false);
@@ -123,8 +137,8 @@ export function StageHeader({ stage, count, manage }: { stage: StageView; count:
               busy={pending}
               triggerRef={trigger}
               onRename={() => setRenaming(true)}
-              onMove={(afterStageId) => run(reorderStageAction, { stageId: stage.id, afterStageId })}
-              onToggleDone={() => run(setStageDoneAction, { stageId: stage.id, isDone: String(!stage.isDone) })}
+              onMove={(afterStageId) => command(reorderStageAction, { stageId: stage.id, afterStageId })}
+              onToggleDone={() => command(setStageDoneAction, { stageId: stage.id, isDone: String(!stage.isDone) })}
             />
           ) : null}
         </span>

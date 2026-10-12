@@ -2,7 +2,13 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
+import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parseInput } from "@/application/schemas/parse";
+import { createPipelineSchema } from "@/application/schemas/pipeline";
+import { localizeFailure, type ErrorsTranslator } from "@/app/_shared/localize-failure";
+import { ValidationError } from "@/domain/errors";
+import es from "@/i18n/messages/es.json";
 
 const createPipelineAction = vi.hoisted(() => vi.fn());
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction }));
@@ -105,5 +111,39 @@ describe("CreatePipelineForm stages", () => {
     expect(screen.getByText("Stage names must be unique")).toBeTruthy();
     expect(inputs()[0]!.getAttribute("aria-invalid")).toBeNull();
     expect(alert).not.toHaveBeenCalled();
+  });
+});
+
+describe("CreatePipelineForm refusals", () => {
+  it("keeps what the visitor typed in every field when the server refuses", async () => {
+    createPipelineAction.mockResolvedValueOnce({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: { "stages.0": ["Stage name is required"] } });
+    render(<CreatePipelineForm boardId="b1" />);
+    await userEvent.type(screen.getByLabelText(/^Name/), "My flow");
+    await userEvent.type(screen.getByLabelText("Description"), "Two weeks");
+    await userEvent.clear(inputs()[0]!);
+    await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
+    await screen.findByText("Stage name is required");
+    expect((screen.getByLabelText(/^Name/) as HTMLInputElement).value).toBe("My flow");
+    expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Two weeks");
+    expect(names()).toEqual(["", "In progress", "Done"]);
+  });
+
+  it("renders the blank-name refusal of the real schema in the row, in Spanish", async () => {
+    const t = createTranslator({ locale: "es", messages: es as never, namespace: "errors" as never }) as unknown as ErrorsTranslator;
+    const refusal = (() => {
+      try {
+        parseInput(createPipelineSchema, { boardId: "00000000-0000-4000-8000-000000000001", name: "P", stages: ["A", "  "] });
+      } catch (error) {
+        const { fieldErrors, fieldReasons } = error as ValidationError;
+        return localizeFailure({ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors, fieldReasons }, t);
+      }
+      throw new Error("expected a refusal");
+    })();
+    createPipelineAction.mockResolvedValueOnce(refusal);
+    render(<CreatePipelineForm boardId="b1" />, { locale: "es" });
+    await userEvent.type(screen.getByLabelText(/^Nombre/), "P");
+    await userEvent.click(screen.getByRole("button", { name: "Crear pipeline" }));
+    const row = (await screen.findByText("El nombre de la etapa es obligatorio")).closest("li")!;
+    expect(within(row).getByLabelText("Etapa 2: nombre").getAttribute("aria-invalid")).toBe("true");
   });
 });

@@ -123,6 +123,15 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     refocus.current = null;
   }, [pending, shown]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  // A deleted stage takes its menu button with it: the focus goes to the next column's button (or Add stage) once it is gone.
+  const afterDelete = useRef<{ deleted: string; next: string | null } | null>(null);
+  useEffect(() => {
+    const intent = afterDelete.current;
+    if (!intent || shown.some((column) => column.stage.id === intent.deleted)) return;
+    afterDelete.current = null;
+    const target = (intent.next && document.querySelector<HTMLElement>(`[data-stage-menu="${intent.next}"]`)) || document.querySelector<HTMLElement>("[data-add-stage]");
+    target?.focus({ preventScroll: true });
+  }, [shown]);
   const nameOf = (userId: string) => names[userId] ?? null;
   const taskHref = (taskId: string) => `${taskBase}${taskId}`;
   const active = activeId ? shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === activeId) : undefined;
@@ -178,7 +187,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
       {scroller(
         <>
           {shown.map((column, index) => (
-          <DroppableColumn key={column.stage.id} column={column} columns={shown} manage={canManageStages && pipelineId ? manageContextFor(shown.map((candidate) => candidate.stage), index, tasksTruncated) : undefined} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
+          <DroppableColumn key={column.stage.id} column={column} columns={shown} manage={canManageStages && pipelineId ? { ...manageContextFor(shown.map((candidate) => candidate.stage), index, tasksTruncated), onDeleting: (deleted, next) => (afterDelete.current = { deleted, next }) } : undefined} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
           ))}
           {canManageStages && pipelineId ? <AddStageColumn pipelineId={pipelineId} /> : null}
         </>,

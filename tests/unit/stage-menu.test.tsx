@@ -20,7 +20,7 @@ const fields = (call: number, action: { mock: { calls: unknown[][] } }) => Objec
 const TODO = { id: "s1", name: "To do", isDone: false };
 const DONE = { id: "s3", name: "Done", isDone: true };
 const OTHERS = [{ id: "s2", name: "In progress" }, { id: "s3", name: "Done" }];
-const manage = (over = {}) => ({ afterWhenLeft: null, afterWhenRight: "s2", others: OTHERS, mayHaveHiddenTasks: false, ...over });
+const manage = (over = {}) => ({ afterWhenLeft: null, afterWhenRight: "s2", nextStageId: "s2" as string | null, others: OTHERS, mayHaveHiddenTasks: false, ...over });
 
 const proto = HTMLDialogElement.prototype;
 const original = { showModal: proto.showModal, close: proto.close };
@@ -103,6 +103,60 @@ describe("StageHeader menu", () => {
     expect(fields(1, actions.reorderStageAction)).toEqual({ stageId: "s2", afterStageId: "" });
   });
 
+  it("returns the focus to the stage's menu button after Move and Mark as done, once the command has finished", async () => {
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    const trigger = screen.getByRole("button", { name: "Stage options for To do" });
+    await userEvent.click(within(await open()).getByRole("menuitem", { name: "Move right" }));
+    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => expect(actions.reorderStageAction).toHaveBeenCalled());
+    await waitFor(() => expect(trigger.getAttribute("aria-busy")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+    await userEvent.click(within(await open()).getByRole("menuitem", { name: "Mark as done stage" }));
+    await waitFor(() => expect(actions.setStageDoneAction).toHaveBeenCalled());
+    await waitFor(() => expect(trigger.getAttribute("aria-busy")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("blocks the menu while a command is running, so a second one cannot start behind the first", async () => {
+    let finish!: (value: unknown) => void;
+    actions.reorderStageAction.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    const trigger = screen.getByRole("button", { name: "Stage options for To do" });
+    await userEvent.click(within(await open()).getByRole("menuitem", { name: "Move right" }));
+    await waitFor(() => expect(trigger.getAttribute("aria-busy")).toBe("true"));
+    expect(trigger.getAttribute("aria-disabled")).toBe("true");
+    await userEvent.click(trigger);
+    expect(screen.queryByRole("menu")).toBeNull();
+    finish({ ok: true, data: null });
+    await waitFor(() => expect(trigger.getAttribute("aria-disabled")).toBeNull());
+    expect(actions.reorderStageAction).toHaveBeenCalledTimes(1);
+    expect(within(await open()).getAllByRole("menuitem").every((item) => item.getAttribute("aria-disabled") !== "true" || /Move left|Delete/.test(item.textContent ?? ""))).toBe(true);
+  });
+
+  it("disables every item of an already open menu while a command runs", async () => {
+    let finish!: (value: unknown) => void;
+    actions.setStageDoneAction.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    await userEvent.click(within(await open()).getByRole("menuitem", { name: "Mark as done stage" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Stage options for To do" }).getAttribute("aria-busy")).toBe("true"));
+    finish({ ok: true, data: null });
+  });
+
+  it("closes on scroll and keeps the focus on the menu button instead of dropping it", async () => {
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    await open();
+    window.dispatchEvent(new Event("scroll"));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Stage options for To do" }));
+  });
+
+  it("explains a stale neighbour (the stage next to it was deleted elsewhere) as a refusal in the header", async () => {
+    actions.reorderStageAction.mockResolvedValue({ ok: false, code: "NOT_FOUND", message: "Not found" });
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    await userEvent.click(within(await open()).getByRole("menuitem", { name: "Move right" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Not found");
+  });
+
   it("marks and unmarks the done stage", async () => {
     const { unmount } = render(<StageHeader stage={TODO} count={2} manage={manage()} />);
     await userEvent.click(within(await open()).getByRole("menuitem", { name: "Mark as done stage" }));
@@ -159,6 +213,29 @@ describe("StageHeader rename", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Stage options for To do" }));
     await startRename();
     await userEvent.click(screen.getByRole("button", { name: "Cancel rename" }));
+    expect(screen.getByRole("heading", { level: 3, name: "To do" })).toBeTruthy();
+    expect(actions.renameStageAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the typed text when the name is refused", async () => {
+    actions.renameStageAction.mockResolvedValue({ ok: false, code: "CONFLICT", message: "A stage with this name already exists in the pipeline" });
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    const input = await startRename();
+    await userEvent.clear(input);
+    await userEvent.type(input, "In progress{Enter}");
+    await screen.findByText("A stage with this name already exists in the pipeline");
+    expect((screen.getByLabelText("Stage name") as HTMLInputElement).value).toBe("In progress");
+  });
+
+  it("cancels with Escape from the Save and Cancel buttons too", async () => {
+    render(<StageHeader stage={TODO} count={2} manage={manage()} />);
+    await startRename();
+    screen.getByRole("button", { name: "Save name" }).focus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { level: 3, name: "To do" })).toBeTruthy();
+    await startRename();
+    screen.getByRole("button", { name: "Cancel rename" }).focus();
+    await userEvent.keyboard("{Escape}");
     expect(screen.getByRole("heading", { level: 3, name: "To do" })).toBeTruthy();
     expect(actions.renameStageAction).not.toHaveBeenCalled();
   });
@@ -293,6 +370,24 @@ describe("AddStageColumn", () => {
     await userEvent.type(screen.getByLabelText("Stage name"), " {Enter}");
     expect(await screen.findByText("Too small: expected string to have >=1 characters")).toBeTruthy();
     expect(screen.getByLabelText("Stage name").getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("keeps the typed name when the server refuses it", async () => {
+    actions.createStageAction.mockResolvedValue({ ok: false, code: "CONFLICT", message: "A stage with this name already exists in the pipeline" });
+    render(<AddStageColumn pipelineId="p1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Add stage" }));
+    await userEvent.type(screen.getByLabelText("Stage name"), "To do{Enter}");
+    await screen.findByText("A stage with this name already exists in the pipeline");
+    expect((screen.getByLabelText("Stage name") as HTMLInputElement).value).toBe("To do");
+  });
+
+  it("starts empty the next time it is opened after a success", async () => {
+    render(<AddStageColumn pipelineId="p1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Add stage" }));
+    await userEvent.type(screen.getByLabelText("Stage name"), "Review{Enter}");
+    await waitFor(() => expect(screen.queryByLabelText("Stage name")).toBeNull());
+    await userEvent.click(screen.getByRole("button", { name: "Add stage" }));
+    expect((screen.getByLabelText("Stage name") as HTMLInputElement).value).toBe("");
   });
 
   it("is in Spanish", async () => {
