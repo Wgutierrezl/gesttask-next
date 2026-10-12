@@ -9,7 +9,7 @@ vi.mock("next-intl/server", async () => (await import("@tests/support/intl-serve
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), notFound: vi.fn(), usePathname: () => "/boards/b1" }));
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => undefined }));
 vi.mock("@/app/_actions/members", () => ({ addMemberAction: async () => undefined, changeMemberRoleAction: async () => undefined, removeMemberAction: async () => undefined }));
-const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), getBoardDashboard: vi.fn() };
+const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), listStages: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({
   getContainer: () => ({ session: { getActor: async () => ({ userId: "u1", isGuest: false }) }, useCases, logger: { error: vi.fn() } }),
 }));
@@ -48,6 +48,12 @@ describe("BoardHeader like v1", () => {
     expect(screen.getByText("Q4 plans")).toBeTruthy();
     expect(screen.getByText("Owner")).toBeTruthy();
     expect(screen.queryByText("Archived")).toBeNull();
+  });
+
+  it("has a plain back link, not a breadcrumb navigation", () => {
+    render(<BoardHeader board={BOARD} role="owner" />);
+    expect(screen.queryByRole("navigation")).toBeNull();
+    expect(screen.getByRole("link", { name: "Back to boards" })).toBeTruthy();
   });
 
   it("offers Dashboard to everyone, Settings to owners only, and shows the archived state", () => {
@@ -92,7 +98,7 @@ describe("PipelineList like v1", () => {
 
   it("tells owners to create the first pipeline and everyone else to wait for the owner", () => {
     const { rerender } = render(<PipelineList boardId="b1" pipelines={[]} role="owner" />);
-    expect(screen.getByRole("heading", { level: 2, name: "No pipelines on this board" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: "No pipelines on this board" })).toBeTruthy();
     expect(screen.getByText(/Create your first pipeline/)).toBeTruthy();
     rerender(<PipelineList boardId="b1" pipelines={[]} role="guest" />);
     expect(screen.getByText(/has not created any pipelines yet/)).toBeTruthy();
@@ -113,10 +119,16 @@ describe("MembersDialog", () => {
     const dialog = screen.getByRole("dialog", { name: "Manage members" });
     expect(within(dialog).getByText("Roadmap")).toBeTruthy();
     expect(within(dialog).getByText("inside")).toBeTruthy();
-    const closers = within(dialog).getAllByRole("button", { name: "Close" });
-    expect(closers).toHaveLength(2);
-    await userEvent.click(closers[1]!);
+    const footer = dialog.querySelector("footer")!;
+    expect(footer.closest(".overflow-y-auto")).toBeNull(); // the footer sits outside the scrolling body
+    await userEvent.click(within(footer).getByRole("button", { name: "Close" }));
     expect(screen.queryByText("inside")).toBeNull();
+  });
+
+  it("keeps the body out of the page until it is opened, so no form is mounted for a closed dialog", () => {
+    render(<MembersDialog boardName="Roadmap" canManage><form data-testid="heavy"><input /></form></MembersDialog>);
+    expect(screen.queryByTestId("heavy")).toBeNull();
+    expect(document.querySelectorAll("form")).toHaveLength(0);
   });
 
   it("is a plain Members view for people who cannot manage", async () => {
@@ -177,14 +189,7 @@ describe("BoardPage like v1", () => {
     useCases.getBoard.mockResolvedValue({ board: BOARD, role: "owner" });
     useCases.listMemberProfiles.mockResolvedValue([member("u1", "owner", "Olivia")]);
     useCases.listPipelines.mockResolvedValue([{ id: "p1", boardId: "b1", name: "Sprint", description: "Two weeks" }, { id: "p2", boardId: "b1", name: "Bugs", description: "" }]);
-    useCases.getBoardDashboard.mockResolvedValue({
-      members: 1,
-      tasks: {},
-      pipelines: [
-        { id: "p1", name: "Sprint", tasks: {}, stages: [{ id: "s1", name: "To do" }, { id: "s2", name: "Done" }] },
-        { id: "p2", name: "Bugs", tasks: {}, stages: [] },
-      ],
-    });
+    useCases.listStages.mockImplementation(async ({ pipelineId }: { pipelineId: string }) => (pipelineId === "p1" ? [{ name: "To do" }, { name: "Done" }] : []));
   });
   const open = async () => render(await BoardPage({ params: Promise.resolve({ boardId: "b1" }), searchParams: Promise.resolve({}) }));
 
@@ -193,7 +198,7 @@ describe("BoardPage like v1", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 2, name: "Board pipelines" })).toBeTruthy();
     expect(screen.getByText("Each pipeline has its own stages to organize tasks")).toBeTruthy();
-    expect(screen.getByText("2 pipelines")).toBeTruthy();
+    expect(screen.getByText("2 pipelines")).toBeTruthy(); // a first page with no next page is the whole list
     expect(screen.getByRole("button", { name: "Create pipeline" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Manage members" })).toBeTruthy();
   });
@@ -203,6 +208,8 @@ describe("BoardPage like v1", () => {
     const card = screen.getByRole("link", { name: "Sprint" }).closest("li")!;
     expect(within(card).getAllByRole("listitem").map((chip) => chip.textContent)).toEqual(["To do", "Done"]);
     expect(within(screen.getByRole("link", { name: "Bugs" }).closest("li")!).getByText("0 stages")).toBeTruthy();
+    expect(useCases.listStages).toHaveBeenCalledTimes(2);
+    expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: "p1", limit: 50, offset: 0 });
   });
 
   it("shows a View only chip instead of the create button to non-owners, with a plain Members button", async () => {
@@ -211,6 +218,16 @@ describe("BoardPage like v1", () => {
     expect(screen.queryByRole("button", { name: "Create pipeline" })).toBeNull();
     expect(screen.getByText("View only")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Members" })).toBeTruthy();
+  });
+
+  it("says the pipelines count is of this page when there is more than one page", async () => {
+    useCases.listPipelines.mockResolvedValue(Array.from({ length: 13 }, (_v, i) => ({ id: `p${i}`, boardId: "b1", name: `Flow ${i}`, description: "" })));
+    useCases.listStages.mockResolvedValue([]);
+    render(await BoardPage({ params: Promise.resolve({ boardId: "b1" }), searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("12 pipelines on this page")).toBeTruthy();
+    cleanup();
+    render(await BoardPage({ params: Promise.resolve({ boardId: "b1" }), searchParams: Promise.resolve({ pipelinesPage: "2" }) }));
+    expect(screen.getByText(/pipelines? on this page$/)).toBeTruthy();
   });
 
   it("loads the members once, capped, for the dialog", async () => {

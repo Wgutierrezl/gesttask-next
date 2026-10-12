@@ -97,6 +97,11 @@ describe("EmptyState and PageHeader", () => {
     expect(container.querySelector("p")).toBeNull();
   });
 
+  it("takes the heading level of the place it sits in", () => {
+    render(<EmptyState as="h3" title="Nothing here" />);
+    expect(screen.getByRole("heading", { level: 3, name: "Nothing here" })).toBeTruthy();
+  });
+
   it("PageHeader renders the h1", () => {
     render(<PageHeader title="Your boards" description="All of them" actions={<a href="/x">New</a>} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your boards" })).toBeTruthy();

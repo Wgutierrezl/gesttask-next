@@ -29,10 +29,12 @@ interface DialogProps {
   subtitle?: ReactNode;
   /** Extra controls in the header, before the Close button. */
   actions?: ReactNode;
+  /** A bar under the scrolling body that stays put, e.g. a Close button; rendered only while the dialog is open. */
+  footer?: ReactNode;
 }
 
 /** Modal on the native `<dialog>`: the browser provides the focus trap, Esc and focus return. */
-export function Dialog({ title, open, onClose, children, size = "md", icon, iconTone = "brand", subtitle, actions }: DialogProps) {
+export function Dialog({ title, open, onClose, children, size = "md", icon, iconTone = "brand", subtitle, actions, footer }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const pressedOnBackdrop = useRef(false);
   const titleId = useId();
@@ -91,6 +93,7 @@ export function Dialog({ title, open, onClose, children, size = "md", icon, icon
         </div>
       </div>
       {open && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">{children}</div>}
+      {open && footer ? <footer className="flex shrink-0 justify-end border-t border-border px-6 py-4">{footer}</footer> : null}
     </dialog>
   );
 }

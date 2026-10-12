@@ -15,7 +15,7 @@ vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => undefined }));
 
 const getActor = vi.fn();
-const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), getBoardDashboard: vi.fn(), createPipeline: vi.fn() };
+const useCases = { getBoard: vi.fn(), listMemberProfiles: vi.fn(), listPipelines: vi.fn(), listStages: vi.fn(), createPipeline: vi.fn() };
 const logger = { error: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger }) }));
 
@@ -38,7 +38,7 @@ beforeEach(() => {
   useCases.getBoard.mockResolvedValue({ board, role: "owner" });
   useCases.listMemberProfiles.mockResolvedValue([member("u", "owner", "Olivia", "olivia@example.com"), member("v", "guest", "Demo Viewer")]);
   useCases.listPipelines.mockResolvedValue([{ id: "p1", boardId: BOARD_ID, name: "Sprint", description: "Two weeks" }]);
-  useCases.getBoardDashboard.mockResolvedValue({ members: 2, tasks: {}, pipelines: [{ id: "p1", name: "Sprint", tasks: {}, stages: [{ id: "s1", name: "To do" }] }] });
+  useCases.listStages.mockResolvedValue([{ name: "To do" }]);
 });
 
 describe("components", () => {
@@ -69,7 +69,7 @@ describe("BoardPage", () => {
     const html = renderToStaticMarkup(await BoardPage({ params: params(), searchParams: search() }));
     expect(html).toContain("Roadmap");
     expect(html).toContain("Sprint");
-    expect(html).toContain("To do"); // the stage chips come from the board dashboard
+    expect(html).toContain("To do"); // the stage chips come from the pipeline stages
     expect(html).toContain("Manage members"); // the member list itself only renders once the dialog is open
     expect(useCases.listMemberProfiles).toHaveBeenCalled();
     expect(html).toContain("Create pipeline");

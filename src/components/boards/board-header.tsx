@@ -22,12 +22,10 @@ export function BoardHeader({ board, role, children }: BoardHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-border pb-4">
       <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-3">
-        <nav aria-label={t("kanban.page.breadcrumb")}>
-          <Link href="/boards" aria-label={t("board.header.back")} className="flex items-center gap-2 rounded-xl px-3 py-2 text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-ring">
-            <ArrowLeft aria-hidden="true" className="size-5" />
-            <span className="text-sm">{t("kanban.page.backShort")}</span>
-          </Link>
-        </nav>
+        <Link href="/boards" aria-label={t("board.header.back")} className="flex items-center gap-2 rounded-xl px-3 py-2 text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-ring">
+          <ArrowLeft aria-hidden="true" className="size-5" />
+          <span className="text-sm">{t("kanban.page.backShort")}</span>
+        </Link>
         <div aria-hidden="true" className="hidden h-8 w-px bg-border sm:block" />
         <div className="flex min-w-0 items-center gap-3">
           <div aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient shadow-brand">

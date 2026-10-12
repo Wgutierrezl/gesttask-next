@@ -22,11 +22,15 @@ export function MembersDialog({ boardName, canManage, children }: { boardName: s
         <Icon aria-hidden="true" className="size-4" />
         {label}
       </Button>
-      <Dialog title={label} subtitle={boardName} size="lg" open={open} onClose={close}>
+      <Dialog
+        title={label}
+        subtitle={boardName}
+        size="lg"
+        open={open}
+        onClose={close}
+        footer={<Button variant="solid" onClick={close} className="rounded-xl">{t("common.close")}</Button>}
+      >
         {children}
-        <div className="sticky -bottom-6 -mx-6 -mb-6 flex justify-end border-t border-border bg-elevated px-6 py-4">
-          <Button variant="solid" onClick={close} className="rounded-xl">{t("common.close")}</Button>
-        </div>
       </Dialog>
     </>
   );

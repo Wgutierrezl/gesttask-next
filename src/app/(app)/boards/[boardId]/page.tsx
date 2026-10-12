@@ -28,17 +28,18 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
   const { boardId } = await params;
   const pipelinesPage = parsePage((await searchParams).pipelinesPage);
   const { board, role, members, pipelines, stagesByPipeline } = await loadPage(async () => {
-    const { getBoard, listMemberProfiles, listPipelines, getBoardDashboard } = getContainer().useCases;
+    const { getBoard, listMemberProfiles, listPipelines, listStages } = getContainer().useCases;
     // `getBoard` goes first: it is the authorization check, and a foreign board must not trigger the other reads.
     const detail = await getBoard({ boardId });
-    const [members, pipelines, dashboard] = await Promise.all([
+    const [members, listed] = await Promise.all([
       // The members dialog shows them all, up to the cap; the settings page pages through any number.
       loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
       listPipelines({ boardId, ...pageWindow(pipelinesPage) }),
-      // One aggregation for the stage names of every pipeline, instead of a stage query per card.
-      getBoardDashboard({ boardId }),
     ]);
-    return { ...detail, members, pipelines: slicePage(pipelines), stagesByPipeline: new Map(dashboard.pipelines.map((p) => [p.id, p.stages.map((stage) => stage.name)])) };
+    const pipelines = slicePage(listed);
+    // Only the stage names of the pipelines on this page: one light read each (a pipeline holds at most 20 stages).
+    const stages = await Promise.all(pipelines.items.map((pipeline) => listStages({ pipelineId: pipeline.id, limit: 50, offset: 0 })));
+    return { ...detail, members, pipelines, stagesByPipeline: new Map(pipelines.items.map((pipeline, i) => [pipeline.id, stages[i]!.map((stage) => stage.name)])) };
   });
   const isOwner = role === "owner";
   const pipelinesLink = { basePath: `/boards/${board.id}`, param: "pipelinesPage" };
@@ -55,7 +56,7 @@ export default async function BoardPage({ params, searchParams }: BoardPageProps
           headingId="pipelines-heading"
           title={t("heading")}
           description={t("description")}
-          meta={{ icon: <Workflow />, text: t("count", { count: pipelines.items.length }) }}
+          meta={{ icon: <Workflow />, text: t(pipelinesPage === 1 && !pipelines.hasNext ? "count" : "countPage", { count: pipelines.items.length }) }}
           actions={
             isOwner ? (
               <CreatePipelineDialog boardId={board.id} />

@@ -97,6 +97,20 @@ describe("BoardsPage like v1", () => {
     expect(screen.getByText("2 tableros activos")).toBeTruthy();
   });
 
+  it("says the count is of this page when boards continue on another page", async () => {
+    useCases.listMyBoards.mockResolvedValue(Array.from({ length: 13 }, (_v, i) => board(i)));
+    render(await BoardsPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("12 active boards on this page")).toBeTruthy();
+    cleanup();
+    useCases.listMyBoards.mockResolvedValue([board(1)]);
+    render(await BoardsPage({ searchParams: Promise.resolve({ page: "2" }) }));
+    expect(screen.getByText("1 active board on this page")).toBeTruthy();
+    cleanup();
+    active.locale = "es";
+    render(await BoardsPage({ searchParams: Promise.resolve({ page: "2" }) }), { locale: "es" });
+    expect(screen.getByText("1 tablero activo en esta página")).toBeTruthy();
+  });
+
   it("lays the cards out on three columns and shows no count when there is nothing to count", async () => {
     useCases.listMyBoards.mockResolvedValue([board(1)]);
     render(await BoardsPage({ searchParams: Promise.resolve({}) }));

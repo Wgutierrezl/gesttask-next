@@ -30,7 +30,7 @@ export default async function BoardsPage({ searchParams }: { searchParams: Promi
       <PageHero
         title={t("title")}
         description={t("description")}
-        meta={items.length > 0 ? { icon: <LayoutGrid />, text: t("activeCount", { count: items.filter((board) => board.status === "active").length }) } : undefined}
+        meta={items.length > 0 ? { icon: <LayoutGrid />, text: t(page === 1 && !hasNext ? "activeCount" : "activeCountPage", { count: items.filter((board) => board.status === "active").length }) } : undefined}
         actions={<CreateBoardDialog />}
       />
       {items.length === 0 ? (

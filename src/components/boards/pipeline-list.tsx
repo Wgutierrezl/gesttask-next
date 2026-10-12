@@ -20,7 +20,7 @@ export function PipelineList({ boardId, pipelines, role, pastTheEndHref }: { boa
     return pastTheEndHref ? (
       <PastTheEnd what="pipelines" href={pastTheEndHref} />
     ) : (
-      <EmptyState icon={<Workflow className="size-10" />} title={t("emptyTitle")} description={role === "owner" ? t("emptyOwner") : t("emptyViewer")} />
+      <EmptyState as="h3" icon={<Workflow className="size-10" />} title={t("emptyTitle")} description={role === "owner" ? t("emptyOwner") : t("emptyViewer")} />
     );
   }
   return (

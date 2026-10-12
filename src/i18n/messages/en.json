@@ -79,8 +79,7 @@
     "signUpSubtitle": "Create your account and start today",
     "footerTagline": "Organize • Collaborate • Deliver",
     "emailPlaceholder": "you@email.com",
-    "namePlaceholder": "John Smith",
-    "passwordPlaceholder": "••••••••"
+    "namePlaceholder": "John Smith"
   },
   "meta": {
     "description": "Kanban task management",
@@ -111,7 +110,8 @@
     "submitting": "Creating...",
     "activeCount": "{count, plural, one {# active board} other {# active boards}}",
     "namePlaceholder": "e.g. Digital marketing project",
-    "descriptionPlaceholder": "Describe the purpose of this board..."
+    "descriptionPlaceholder": "Describe the purpose of this board...",
+    "activeCountPage": "{count, plural, one {# active board on this page} other {# active boards on this page}}"
   },
   "pipeline": {
     "heading": "Board pipelines",
@@ -145,7 +145,8 @@
     "viewOnly": "View only",
     "emptyTitle": "No pipelines on this board",
     "emptyOwner": "Create your first pipeline with custom stages to organize your tasks",
-    "emptyViewer": "The board owner has not created any pipelines yet"
+    "emptyViewer": "The board owner has not created any pipelines yet",
+    "countPage": "{count, plural, one {# pipeline on this page} other {# pipelines on this page}}"
   },
   "board": {
     "dashboard": "Dashboard",

@@ -79,8 +79,7 @@
     "signUpSubtitle": "Crea tu cuenta y comienza hoy",
     "footerTagline": "Organiza • Colabora • Entrega",
     "emailPlaceholder": "tu@email.com",
-    "namePlaceholder": "Juan Pérez",
-    "passwordPlaceholder": "••••••••"
+    "namePlaceholder": "Juan Pérez"
   },
   "meta": {
     "description": "Gestión de tareas Kanban",
@@ -111,7 +110,8 @@
     "submitting": "Creando...",
     "activeCount": "{count, plural, one {# tablero activo} other {# tableros activos}}",
     "namePlaceholder": "Ej: Proyecto de marketing digital",
-    "descriptionPlaceholder": "Describe el propósito de este tablero..."
+    "descriptionPlaceholder": "Describe el propósito de este tablero...",
+    "activeCountPage": "{count, plural, one {# tablero activo en esta página} other {# tableros activos en esta página}}"
   },
   "pipeline": {
     "heading": "Pipelines del tablero",
@@ -145,7 +145,8 @@
     "viewOnly": "Solo lectura",
     "emptyTitle": "No hay pipelines en este tablero",
     "emptyOwner": "Crea tu primer pipeline con etapas personalizadas para organizar tus tareas",
-    "emptyViewer": "El propietario del tablero aún no ha creado pipelines"
+    "emptyViewer": "El propietario del tablero aún no ha creado pipelines",
+    "countPage": "{count, plural, one {# pipeline en esta página} other {# pipelines en esta página}}"
   },
   "board": {
     "dashboard": "Panel",
