@@ -13,6 +13,7 @@ vi.mock("@/app/_actions/tasks", () => actions);
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 const { KanbanBoard } = await import("@/components/kanban/kanban-board");
 const { TaskCard } = await import("@/components/kanban/task-card");
+const { ColumnShell } = await import("@/components/kanban/kanban-column");
 const { PipelineTabs } = await import("@/components/kanban/pipeline-tabs");
 const { PriorityPicker } = await import("@/components/kanban/priority-picker");
 
@@ -58,6 +59,16 @@ describe("kanban in Spanish", () => {
     expect(within(todo).getAllByRole("button", { name: "Mover Tarea a a Backlog / Ideas" })).toHaveLength(1);
     await userEvent.click(within(todo).getAllByRole("button", { name: "Mover Tarea a a Hecho" })[0]!);
     expect(await screen.findByText("Se movió Tarea a a Hecho")).toBeTruthy();
+  });
+
+  it("keeps four-digit counts ungrouped in the column label and tab, in both languages", () => {
+    const column: ColumnView = { stage: { id: "todo", name: "X", isDone: false }, tasks: Array.from({ length: 1000 }, (_v, i) => task(`t${i}`, "todo")) };
+    for (const [locale, word] of [["en", "tasks"], ["es", "tareas"]] as const) {
+      const { unmount } = renderWithIntl(<><ColumnShell column={column}>{null}</ColumnShell><PipelineTabs data={{ boardId: "b", pipelineId: "p1", pipelines: [{ ...pipelines[0]!, taskCount: 1000 }, pipelines[1]!] }} droppable={false} /></>, { locale });
+      expect(screen.getByRole("region", { name: `X, 1000 ${word}` })).toBeTruthy();
+      expect(screen.getByRole("link", { name: new RegExp(`Plan, 1000 ${word}`) })).toBeTruthy();
+      unmount();
+    }
   });
 
   it("translates the card: priority, due date, overdue, completion and assignee", () => {

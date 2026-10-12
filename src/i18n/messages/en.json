@@ -187,8 +187,8 @@
       "high": "High"
     },
     "pipelines": "Pipelines",
-    "tasks": "{count, plural, one {# task} other {# tasks}}",
-    "columnLabel": "{name}, {count, plural, one {# task} other {# tasks}}",
+    "tasks": "{count, plural, one {{count, number, ::group-off} task} other {{count, number, ::group-off} tasks}}",
+    "columnLabel": "{name}, {count, plural, one {{count, number, ::group-off} task} other {{count, number, ::group-off} tasks}}",
     "doneStage": "Done stage",
     "noTasks": "No tasks",
     "unassigned": "Unassigned",
