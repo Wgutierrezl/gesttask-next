@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { deleteStageAction, renameStageAction, reorderStageAction, setStageDoneAction } from "@/app/_actions/stages";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/field";
@@ -25,11 +26,12 @@ interface StageRowProps {
 }
 
 function Move({ stage, direction, after }: { stage: ManagedStage; direction: "left" | "right"; after: string }) {
+  const t = useTranslations("stages");
   return (
     <MutationForm action={reorderStageAction} hidden={{ stageId: stage.id, afterStageId: after }}>
       {() => (
-        <SubmitButton variant="secondary" ariaLabel={`Move ${stage.name} ${direction}`}>
-          {direction === "left" ? "Left" : "Right"}
+        <SubmitButton variant="secondary" ariaLabel={direction === "left" ? t("moveLeft", { name: stage.name }) : t("moveRight", { name: stage.name })}>
+          {direction === "left" ? t("left") : t("right")}
         </SubmitButton>
       )}
     </MutationForm>
@@ -38,46 +40,48 @@ function Move({ stage, direction, after }: { stage: ManagedStage; direction: "le
 
 /** Everything the owner can do to one stage; each action is its own form so it also works without JavaScript. */
 export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHaveHiddenTasks }: StageRowProps) {
+  const t = useTranslations("stages");
+  const tk = useTranslations("kanban");
   const hasTasks = stage.taskCount > 0 || mayHaveHiddenTasks;
   return (
     <li className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-fg">{stage.name}</span>
-        {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
+        {stage.isDone ? <Badge tone="success">{tk("doneStage")}</Badge> : null}
         {afterWhenLeft !== null ? <Move stage={stage} direction="left" after={afterWhenLeft} /> : null}
         {afterWhenRight !== null ? <Move stage={stage} direction="right" after={afterWhenRight} /> : null}
       </div>
       <MutationForm action={renameStageAction} hidden={{ stageId: stage.id }} inlineFields={["name"]} className="flex flex-wrap items-end gap-2">
         {(failure) => (
           <>
-            <StageNameFields idPrefix={`rename-${stage.id}`} label={`Rename ${stage.name}`} defaultName={stage.name} offerDone={false} errors={failure?.fieldErrors?.name} />
-            <SubmitButton variant="secondary" ariaLabel={`Save name of ${stage.name}`}>Save</SubmitButton>
+            <StageNameFields idPrefix={`rename-${stage.id}`} label={t("rename", { name: stage.name })} defaultName={stage.name} offerDone={false} errors={failure?.fieldErrors?.name} />
+            <SubmitButton variant="secondary" ariaLabel={t("saveAria", { name: stage.name })}>{t("save")}</SubmitButton>
           </>
         )}
       </MutationForm>
       <MutationForm action={setStageDoneAction} hidden={{ stageId: stage.id, isDone: String(!stage.isDone) }}>
         {() => (
-          <SubmitButton variant="secondary" ariaLabel={stage.isDone ? `Clear done flag on ${stage.name}` : `Mark ${stage.name} as done stage`}>
-            {stage.isDone ? "Clear done flag" : "Mark as done stage"}
+          <SubmitButton variant="secondary" ariaLabel={stage.isDone ? t("clearDoneAria", { name: stage.name }) : t("markDoneAria", { name: stage.name })}>
+            {stage.isDone ? t("clearDone") : t("markDone")}
           </SubmitButton>
         )}
       </MutationForm>
       {stage.isDone ? (
-        <p className="text-xs text-fg-muted">The done stage cannot be deleted. Mark another stage as done first.</p>
+        <p className="text-xs text-fg-muted">{t("cannotDelete")}</p>
       ) : (
         <MutationForm action={deleteStageAction} hidden={{ stageId: stage.id }} className="flex flex-wrap items-end gap-2">
           {() => (
             <>
               <label className="flex flex-col gap-1 text-xs text-fg-strong">
-                <span>{`Move tasks of ${stage.name} to`}</span>
+                <span>{t("moveTasksTo", { name: stage.name })}</span>
                 <Select name="moveToStageId" required={hasTasks} defaultValue={hasTasks ? others[0]?.id : ""}>
-                  {!hasTasks ? <option value="">No tasks to move</option> : null}
+                  {!hasTasks ? <option value="">{t("noTasksToMove")}</option> : null}
                   {others.map((other) => (
                     <option key={other.id} value={other.id}>{other.name}</option>
                   ))}
                 </Select>
               </label>
-              <SubmitButton variant="danger" pendingLabel="Deleting..." ariaLabel={`Delete ${stage.name}`}>Delete</SubmitButton>
+              <SubmitButton variant="danger" pendingLabel={t("deleting")} ariaLabel={t("deleteAria", { name: stage.name })}>{t("delete")}</SubmitButton>
             </>
           )}
         </MutationForm>

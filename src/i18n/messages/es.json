@@ -247,5 +247,31 @@
       "truncatedStages": "Se muestran las primeras {count} etapas de este pipeline.",
       "truncatedMembers": "Se muestran los primeros {count} miembros para elegir responsable."
     }
+  },
+  "stages": {
+    "manage": "Gestionar etapas",
+    "list": "Etapas",
+    "add": "Añadir una etapa",
+    "addStage": "Añadir etapa",
+    "adding": "Añadiendo...",
+    "name": "Nombre",
+    "left": "Izquierda",
+    "right": "Derecha",
+    "moveLeft": "Mover {name} a la izquierda",
+    "moveRight": "Mover {name} a la derecha",
+    "rename": "Renombrar {name}",
+    "save": "Guardar",
+    "saveAria": "Guardar el nombre de {name}",
+    "clearDone": "Quitar la marca de final",
+    "markDone": "Marcar como etapa final",
+    "clearDoneAria": "Quitar la marca de final en {name}",
+    "markDoneAria": "Marcar {name} como etapa final",
+    "cannotDelete": "La etapa final no se puede eliminar. Marca antes otra etapa como final.",
+    "moveTasksTo": "Mover las tareas de {name} a",
+    "noTasksToMove": "No hay tareas que mover",
+    "delete": "Eliminar",
+    "deleting": "Eliminando...",
+    "deleteAria": "Eliminar {name}",
+    "suggestDone": "Marcar como etapa final (las tareas que entren se cuentan como completadas)"
   }
 }

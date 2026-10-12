@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { CreateStageForm } from "./create-stage-form";
 import { StageRow, type ManagedStage } from "./stage-row";
 
@@ -6,11 +7,12 @@ import { StageRow, type ManagedStage } from "./stage-row";
  * `truncated` means not every task is shown, so task counts are lower bounds and no stage is assumed empty.
  */
 export function StageManager({ pipelineId, stages, truncated = false }: { pipelineId: string; stages: ManagedStage[]; truncated?: boolean }) {
+  const t = useTranslations("stages");
   return (
     <details className="rounded-card border border-border bg-surface p-4 shadow-card">
-      <summary className="cursor-pointer rounded text-sm font-medium text-fg focus-visible:outline-2 focus-visible:outline-ring">Manage stages</summary>
+      <summary className="cursor-pointer rounded text-sm font-medium text-fg focus-visible:outline-2 focus-visible:outline-ring">{t("manage")}</summary>
       <div className="mt-3 flex flex-col gap-4">
-        <ul aria-label="Stages" className="flex flex-col gap-2">
+        <ul aria-label={t("list")} className="flex flex-col gap-2">
           {stages.map((stage, i) => (
             <StageRow
               key={stage.id}
@@ -23,7 +25,7 @@ export function StageManager({ pipelineId, stages, truncated = false }: { pipeli
           ))}
         </ul>
         <section aria-labelledby="add-stage-heading">
-          <h3 id="add-stage-heading" className="mb-2 text-sm font-medium">Add a stage</h3>
+          <h3 id="add-stage-heading" className="mb-2 text-sm font-medium">{t("add")}</h3>
           <CreateStageForm pipelineId={pipelineId} />
         </section>
       </div>

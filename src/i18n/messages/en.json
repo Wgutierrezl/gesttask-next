@@ -247,5 +247,31 @@
       "truncatedStages": "Showing the first {count} stages of this pipeline.",
       "truncatedMembers": "Showing the first {count} members to choose as assignee."
     }
+  },
+  "stages": {
+    "manage": "Manage stages",
+    "list": "Stages",
+    "add": "Add a stage",
+    "addStage": "Add stage",
+    "adding": "Adding...",
+    "name": "Name",
+    "left": "Left",
+    "right": "Right",
+    "moveLeft": "Move {name} left",
+    "moveRight": "Move {name} right",
+    "rename": "Rename {name}",
+    "save": "Save",
+    "saveAria": "Save name of {name}",
+    "clearDone": "Clear done flag",
+    "markDone": "Mark as done stage",
+    "clearDoneAria": "Clear done flag on {name}",
+    "markDoneAria": "Mark {name} as done stage",
+    "cannotDelete": "The done stage cannot be deleted. Mark another stage as done first.",
+    "moveTasksTo": "Move tasks of {name} to",
+    "noTasksToMove": "No tasks to move",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "deleteAria": "Delete {name}",
+    "suggestDone": "Mark as the done stage (tasks entering it count as completed)"
   }
 }

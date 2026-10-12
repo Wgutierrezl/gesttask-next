@@ -93,6 +93,20 @@ describe("StageNameFields errors", () => {
   });
 });
 
+describe("StageManager in Spanish", () => {
+  it("names the panel, the controls and their accessible names in Spanish", () => {
+    render(<StageManager pipelineId="p1" stages={STAGES} />, { locale: "es" });
+    expect(screen.getByText("Gestionar etapas")).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Etapas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mover To do a la derecha" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mover Done a la izquierda" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Quitar la marca de final en Done" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Marcar To do como etapa final" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Eliminar To do" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Añadir etapa" })).toBeTruthy();
+  });
+});
+
 describe("StageManager", () => {
   it("lists a row per stage, marking the done stage and offering moves only where they are possible", () => {
     render(<StageManager pipelineId="p1" stages={STAGES} />);

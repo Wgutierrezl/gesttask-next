@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Field, Input } from "@/components/ui/field";
 import { suggestsDone } from "./stage-names";
@@ -15,18 +16,19 @@ interface StageNameFieldsProps {
 }
 
 /** The stage name input plus, when the name looks like a done stage, an unticked box offering to flag it. */
-export function StageNameFields({ idPrefix, defaultName = "", offerDone, label = "Name", errors }: StageNameFieldsProps) {
+export function StageNameFields({ idPrefix, defaultName = "", offerDone, label, errors }: StageNameFieldsProps) {
+  const t = useTranslations("stages");
   const [name, setName] = useState(defaultName);
   const suggest = offerDone && suggestsDone(name);
   return (
     <div className="flex flex-col gap-1">
-      <Field label={label} error={errors?.join(" ")}>
+      <Field label={label ?? t("name")} error={errors?.join(" ")}>
         <Input id={`${idPrefix}-name`} name="name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={60} />
       </Field>
       {suggest ? (
         <label className="flex items-start gap-2 text-xs text-fg-strong">
           <input type="checkbox" name="markDone" value="yes" className="mt-0.5 size-4 accent-accent" />
-          <span>Mark as the done stage (tasks entering it count as completed)</span>
+          <span>{t("suggestDone")}</span>
         </label>
       ) : null}
     </div>
