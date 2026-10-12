@@ -14,40 +14,58 @@ export type DomainErrorCode =
  */
 const DOMAIN_ERROR_BRAND = Symbol.for("gesttask.domain-error");
 
+/**
+ * A stable, language-free key (e.g. `stage.hasTasks`) plus the values its translation interpolates. The message stays
+ * English for REST; the web adapter translates the reason where it renders (ADR 0021). No reason: the code's default applies.
+ */
+export interface ErrorDetail {
+  reason: string;
+  params?: Record<string, string | number>;
+}
+
 /** Base of every error the core throws; adapters translate it, nothing else crosses the boundary. */
 export class DomainError extends Error {
   readonly [DOMAIN_ERROR_BRAND] = true;
+  readonly reason?: string;
+  readonly params?: ErrorDetail["params"];
 
   constructor(
     readonly code: DomainErrorCode,
     message: string,
+    detail?: ErrorDetail,
   ) {
     super(message);
     this.name = new.target.name;
+    this.reason = detail?.reason;
+    this.params = detail?.params;
   }
 }
 
 export type FieldErrors = Record<string, string[]>;
+/** Per field, one entry for each message in `FieldErrors` (null where that message has no reason). */
+export type FieldReasons = Record<string, (ErrorDetail | null)[]>;
 
 export class ValidationError extends DomainError {
   constructor(
     message = "Invalid input",
     readonly fieldErrors: FieldErrors = {},
+    readonly fieldReasons: FieldReasons = {},
+    detail?: ErrorDetail,
   ) {
-    super("VALIDATION", message);
+    super("VALIDATION", message, detail);
   }
 }
 
 export class UnauthenticatedError extends DomainError {
-  constructor(message = "Authentication required") {
-    super("UNAUTHENTICATED", message);
+  constructor(message = "Authentication required", detail?: ErrorDetail) {
+    super("UNAUTHENTICATED", message, detail);
   }
 }
 
 /** Only for members whose role is insufficient; non-members get NotFoundError instead. */
 export class ForbiddenError extends DomainError {
-  constructor(message = "Insufficient permissions") {
-    super("FORBIDDEN", message);
+  constructor(message = "Insufficient permissions", detail?: ErrorDetail) {
+    super("FORBIDDEN", message, detail);
   }
 }
 
@@ -59,8 +77,8 @@ export class NotFoundError extends DomainError {
 }
 
 export class ConflictError extends DomainError {
-  constructor(message = "Conflict") {
-    super("CONFLICT", message);
+  constructor(message = "Conflict", detail?: ErrorDetail) {
+    super("CONFLICT", message, detail);
   }
 }
 
