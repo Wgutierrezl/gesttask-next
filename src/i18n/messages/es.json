@@ -273,5 +273,45 @@
     "deleting": "Eliminando...",
     "deleteAria": "Eliminar {name}",
     "suggestDone": "Marcar como etapa final (las tareas que entren se cuentan como completadas)"
+  },
+  "comments": {
+    "heading": "Comentarios ({count})",
+    "truncated": "Se muestran los primeros 200 comentarios de esta tarea.",
+    "empty": "Aún no hay comentarios.",
+    "by": "Comentario de {name}",
+    "posted": "Publicado",
+    "attachments": "Adjuntos",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "add": "Añadir un comentario",
+    "posting": "Publicando...",
+    "submit": "Comentar",
+    "guestNote": "Los invitados pueden comentar, pero solo los miembros pueden adjuntar archivos.",
+    "editLabel": "Editar comentario",
+    "saving": "Guardando...",
+    "save": "Guardar comentario",
+    "deleteConfirm": "Quiero eliminar este comentario",
+    "deleteSubmit": "Eliminar comentario",
+    "deleting": "Eliminando..."
+  },
+  "attachments": {
+    "label": "Adjuntar archivos",
+    "help": "PNG, JPEG, WebP, PDF o texto plano, hasta {size} cada uno y {max} por comentario.",
+    "demoQuota": "Las sesiones de demostración pueden adjuntar hasta 5 archivos en total.",
+    "uploading": "subiendo...",
+    "ready": "listo",
+    "failed": "falló",
+    "retry": "Reintentar",
+    "retryAria": "Reintentar {name}",
+    "remove": "Quitar",
+    "removeAria": "Quitar {name}",
+    "errors": {
+      "tooLarge": "El archivo supera los {size}",
+      "tooMany": "Puedes adjuntar hasta {max, plural, one {# archivo} other {# archivos}} a un comentario",
+      "refused": "Se rechazó la subida.",
+      "uploadFailed": "La subida falló. Inténtalo de nuevo.",
+      "rateLimited": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
+      "internal": "Algo salió mal. Inténtalo de nuevo."
+    }
   }
 }

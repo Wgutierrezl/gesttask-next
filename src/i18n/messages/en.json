@@ -273,5 +273,45 @@
     "deleting": "Deleting...",
     "deleteAria": "Delete {name}",
     "suggestDone": "Mark as the done stage (tasks entering it count as completed)"
+  },
+  "comments": {
+    "heading": "Comments ({count})",
+    "truncated": "Showing the first 200 comments of this task.",
+    "empty": "No comments yet.",
+    "by": "Comment by {name}",
+    "posted": "Posted",
+    "attachments": "Attachments",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add a comment",
+    "posting": "Posting...",
+    "submit": "Comment",
+    "guestNote": "Guests can comment, but only members can attach files.",
+    "editLabel": "Edit comment",
+    "saving": "Saving...",
+    "save": "Save comment",
+    "deleteConfirm": "I want to delete this comment",
+    "deleteSubmit": "Delete comment",
+    "deleting": "Deleting..."
+  },
+  "attachments": {
+    "label": "Attach files",
+    "help": "PNG, JPEG, WebP, PDF or plain text, up to {size} each and {max} per comment.",
+    "demoQuota": "Demo sessions can attach up to 5 files in total.",
+    "uploading": "uploading...",
+    "ready": "ready",
+    "failed": "failed",
+    "retry": "Retry",
+    "retryAria": "Retry {name}",
+    "remove": "Remove",
+    "removeAria": "Remove {name}",
+    "errors": {
+      "tooLarge": "The file is larger than {size}",
+      "tooMany": "You can attach up to {max, plural, one {# file} other {# files}} to a comment",
+      "refused": "The upload was refused.",
+      "uploadFailed": "The upload failed. Try again.",
+      "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "internal": "Something went wrong. Please try again."
+    }
   }
 }

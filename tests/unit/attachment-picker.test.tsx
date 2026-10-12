@@ -252,3 +252,58 @@ describe("attaching files to a comment", () => {
     expect((screen.getByLabelText("Attach files") as HTMLInputElement).accept).toBe("image/png,image/jpeg,image/webp,application/pdf,text/plain");
   });
 });
+
+describe("attaching files in Spanish", () => {
+  const es = { locale: "es" as const };
+  const pickEs = async (user: ReturnType<typeof userEvent.setup>, ...files: File[]) => user.upload(screen.getByLabelText("Adjuntar archivos"), files);
+
+  it("states the limits with localized sizes, and the demo quota only for demo sessions", () => {
+    const { unmount } = render(<CommentForm taskId="t1" canAttach demoGuest={false} />, es);
+    expect(screen.getByText("PNG, JPEG, WebP, PDF o texto plano, hasta 5,0 MB cada uno y 5 por comentario.")).toBeTruthy();
+    unmount();
+    render(<CommentForm taskId="t1" canAttach demoGuest />, es);
+    expect(screen.getByText("PNG, JPEG, WebP, PDF o texto plano, hasta 5,0 MB cada uno y 5 por comentario. Las sesiones de demostración pueden adjuntar hasta 5 archivos en total.")).toBeTruthy();
+  });
+
+  it("reports each state, with Remove labelled by the file", async () => {
+    let finish!: () => void;
+    strategy.uploadFile.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />, es);
+    await pickEs(user, png());
+    expect(await screen.findByText("pixel.png: subiendo...")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Quitar pixel.png" }).textContent).toBe("Quitar");
+    finish();
+    expect(await screen.findByText("pixel.png: listo")).toBeTruthy();
+  });
+
+  it("explains the size and count limits in Spanish", async () => {
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />, es);
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "huge.pdf", { type: "application/pdf" });
+    await pickEs(user, big, ...Array.from({ length: 6 }, (_, i) => png(`f${i}.png`)));
+    expect(await screen.findByText("huge.pdf: El archivo supera los 5,0 MB")).toBeTruthy();
+    expect(await screen.findByText("f5.png: Puedes adjuntar hasta 5 archivos a un comentario")).toBeTruthy();
+  });
+
+  it.each([
+    [{ ok: false, code: "RATE_LIMITED", message: "Too many requests", retryAfterSeconds: 180 }, "Demasiados intentos. Inténtalo de nuevo en 3 minutos."],
+    [{ ok: false, code: "VALIDATION", message: "Invalid input", fieldErrors: {} }, "Se rechazó la subida."],
+  ])("explains a refusal by the server in Spanish (%#)", async (refusal, text) => {
+    uploads.requestUploadAction.mockResolvedValue(refusal);
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />, es);
+    await pickEs(user, png());
+    expect(await screen.findByText(`pixel.png: ${text}`)).toBeTruthy();
+  });
+
+  it("offers Retry in Spanish after a storage failure, and the failure text is Spanish too", async () => {
+    strategy.uploadFile.mockRejectedValueOnce(new strategy.UploadError("The upload failed. Try again."));
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />, es);
+    await pickEs(user, png());
+    expect(await screen.findByText("pixel.png: La subida falló. Inténtalo de nuevo.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Reintentar pixel.png" }));
+    expect(await screen.findByText("pixel.png: listo")).toBeTruthy();
+  });
+});

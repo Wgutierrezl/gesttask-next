@@ -25,7 +25,11 @@ afterEach(cleanup);
 
 describe("formatBytes", () => {
   it.each([[0, "0 B"], [1023, "1023 B"], [1024, "1.0 KB"], [1536, "1.5 KB"], [5 * 1024 * 1024, "5.0 MB"], [1024 * 1024 - 1, "1024.0 KB"]])("%i bytes read %s", (bytes, text) => {
-    expect(formatBytes(bytes)).toBe(text);
+    expect(formatBytes(bytes, "en")).toBe(text);
+  });
+
+  it.each([[0, "0 B"], [1023, "1023 B"], [1536, "1,5 KB"], [5 * 1024 * 1024, "5,0 MB"], [1024 * 1024 - 1, "1024,0 KB"]])("%i bytes read %s in Spanish", (bytes, text) => {
+    expect(formatBytes(bytes, "es")).toBe(text);
   });
 });
 
@@ -163,5 +167,47 @@ describe("validation failures are announced", () => {
     render(<CommentItem comment={row({ canManage: true })} />);
     await user.click(screen.getByRole("button", { name: "Save comment" }));
     expect((await screen.findAllByRole("alert")).map((a) => a.textContent)).toContain("Please fix the highlighted fields.");
+  });
+});
+
+describe("comments in Spanish", () => {
+  const es = { locale: "es" as const };
+
+  it("translates the comment card, its attachments and the Edit and Delete disclosures; the text stays as written", () => {
+    const attachments = [{ id: "a1", fileName: "cat.png", contentType: "image/png", size: 1536 }];
+    render(<CommentItem comment={row({ canManage: true, attachments })} />, es);
+    const article = screen.getByRole("article", { name: "Comentario de Olivia Owner" });
+    expect(article.querySelector("time")?.textContent).toMatch(/^Publicado 9 oct 2026, /);
+    expect(within(article).getByRole("list", { name: "Adjuntos" })).toBeTruthy();
+    expect(within(article).getByText("(1,5 KB)")).toBeTruthy();
+    expect(article.querySelector("p")?.textContent).toBe("Looks good to me");
+    expect(within(article).getByText("Editar")).toBeTruthy();
+    expect(within(article).getByText("Eliminar")).toBeTruthy();
+  });
+
+  it("edits and deletes with Spanish labels", async () => {
+    const user = userEvent.setup();
+    render(<CommentItem comment={row({ canManage: true })} />, es);
+    await user.click(screen.getByText("Editar"));
+    await user.click(screen.getByRole("button", { name: "Guardar comentario" }));
+    await waitFor(() => expect(actions.editCommentAction).toHaveBeenCalled());
+    expect(fields(actions.editCommentAction.mock.calls[0]![1])).toEqual({ commentId: "c1", body: "Looks good to me" });
+    await user.click(screen.getByText("Eliminar"));
+    await user.click(screen.getByLabelText("Quiero eliminar este comentario"));
+    await user.click(screen.getByRole("button", { name: "Eliminar comentario" }));
+    await waitFor(() => expect(actions.deleteCommentAction).toHaveBeenCalled());
+    expect(screen.getByLabelText("Editar comentario")).toBeTruthy();
+  });
+
+  it("counts, warns about truncation, says when empty and explains why guests cannot attach", () => {
+    const { rerender } = render(<CommentsSection taskId="t1" comments={[]} truncated canAttach={false} demoGuest={false} />, es);
+    expect(screen.getByRole("heading", { name: "Comentarios (0)" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Se muestran los primeros 200 comentarios de esta tarea.");
+    expect(screen.getByText("Aún no hay comentarios.")).toBeTruthy();
+    expect(screen.getByText("Los invitados pueden comentar, pero solo los miembros pueden adjuntar archivos.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Comentar" })).toBeTruthy();
+    rerender(<CommentsSection taskId="t1" comments={[row()]} truncated={false} canAttach demoGuest={false} />);
+    expect(screen.getByRole("heading", { name: "Comentarios (1)" })).toBeTruthy();
+    expect(screen.queryByText("Aún no hay comentarios.")).toBeNull();
   });
 });
