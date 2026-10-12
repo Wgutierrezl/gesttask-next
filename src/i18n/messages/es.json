@@ -428,5 +428,18 @@
         "removeMember": "Confirma que quieres quitar a este miembro"
       }
     }
+  },
+  "errorPages": {
+    "notFound": {
+      "title": "Página no encontrada",
+      "body": "La página que buscas no existe o no tienes acceso a ella."
+    },
+    "error": {
+      "title": "Algo salió mal",
+      "body": "Ocurrió un error inesperado. Puedes intentarlo de nuevo o volver atrás.",
+      "retry": "Intentar de nuevo"
+    },
+    "toHome": "Ir a la página de inicio",
+    "toBoards": "Ir a tus tableros"
   }
 }

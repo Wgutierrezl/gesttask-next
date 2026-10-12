@@ -428,5 +428,18 @@
         "removeMember": "Confirm that you want to remove this member"
       }
     }
+  },
+  "errorPages": {
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you are looking for does not exist or you do not have access to it."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "body": "An unexpected error occurred. You can try again or go back.",
+      "retry": "Try again"
+    },
+    "toHome": "Go to the home page",
+    "toBoards": "Go to your boards"
   }
 }
