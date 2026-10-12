@@ -57,6 +57,15 @@ module.exports = {
       to: { path: "^src/(app|components)/" },
     },
     {
+      name: "i18n-is-leaf",
+      comment:
+        "src/i18n (locale config and catalogs) is consumed by app and components only. domain, application, " +
+        "infrastructure and openapi stay locale-free: they emit reason keys, the web layer translates them.",
+      severity: "error",
+      from: { path: "^src/(domain|application|infrastructure|openapi)/" },
+      to: { path: "^src/i18n/" },
+    },
+    {
       name: "not-to-unresolvable",
       comment: "Every import must resolve, otherwise the layer rules cannot be trusted.",
       severity: "error",

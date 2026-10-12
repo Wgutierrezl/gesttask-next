@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pathname = vi.hoisted(() => ({ current: "/boards" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+vi.mock("@/app/_actions/preferences", () => ({ setLocaleAction: async () => undefined, setThemeAction: async () => undefined }));
 vi.mock("@/app/_actions/auth", () => ({
   signInGuestAction: async () => undefined,
   signOutAction: async () => undefined,
@@ -42,6 +44,54 @@ describe("AppHeader", () => {
     const button = screen.getByRole("button", { name: "Sign out" });
     expect(button.getAttribute("type")).toBe("submit");
     expect(button.closest("form")).not.toBeNull();
+  });
+});
+
+describe("AppHeader like v1", () => {
+  it("is as tall as v1's bar, with a roomy logo mark and a quiet sign-out button", () => {
+    render(<AppHeader />);
+    const header = screen.getByRole("banner");
+    expect(header.firstElementChild?.className).toContain("h-[4.5rem]");
+    expect(header.querySelector("svg.size-10")).toBeTruthy();
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    expect(signOut.className).not.toContain("border");
+    expect(signOut.className).toContain("text-fg-muted");
+  });
+
+  it("keeps the content width and gutters of the pages under it", () => {
+    render(<AppHeader />);
+    expect(screen.getByRole("banner").firstElementChild?.className).toContain("max-w-7xl");
+  });
+});
+
+describe("shell in Spanish", () => {
+  it("translates the header while keeping one banner and a named navigation", () => {
+    pathname.current = "/boards";
+    render(<AppHeader />, { locale: "es" });
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    expect(within(nav).getByRole("link", { name: "Tableros" })).toBeTruthy();
+    expect(within(nav).getByRole("link", { name: "Panel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "GestTask" })).toBeTruthy();
+  });
+
+  it("translates the landing page but keeps the brand h1", () => {
+    render(<HomePage />, { locale: "es" });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("GestTask");
+    expect(screen.getByRole("link", { name: "Iniciar sesión" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Crear cuenta" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Probar la demo" })).toBeTruthy();
+  });
+
+  it("puts the Preferences menu in the header, the landing page and the auth shell", () => {
+    render(<AppHeader />);
+    expect(screen.getByLabelText("Preferences")).toBeTruthy();
+    cleanup();
+    render(<HomePage />);
+    expect(screen.getByLabelText("Preferences")).toBeTruthy();
+    cleanup();
+    render(<AuthShell title="Sign in"><p>x</p></AuthShell>);
+    expect(screen.getByLabelText("Preferences")).toBeTruthy();
   });
 });
 

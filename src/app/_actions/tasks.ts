@@ -2,7 +2,7 @@
 
 import type { MutationState } from "../_shared/mutation-state";
 import { PIPELINE_PAGE, TASK_PAGE, pipelinePath, taskPath } from "../_shared/paths";
-import { checked, optionalText, runMutation, text } from "../_shared/run-mutation";
+import { checked, confirmationRequired, optionalText, runMutation, text } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
 const pages = { revalidate: [PIPELINE_PAGE, TASK_PAGE] };
@@ -41,12 +41,13 @@ export async function updateTaskAction(_previous: MutationState, form: FormData)
 /** Deleting asks for confirmation; where to land afterwards comes from the deleted task, never from the form. */
 export async function deleteTaskAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   if (!checked(form, "confirm")) {
-    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] } };
+    return confirmationRequired("deleteTask");
   }
   return runMutation(() => getContainer().useCases.deleteTask({ taskId: text(form, "taskId") }), {
     ...pages,
     cleanupStorage: true,
     redirectTo: ({ boardId, pipelineId }) => pipelinePath(boardId, pipelineId),
+    replaceHistory: true,
   });
 }
 
@@ -73,11 +74,15 @@ export async function moveTaskToEndAction(_previous: MutationState, form: FormDa
 /**
  * The task page's own move: same as above, but when the task lands in another pipeline the page it is on would be a 404
  * (the URL names the old pipeline), so the visitor follows it to the task's new address. `pipelineId` is the page's.
+ * In the task modal (`surface=modal`) the new address would be intercepted with the old pipeline's layout, so the
+ * visitor lands on the new pipeline's board instead, where the task now sits.
  */
 export async function moveTaskFromDetailAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   const from = text(form, "pipelineId");
+  const inModal = text(form, "surface") === "modal";
   return runMutation(() => getContainer().useCases.moveTask({ taskId: text(form, "taskId"), toStageId: text(form, "toStageId"), toEnd: true }), {
     ...pages,
-    redirectTo: (task) => (task.pipelineId === from ? null : taskPath(task.boardId, task.pipelineId, task.id)),
+    redirectTo: (task) => (task.pipelineId === from ? null : inModal ? pipelinePath(task.boardId, task.pipelineId) : taskPath(task.boardId, task.pipelineId, task.id)),
+    replaceHistory: true,
   });
 }

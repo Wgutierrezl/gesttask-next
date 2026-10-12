@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -49,11 +50,25 @@ describe("create dialogs", () => {
     expect(screen.queryByLabelText(/^Name/)).toBeNull();
   });
 
+  it("closes either dialog with Cancel without submitting", async () => {
+    const { unmount } = render(<CreateBoardDialog />);
+    await userEvent.click(screen.getByRole("button", { name: "Create board" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "New board" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText(/^Name/)).toBeNull();
+    unmount();
+    render(<CreatePipelineDialog boardId="b1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
+    await userEvent.click(within(screen.getByRole("dialog", { name: "New pipeline" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText(/^Name/)).toBeNull();
+    expect(createPipelineAction).not.toHaveBeenCalled();
+    expect(createBoardAction).not.toHaveBeenCalled();
+  });
+
   it("closes the pipeline dialog after a successful submit and sends the board id", async () => {
     render(<CreatePipelineDialog boardId="b1" />);
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
-    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create pipeline" }));
     await waitFor(() => expect(createPipelineAction).toHaveBeenCalled());
     const sent = (createPipelineAction.mock.calls[0] as unknown as [unknown, FormData])[1];
     expect(sent.get("boardId")).toBe("b1");
@@ -66,7 +81,7 @@ describe("create dialogs", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
     const dialog = screen.getByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create pipeline" }));
     expect(await within(dialog).findByText("Name is required")).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "New pipeline" })).toBeTruthy();
   });

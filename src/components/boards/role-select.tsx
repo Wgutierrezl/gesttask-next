@@ -1,26 +1,29 @@
-import { ROLE_LABEL } from "./role-label";
+import { useTranslations } from "next-intl";
+import { Select } from "@/components/ui/field";
+import { ROLES } from "./role-label";
 
 interface RoleSelectProps {
   id: string;
   label: string;
-  defaultValue: keyof typeof ROLE_LABEL;
+  defaultValue: (typeof ROLES)[number];
   /** Visually hide the label when the surrounding row already names the field. */
   hideLabel?: boolean;
 }
 
 export function RoleSelect({ id, label, defaultValue, hideLabel }: RoleSelectProps) {
+  const t = useTranslations("common.roles");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
+      <label htmlFor={id} className={hideLabel ? "sr-only" : "text-sm font-medium text-fg-strong"}>
         {label}
       </label>
-      <select id={id} name="role" defaultValue={defaultValue} className="rounded border border-gray-300 px-2 py-2 text-sm">
-        {Object.entries(ROLE_LABEL).map(([value, text]) => (
+      <Select id={id} name="role" defaultValue={defaultValue}>
+        {ROLES.map((value) => (
           <option key={value} value={value}>
-            {text}
+            {t(value)}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

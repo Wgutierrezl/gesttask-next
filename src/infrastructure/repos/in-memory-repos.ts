@@ -57,7 +57,7 @@ export function createInMemoryRepos(store: InMemoryStore, options: { now?: () =>
     if (!stage.isDone) return;
     for (const other of store.stages.values()) {
       if (other.id !== stage.id && other.pipelineId === stage.pipelineId && other.isDone) {
-        throw new ConflictError("The pipeline already has a done stage");
+        throw new ConflictError("The pipeline already has a done stage", { reason: "stage.doneExists" });
       }
     }
   };
@@ -65,7 +65,7 @@ export function createInMemoryRepos(store: InMemoryStore, options: { now?: () =>
     const name = stage.name.toLowerCase();
     for (const other of store.stages.values()) {
       if (other.id !== stage.id && other.pipelineId === stage.pipelineId && other.name.toLowerCase() === name) {
-        throw new ConflictError("A stage with this name already exists in the pipeline");
+        throw new ConflictError("A stage with this name already exists in the pipeline", { reason: "stage.nameTaken" });
       }
     }
   };
@@ -106,7 +106,7 @@ export function createInMemoryRepos(store: InMemoryStore, options: { now?: () =>
       insert: async (member) => {
         const key = memberKey(member.boardId, member.userId);
         assertBoard(member.boardId);
-        if (store.members.has(key)) throw new ConflictError("User is already a member of this board");
+        if (store.members.has(key)) throw new ConflictError("User is already a member of this board", { reason: "member.alreadyMember" });
         store.members.set(key, copy(member));
       },
       find: async (boardId, userId) => copy(store.members.get(memberKey(boardId, userId)) ?? null),

@@ -4,6 +4,7 @@ import type { ActionResult } from "@/application/result";
 import { runAction } from "@/application/to-action-result";
 import { getContainer } from "@/infrastructure/container";
 import type { MutationState } from "./mutation-state";
+import { localizeResult } from "./localize-failure";
 import { scheduleStorageCleanup } from "./storage-cleanup";
 
 /** A string form field; absent or file entries read as empty so validation reports them like any blank. */
@@ -32,6 +33,8 @@ interface Options<T> {
   revalidate?: string[];
   /** Where to go after success, or null to stay; the redirect happens outside the error handling so it is never swallowed. */
   redirectTo?: (data: T) => string | null;
+  /** Replace the current history entry instead of adding one: for when the page the visitor was on no longer exists. */
+  replaceHistory?: boolean;
   /** The mutation may have queued storage objects for deletion (REQ-CAS-02): drain them once the response is out. */
   cleanupStorage?: boolean;
 }
@@ -44,7 +47,7 @@ export async function runMutationData<T>(work: () => Promise<T>, options: Option
   const result = await runAction(work, (error) => getContainer().logger.error("action failed", { error }));
   if (!result.ok) {
     if (result.code === "UNAUTHENTICATED") redirect("/login");
-    return result;
+    return localizeResult(result);
   }
   for (const path of options.revalidate ?? []) {
     if (path.includes("[")) revalidatePath(path, "page");
@@ -52,7 +55,10 @@ export async function runMutationData<T>(work: () => Promise<T>, options: Option
   }
   if (options.cleanupStorage) scheduleStorageCleanup();
   const destination = options.redirectTo?.(result.data);
-  if (destination) redirect(destination);
+  if (destination) {
+    if (options.replaceHistory) redirect(destination, "replace");
+    redirect(destination);
+  }
   return result;
 }
 
@@ -60,4 +66,23 @@ export async function runMutationData<T>(work: () => Promise<T>, options: Option
 export async function runMutation<T>(work: () => Promise<T>, options: Options<T> = {}): Promise<MutationState> {
   const result = await runMutationData(work, options);
   return result.ok ? { ok: true, data: null } : result;
+}
+
+const CONFIRMATIONS = {
+  deleteBoard: "Confirm that you want to delete this board",
+  deleteTask: "Confirm that you want to delete this task",
+  deleteComment: "Confirm that you want to delete this comment",
+  removeMember: "Confirm that you want to remove this member",
+} as const;
+
+/** The refusal a destructive form gets when its confirmation box was not ticked; the use case never runs. */
+export function confirmationRequired(what: keyof typeof CONFIRMATIONS): Promise<ActionResult<null>> {
+  return localizeResult<null>({
+    ok: false,
+    code: "VALIDATION",
+    message: "Confirmation required",
+    reason: "confirmationRequired",
+    fieldErrors: { confirm: [CONFIRMATIONS[what]] },
+    fieldReasons: { confirm: [{ reason: `confirm.${what}` }] },
+  });
 }

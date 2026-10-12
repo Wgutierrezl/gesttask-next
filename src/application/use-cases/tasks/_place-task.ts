@@ -23,7 +23,7 @@ export async function placeTask(
     const outcome = await attemptPlace(deps, taskId, toStageId, anchor);
     if (outcome !== STALE) return outcome;
   }
-  throw new ConflictError("The task changed column concurrently; retry");
+  throw new ConflictError("The task changed column concurrently; retry", { reason: "task.movedConcurrently" });
 }
 
 const STALE = Symbol("stale-origin");
