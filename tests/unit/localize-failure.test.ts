@@ -17,11 +17,12 @@ describe("localizeFailure", () => {
     expect(localizeFailure(f, inEs).message).toBe("Límite de invitado alcanzado: máximo 3 tableros. Regístrate para crear más.");
   });
 
-  it("falls back to the code default when the reason has no entry or there is none, and to the English text otherwise", () => {
-    const unknownReason = failure({ code: "NOT_FOUND", message: "Resource not found", reason: "no.such.reason" });
-    expect(localizeFailure(unknownReason, inEs).message).toBe("Recurso no encontrado");
+  it("falls back from the reason to the throw site's own English text, and only then to the code default", () => {
+    // A reason this catalog does not know keeps the specific English text the site wrote, not a vaguer default.
+    const unknownReason = failure({ code: "CONFLICT", message: "Stage has tasks: choose a destination stage", reason: "no.such.reason" });
+    expect(localizeFailure(unknownReason, inEs).message).toBe("Stage has tasks: choose a destination stage");
+    // The code default is for a failure with nothing more specific to say: no reason and the default message.
     expect(localizeFailure(failure({ code: "CONFLICT", message: "Conflict" }), inEs).message).toBe("Conflicto");
-    // A message the throw site wrote without a reason has no translation: it stays as written.
     expect(localizeFailure(failure({ code: "CONFLICT", message: "Some English text" }), inEs).message).toBe("Some English text");
     expect(localizeFailure(failure({ code: "CONFLICT", message: "Conflict" }), translator({ errors: {} })).message).toBe("Conflict");
   });
@@ -48,6 +49,6 @@ describe("localizeFailure", () => {
 
   it("returns only what the client contract has: reasons never leave the server", () => {
     const f = failure({ code: "RATE_LIMITED", message: "Too many requests", retryAfterSeconds: 90, reason: "x", params: { a: 1 }, fieldReasons: {} });
-    expect(localizeFailure(f, inEs)).toEqual({ ok: false, code: "RATE_LIMITED", message: "Demasiadas solicitudes", retryAfterSeconds: 90 });
+    expect(localizeFailure(f, inEs)).toEqual({ ok: false, code: "RATE_LIMITED", message: "Too many requests", retryAfterSeconds: 90 });
   });
 });

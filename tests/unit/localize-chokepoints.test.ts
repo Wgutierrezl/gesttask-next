@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, UnauthenticatedError, ValidationError } from "@/domain/errors";
 
-const active = { locale: "es" as "en" | "es" };
-vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServerFor(active));
+const active = { locale: "es" as "en" | "es", broken: false };
+vi.mock("next-intl/server", async () => {
+  const server = (await import("@tests/support/intl-server")).intlServerFor(active);
+  return { ...server, getTranslations: async (namespace?: string) => (active.broken ? Promise.reject(new Error("no request scope")) : server.getTranslations(namespace)) };
+});
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const useCases = { createTask: vi.fn(), deleteTask: vi.fn() };
@@ -16,6 +19,7 @@ const form = (entries: Record<string, string>) => Object.entries(entries).reduce
 beforeEach(() => {
   vi.clearAllMocks();
   active.locale = "es";
+  active.broken = false;
 });
 
 describe("Server Action failures are shown in the visitor's language", () => {
@@ -42,5 +46,16 @@ describe("Server Action failures are shown in the visitor's language", () => {
     expect(await authActions.signInEmailAction(undefined, form({ email: "a@b.co", password: "x" }))).toMatchObject({ code: "UNAUTHENTICATED", message: "Correo o contraseña incorrectos" });
     auth.signInEmail.mockRejectedValueOnce(new Error("db down"));
     expect(await authActions.signInEmailAction(undefined, form({ email: "a@b.co", password: "x" }))).toMatchObject({ code: "INTERNAL", message: "Algo salió mal" });
+  });
+
+  it("still answers with the English failure, without reason fields, when the translator cannot be built", async () => {
+    active.broken = true;
+    useCases.createTask.mockRejectedValue(new ConflictError("Guest limit reached: at most 50 tasks. Sign up to create more.", { reason: "guest.taskLimit", params: { max: 50 } }));
+    expect(await tasks.createTaskAction(undefined, form({ stageId: "s", title: "t" }))).toEqual({ ok: false, code: "CONFLICT", message: "Guest limit reached: at most 50 tasks. Sign up to create more." });
+    expect(await tasks.deleteTaskAction(undefined, form({ taskId: "t" }))).toEqual({
+      ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this task"] },
+    });
+    auth.signInEmail.mockRejectedValueOnce(new UnauthenticatedError("Invalid email or password", { reason: "auth.invalidCredentials" }));
+    expect(await authActions.signInEmailAction(undefined, form({ email: "a@b.co", password: "x" }))).toEqual({ ok: false, code: "UNAUTHENTICATED", message: "Invalid email or password" });
   });
 });
