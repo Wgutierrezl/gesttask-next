@@ -1,3 +1,3 @@
-/** How a board role reads in the UI; the stored value `guest` is shown as "Viewer". */
-export const ROLE_LABEL = { owner: "Owner", member: "Member", guest: "Viewer" } as const;
-export type RoleName = keyof typeof ROLE_LABEL;
+/** Board roles in the order the UI lists them; the stored value `guest` is shown as "Viewer" (see `common.roles`). */
+export const ROLES = ["owner", "member", "guest"] as const;
+export type RoleName = (typeof ROLES)[number];

@@ -1,16 +1,22 @@
-import Link from "next/link";
+import { LayoutGrid } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { loadPage } from "@/app/_shared/load-page";
 import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
 import { BoardCard } from "@/components/boards/board-card";
-import { CreateBoardForm } from "@/components/boards/create-board-form";
-import { Pager } from "@/components/boards/pager";
+import { CreateBoardDialog } from "@/components/boards/create-dialogs";
+import { PastTheEnd, Pager } from "@/components/boards/pager";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHero } from "@/components/ui/page-hero";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Boards - GestTask" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("boards") };
+}
 
 export default async function BoardsPage({ searchParams }: { searchParams: Promise<{ page?: string | string[] }> }) {
   await requirePageActor();
+  const t = await getTranslations("boards");
   const page = parsePage((await searchParams).page);
   const { items, hasNext, roles } = await loadPage(async () => {
     const { listMyBoards, listMyMemberships } = getContainer().useCases;
@@ -20,30 +26,27 @@ export default async function BoardsPage({ searchParams }: { searchParams: Promi
     return { ...shown, roles: new Map(memberships.map((m) => [m.boardId, m.role])) };
   });
   return (
-    <main className="flex flex-col gap-8">
-      <section aria-labelledby="boards-heading">
-        <h1 id="boards-heading" className="text-xl font-semibold">Your boards</h1>
-        {items.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-600">
-            {page > 1 ? (
-              <>No boards on this page. <Link href="/boards" className="underline">Go to the first page</Link></>
-            ) : (
-              "You have no boards yet. Create your first one below."
-            )}
-          </p>
+    <main className="flex flex-col gap-10">
+      <PageHero
+        title={t("title")}
+        description={t("description")}
+        meta={items.length > 0 ? { icon: <LayoutGrid />, text: t(page === 1 && !hasNext ? "activeCount" : "activeCountPage", { count: items.filter((board) => board.status === "active").length }) } : undefined}
+        actions={<CreateBoardDialog />}
+      />
+      {items.length === 0 ? (
+        page > 1 ? (
+          <PastTheEnd what="boards" href="/boards" />
         ) : (
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {items.map((board) => (
-              <BoardCard key={board.id} board={board} role={roles.get(board.id)} />
-            ))}
-          </ul>
-        )}
-        <Pager page={page} hasNext={hasNext} basePath="/boards" />
-      </section>
-      <section aria-labelledby="create-heading" className="max-w-md">
-        <h2 id="create-heading" className="mb-3 text-lg font-medium">Create a board</h2>
-        <CreateBoardForm />
-      </section>
+          <EmptyState icon={<LayoutGrid className="size-10" />} title={t("emptyTitle")} description={t("emptyDescription")} />
+        )
+      ) : (
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((board) => (
+            <BoardCard key={board.id} board={board} role={roles.get(board.id)} />
+          ))}
+        </ul>
+      )}
+      <Pager page={page} hasNext={hasNext} basePath="/boards" />
     </main>
   );
 }

@@ -1,56 +1,81 @@
+import { Eye, Workflow } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { LIST_LOAD_CAP, loadCapped } from "@/app/_shared/kanban-data";
 import { loadPage } from "@/app/_shared/load-page";
 import { pageWindow, parsePage, slicePage } from "@/app/_shared/pagination";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 import { BoardHeader } from "@/components/boards/board-header";
-import { CreatePipelineForm } from "@/components/boards/create-pipeline-form";
-import { MembersPanel } from "@/components/boards/members-panel";
+import { CreatePipelineDialog } from "@/components/boards/create-dialogs";
+import { MembersDialog } from "@/components/boards/members-dialog";
+import { MembersDialogBody } from "@/components/boards/members-dialog-body";
 import { PipelineList } from "@/components/boards/pipeline-list";
 import { Pager, hrefFor } from "@/components/boards/pager";
+import { PageHero } from "@/components/ui/page-hero";
 import { getContainer } from "@/infrastructure/container";
 
-export const metadata = { title: "Board - GestTask" };
+export async function generateMetadata() {
+  return { title: (await getTranslations("meta"))("board") };
+}
 
 interface BoardPageProps {
   params: Promise<{ boardId: string }>;
-  searchParams: Promise<{ membersPage?: string | string[]; pipelinesPage?: string | string[] }>;
+  searchParams: Promise<{ pipelinesPage?: string | string[] }>;
 }
 
 export default async function BoardPage({ params, searchParams }: BoardPageProps) {
-  await requirePageActor();
+  const actor = await requirePageActor();
+  const t = await getTranslations("pipeline");
   const { boardId } = await params;
-  const query = await searchParams;
-  const [membersPage, pipelinesPage] = [parsePage(query.membersPage), parsePage(query.pipelinesPage)];
-  const { board, role, members, pipelines } = await loadPage(async () => {
-    const { getBoard, listMemberProfiles, listPipelines } = getContainer().useCases;
+  const pipelinesPage = parsePage((await searchParams).pipelinesPage);
+  const { board, role, members, pipelines, stagesByPipeline } = await loadPage(async () => {
+    const { getBoard, listMemberProfiles, listPipelines, listStages } = getContainer().useCases;
     // `getBoard` goes first: it is the authorization check, and a foreign board must not trigger the other reads.
     const detail = await getBoard({ boardId });
-    const [members, pipelines] = await Promise.all([
-      listMemberProfiles({ boardId, ...pageWindow(membersPage) }),
+    const [members, listed] = await Promise.all([
+      // The members dialog shows them all, up to the cap; the settings page pages through any number.
+      loadCapped((page) => listMemberProfiles({ boardId, ...page }), LIST_LOAD_CAP),
       listPipelines({ boardId, ...pageWindow(pipelinesPage) }),
     ]);
-    return { ...detail, members: slicePage(members), pipelines: slicePage(pipelines) };
+    const pipelines = slicePage(listed);
+    // Only the stage names of the pipelines on this page: one light read each (a pipeline holds at most 20 stages).
+    const stages = await Promise.all(pipelines.items.map((pipeline) => listStages({ pipelineId: pipeline.id, limit: 50, offset: 0 })));
+    return { ...detail, members, pipelines, stagesByPipeline: new Map(pipelines.items.map((pipeline, i) => [pipeline.id, stages[i]!.map((stage) => stage.name)])) };
   });
-  const base = `/boards/${board.id}`;
-  // Each list pages on its own parameter and keeps the other list where it is.
-  const keep = (name: string, page: number) => (page > 1 ? { [name]: String(page) } : {});
-  const membersLink = { basePath: base, param: "membersPage", preserve: keep("pipelinesPage", pipelinesPage) };
-  const pipelinesLink = { basePath: base, param: "pipelinesPage", preserve: keep("membersPage", membersPage) };
+  const isOwner = role === "owner";
+  const pipelinesLink = { basePath: `/boards/${board.id}`, param: "pipelinesPage" };
   return (
     <main className="flex flex-col gap-8">
-      <BoardHeader board={board} role={role} />
-      <section aria-labelledby="pipelines-heading">
-        <h2 id="pipelines-heading" className="mb-3 text-lg font-medium">Pipelines</h2>
-        <PipelineList boardId={board.id} pipelines={pipelines.items} pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined} />
+      <BoardHeader board={board} role={role}>
+        <MembersDialog boardName={board.name} canManage={isOwner}>
+          <MembersDialogBody boardId={board.id} members={members.items} currentUserId={actor.userId} canManage={isOwner} truncated={members.truncated} />
+        </MembersDialog>
+      </BoardHeader>
+      <section aria-labelledby="pipelines-heading" className="flex flex-col gap-8">
+        <PageHero
+          as="h2"
+          headingId="pipelines-heading"
+          title={t("heading")}
+          description={t("description")}
+          meta={{ icon: <Workflow />, text: t(pipelinesPage === 1 && !pipelines.hasNext ? "count" : "countPage", { count: pipelines.items.length }) }}
+          actions={
+            isOwner ? (
+              <CreatePipelineDialog boardId={board.id} />
+            ) : (
+              <span className="flex items-center gap-2 rounded-xl border border-border bg-surface-muted px-6 py-3 text-fg-muted">
+                <Eye aria-hidden="true" className="size-5" />
+                {t("viewOnly")}
+              </span>
+            )
+          }
+        />
+        <PipelineList
+          boardId={board.id}
+          role={role}
+          pipelines={pipelines.items.map((pipeline) => ({ id: pipeline.id, name: pipeline.name, description: pipeline.description, stages: stagesByPipeline.get(pipeline.id) ?? [] }))}
+          pastTheEndHref={pipelinesPage > 1 ? hrefFor(pipelinesLink, 1) : undefined}
+        />
         <Pager page={pipelinesPage} hasNext={pipelines.hasNext} {...pipelinesLink} />
       </section>
-      {role === "owner" ? (
-        <section aria-labelledby="new-pipeline-heading">
-          <h2 id="new-pipeline-heading" className="mb-3 text-lg font-medium">Create pipeline</h2>
-          <CreatePipelineForm boardId={board.id} />
-        </section>
-      ) : null}
-      <MembersPanel members={members.items} pastTheEndHref={membersPage > 1 ? hrefFor(membersLink, 1) : undefined} />
-      <Pager page={membersPage} hasNext={members.hasNext} {...membersLink} />
     </main>
   );
 }

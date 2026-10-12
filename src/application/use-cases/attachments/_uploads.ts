@@ -15,13 +15,13 @@ export function assertLinkable(found: Attachment[], ids: readonly string[], acto
   const rows = ids.map((id) => byId.get(id));
   if (rows.some((a) => !a || a.uploaderId !== actor.userId || a.boardId !== boardId)) throw new NotFoundError();
   const usable = rows as Attachment[];
-  if (usable.some((a) => a.status !== "pending")) throw new ConflictError("This file is already attached to a comment");
+  if (usable.some((a) => a.status !== "pending")) throw new ConflictError("This file is already attached to a comment", { reason: "attachment.alreadyAttached" });
   if (usable.some((a) => a.createdAt.getTime() < now.getTime() - PENDING_UPLOAD_TTL_MS)) throw expired();
   return usable;
 }
 
-const expired = () => new ValidationError("Invalid input", { attachmentIds: ["A file took too long to attach. Upload it again."] });
-const notUploaded = () => new ValidationError("Invalid input", { attachmentIds: ["A file did not finish uploading. Try attaching it again."] });
+const expired = () => new ValidationError("Invalid input", { attachmentIds: ["A file took too long to attach. Upload it again."] }, { attachmentIds: [{ reason: "attachmentIds.expired" }] });
+const notUploaded = () => new ValidationError("Invalid input", { attachmentIds: ["A file did not finish uploading. Try attaching it again."] }, { attachmentIds: [{ reason: "attachmentIds.notUploaded" }] });
 
 /** The media type without parameters, lower-cased: storages may report `text/plain; charset=utf-8` for a `text/plain` ticket. */
 const mediaType = (contentType: string): string => (contentType.split(";")[0] ?? "").trim().toLowerCase();

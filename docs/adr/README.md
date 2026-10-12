@@ -23,3 +23,7 @@ wins: an ADR is amended in place when a later slice changes it, and says so in i
 | [0016](0016-testing-strategy-and-ci.md) | Test pyramid and CI |
 | [0017](0017-local-first-and-go-live-last.md) | Everything runs locally; cloud accounts last, by configuration |
 | [0018](0018-guest-sandbox-and-scheduled-maintenance.md) | Demo visitors get a private sandbox; one daily cron cleans up |
+| [0019](0019-cross-pipeline-move.md) | A task can move to any pipeline of its board |
+| [0020](0020-design-system.md) | Token-based design system with local primitives, font and pinned icons |
+| [0021](0021-i18n-next-intl.md) | next-intl without URL routing: cookie locale, no-JS switcher, reason keys translated at the web layer |
+| [0022](0022-theme-tokens.md) | Light and dark themes through semantic tokens, a theme cookie and no inline script |

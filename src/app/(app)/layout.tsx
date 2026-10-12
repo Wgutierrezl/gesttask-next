@@ -1,7 +1,7 @@
-import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { GuestBanner } from "@/components/boards/guest-banner";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AppHeader } from "@/components/shell/app-header";
 import { requirePageActor } from "@/app/_shared/require-page-actor";
 
 // Per-request session: never prerendered at build time (no database or secrets there).
@@ -10,18 +10,17 @@ export const dynamic = "force-dynamic";
 /** The authoritative guard: the proxy only pre-filters on the cookie, this validates the session. */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const actor = await requirePageActor();
+  const t = await getTranslations("shell");
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <Link href="/boards" className="font-semibold">GestTask</Link>
-        <div className="flex items-center gap-4">
-          <Link href="/boards" className="text-sm underline">Boards</Link>
-          <Link href="/dashboard" className="text-sm underline">Dashboard</Link>
-          <SignOutButton />
-        </div>
-      </header>
-      {actor.isGuest ? <GuestBanner /> : null}
-      {children}
-    </div>
+    <>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-40 focus:rounded-control focus:bg-surface focus:px-4 focus:py-2 focus:shadow-pop">
+        {t("skipToContent")}
+      </a>
+      <AppHeader />
+      <div id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none sm:px-6 lg:px-8">
+        {actor.isGuest ? <GuestBanner /> : null}
+        {children}
+      </div>
+    </>
   );
 }
