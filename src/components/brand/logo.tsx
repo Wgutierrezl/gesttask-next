@@ -39,12 +39,14 @@ interface LogoProps {
   markClassName?: string;
   /** Wordmark text classes. Use `sr-only sm:not-sr-only` to show the mark alone on small screens. */
   wordmarkClassName?: string;
+  /** Mark above the wordmark, both centred: the brand block of the sign-in and sign-up pages. */
+  stacked?: boolean;
 }
 
 /** Mark plus the "GestTask" wordmark; the accessible name is the wordmark, so the mark is decorative. */
-export function Logo({ className = "", markClassName = "size-7", wordmarkClassName = "" }: LogoProps) {
+export function Logo({ className = "", markClassName = "size-7", wordmarkClassName = "", stacked = false }: LogoProps) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`inline-flex items-center ${stacked ? "flex-col gap-4 text-center" : "gap-2"} ${className}`}>
       <LogoMark className={`${markClassName} shrink-0`} />
       <span className={`font-semibold tracking-tight ${wordmarkClassName}`}>
         <span className="text-fg">Gest</span>

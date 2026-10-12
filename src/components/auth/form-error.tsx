@@ -1,7 +1,8 @@
 import { useTranslations } from "next-intl";
 import type { ActionFailure } from "@/application/result";
 
-export type AuthErrors = ReturnType<typeof useTranslations<"auth.errors">>;
+/** The two messages `describeFailure` needs; any namespace that has them (auth.errors, attachments.errors) can supply them. */
+export type AuthErrors = (key: "rateLimited" | "internal", values?: { minutes: number }) => string;
 
 /**
  * Turns a failed action into a message the visitor can act on. Field errors normally sit next to their inputs

@@ -8,6 +8,6 @@ export async function assertAssigneeIsMember(
   assigneeId: string | null,
 ): Promise<void> {
   if (assigneeId !== null && !(await members.find(boardId, assigneeId))) {
-    throw new ValidationError("Invalid input", { assigneeId: ["Assignee must be a member of the board"] });
+    throw new ValidationError("Invalid input", { assigneeId: ["Assignee must be a member of the board"] }, { assigneeId: [{ reason: "assigneeId.notMember" }] });
   }
 }

@@ -9,7 +9,7 @@ vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => u
 
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";
 const getBoard = vi.fn();
-const useCases = { getBoard, listMemberProfiles: vi.fn(async () => []), listPipelines: vi.fn(async () => []) };
+const useCases = { getBoard, listMemberProfiles: vi.fn(async () => []), listPipelines: vi.fn(async () => []), listStages: vi.fn(async () => []) };
 vi.mock("@/infrastructure/container", () => ({
   getContainer: () => ({ session: { getActor: async () => ({ userId: "u", isGuest: false }) }, useCases, logger: { error: vi.fn() } }),
 }));

@@ -155,6 +155,12 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     const boardUrl = page.url();
     await expectLegible(page, 3);
 
+    // The members dialog: the add panel, the member cards and the permissions legend, on the elevated surface.
+    await page.getByRole("button", { name: "Manage members" }).click();
+    await expect(page.getByRole("dialog", { name: "Manage members" })).toBeVisible();
+    await expectLegible(page, 6, "dialog[open]");
+    await page.keyboard.press("Escape");
+
     await page.goto(`${boardUrl}/dashboard`);
     await expectLegible(page, 5);
 
@@ -194,6 +200,22 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     await expect(page.getByRole("heading", { name: /^Comments \(\d+\)$/ })).toBeVisible();
     await expectLegible(page, 8);
   });
+});
+
+test.describe("dark theme legibility of the public pages (REQ-THM-04)", () => {
+  // Signed out: the landing, login and register pages are what a visitor sees first, in either language.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const locale of ["en", "es"] as const) {
+    for (const path of ["/", "/login", "/register"]) {
+      test(`${path} in ${locale}`, async ({ page, context, baseURL }) => {
+        await context.addCookies([{ name: "locale", value: locale, url: baseURL! }]);
+        await page.goto(path);
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expectLegible(page, 3);
+      });
+    }
+  }
 });
 
 // Both tests only read the seeded card ("Design the dashboard widgets"); the one spec that touches it (task-detail) only adds a comment to it,

@@ -68,7 +68,7 @@ describe("create dialogs", () => {
     render(<CreatePipelineDialog boardId="b1" />);
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
-    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Create pipeline" }));
     await waitFor(() => expect(createPipelineAction).toHaveBeenCalled());
     const sent = (createPipelineAction.mock.calls[0] as unknown as [unknown, FormData])[1];
     expect(sent.get("boardId")).toBe("b1");
@@ -81,7 +81,7 @@ describe("create dialogs", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create pipeline" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "Bugs");
     const dialog = screen.getByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create pipeline" }));
     expect(await within(dialog).findByText("Name is required")).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "New pipeline" })).toBeTruthy();
   });

@@ -1,8 +1,10 @@
 "use client";
 
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { ALLOWED_CONTENT_TYPES, MAX_ATTACHMENT_BYTES } from "@/application/attachment-policy";
 import { Input } from "@/components/ui/field";
+import type { Locale } from "@/i18n/config";
 import { formatBytes } from "./format";
 import { MAX_FILES_PER_COMMENT, type PickedFile } from "./use-attachments";
 
@@ -14,8 +16,6 @@ interface AttachmentPickerProps {
   demoGuest: boolean;
 }
 
-const statusText = (file: PickedFile) => (file.status === "uploading" ? "uploading..." : file.status === "ready" ? "ready" : (file.message ?? "failed"));
-
 function StatusIcon({ status }: { status: PickedFile["status"] }) {
   if (status === "uploading") return <Loader2 aria-hidden="true" className="size-4 animate-spin text-fg-subtle" />;
   if (status === "ready") return <CheckCircle2 aria-hidden="true" className="size-4 text-success-600" />;
@@ -24,9 +24,12 @@ function StatusIcon({ status }: { status: PickedFile["status"] }) {
 
 /** File input plus the state of each chosen file. Ready files travel with the comment as hidden `attachmentIds`. */
 export function AttachmentPicker({ files, onPick, onRemove, onRetry, demoGuest }: AttachmentPickerProps) {
+  const t = useTranslations("attachments");
+  const locale = useLocale() as Locale;
+  const statusText = (file: PickedFile) => (file.status === "uploading" ? t("uploading") : file.status === "ready" ? t("ready") : (file.message ?? t("failed")));
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor="comment-files" className="text-sm font-medium text-fg-strong">Attach files</label>
+      <label htmlFor="comment-files" className="text-sm font-medium text-fg-strong">{t("label")}</label>
       <Input
         id="comment-files"
         type="file"
@@ -40,8 +43,8 @@ export function AttachmentPicker({ files, onPick, onRemove, onRetry, demoGuest }
         className="file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1 file:text-sm file:font-medium file:text-fg-strong"
       />
       <p id="comment-files-help" className="text-xs text-fg-muted">
-        PNG, JPEG, WebP, PDF or plain text, up to {formatBytes(MAX_ATTACHMENT_BYTES)} each and {MAX_FILES_PER_COMMENT} per comment.
-        {demoGuest ? " Demo sessions can attach up to 5 files in total." : ""}
+        {t("help", { size: formatBytes(MAX_ATTACHMENT_BYTES, locale), max: MAX_FILES_PER_COMMENT })}
+        {demoGuest ? ` ${t("demoQuota")}` : ""}
       </p>
       {/* Always in the page, so a change is announced the moment it appears. The failed text is announced here, once. */}
       <div aria-live="polite">
@@ -52,9 +55,9 @@ export function AttachmentPicker({ files, onPick, onRemove, onRetry, demoGuest }
               <StatusIcon status={file.status} />
               <span className={file.status === "failed" ? "text-danger-fg" : "text-fg-strong"}>{`${file.name}: ${statusText(file)}`}</span>
               {file.status === "failed" && file.retryable ? (
-                <button type="button" onClick={() => onRetry(file.key)} aria-label={`Retry ${file.name}`} className="rounded text-brand-link underline hover:text-accent focus-visible:outline-2 focus-visible:outline-ring">Retry</button>
+                <button type="button" onClick={() => onRetry(file.key)} aria-label={t("retryAria", { name: file.name })} className="rounded text-brand-link underline hover:text-accent focus-visible:outline-2 focus-visible:outline-ring">{t("retry")}</button>
               ) : null}
-              <button type="button" onClick={() => onRemove(file.key)} aria-label={`Remove ${file.name}`} className="rounded text-fg-muted underline hover:text-fg focus-visible:outline-2 focus-visible:outline-ring">Remove</button>
+              <button type="button" onClick={() => onRemove(file.key)} aria-label={t("removeAria", { name: file.name })} className="rounded text-fg-muted underline hover:text-fg focus-visible:outline-2 focus-visible:outline-ring">{t("remove")}</button>
               {file.attachmentId ? <input type="hidden" name="attachmentIds" value={file.attachmentId} /> : null}
             </li>
           ))}
