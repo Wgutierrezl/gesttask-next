@@ -9,6 +9,8 @@ import type { ColumnView, TaskCardView } from "@/components/kanban/types";
 const moveTaskAction = vi.hoisted(() => vi.fn());
 const moveTaskToEndAction = vi.hoisted(() => vi.fn());
 vi.mock("@/app/_actions/tasks", () => ({ moveTaskAction, moveTaskToEndAction }));
+const stageActions = vi.hoisted(() => ({ createStageAction: vi.fn(), renameStageAction: vi.fn(), reorderStageAction: vi.fn(), setStageDoneAction: vi.fn(), deleteStageAction: vi.fn() }));
+vi.mock("@/app/_actions/stages", () => stageActions);
 const refresh = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 const dnd = vi.hoisted(() => ({ props: undefined as undefined | { onDragEnd: (event: unknown) => void; accessibility?: { announcements: { onDragStart: (e: unknown) => string } } } }));
@@ -43,6 +45,56 @@ beforeEach(() => {
   moveTaskToEndAction.mockResolvedValue({ ok: true, data: null });
 });
 afterEach(cleanup);
+
+describe("KanbanBoard stage management", () => {
+  const owner = { canWrite: true, canManageStages: true, pipelineId: "p1", ...props };
+
+  it("gives the owner a stage menu in every column and a dashed Add stage column at the end, keeping the column names", () => {
+    render(<KanbanBoard columns={columns()} {...owner} />);
+    for (const name of ["To do", "Done"]) {
+      expect(within(column(name)).getByRole("button", { name: `Stage options for ${name}` })).toBeTruthy();
+    }
+    expect(screen.getByRole("region", { name: "To do, 2 tasks" })).toBeTruthy();
+    const regions = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"));
+    expect(regions.filter((label) => /, \d+ tasks?$/.test(label ?? ""))).toEqual(["To do, 2 tasks", "Done, 1 task"]);
+    const add = screen.getByRole("button", { name: "Add stage" });
+    expect(screen.getAllByRole("region").some((region) => region.contains(add))).toBe(false);
+  });
+
+  it("tells each menu which neighbour its stage goes after, so moves are relative", async () => {
+    render(<KanbanBoard columns={columns()} {...owner} />);
+    await userEvent.click(within(column("Done")).getByRole("button", { name: "Stage options for Done" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Move left" }));
+    await waitFor(() => expect(stageActions.reorderStageAction).toHaveBeenCalled());
+    expect(Object.fromEntries([...(stageActions.reorderStageAction.mock.calls[0]![1] as FormData).entries()])).toEqual({ stageId: "done", afterStageId: "" });
+  });
+
+  it("creates a stage from the Add stage column", async () => {
+    stageActions.createStageAction.mockResolvedValue({ ok: true, data: null });
+    render(<KanbanBoard columns={columns()} {...owner} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add stage" }));
+    await userEvent.type(screen.getByLabelText("Stage name"), "Review{Enter}");
+    await waitFor(() => expect(stageActions.createStageAction).toHaveBeenCalled());
+    expect(Object.fromEntries([...(stageActions.createStageAction.mock.calls[0]![1] as FormData).entries()])).toEqual({ pipelineId: "p1", name: "Review" });
+  });
+
+  it("offers an empty board's owner the Add stage column", () => {
+    render(<KanbanBoard columns={[]} {...owner} />);
+    expect(screen.getByRole("button", { name: "Add stage" })).toBeTruthy();
+  });
+
+  it("gives members who can write tasks, and viewers, plain headers with no menu and no Add stage", () => {
+    const { unmount } = render(<KanbanBoard columns={columns()} canWrite {...props} pipelineId="p1" />);
+    expect(screen.queryByRole("button", { name: /Stage options/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add stage" })).toBeNull();
+    expect(within(column("To do")).getByRole("heading", { level: 3, name: "To do" })).toBeTruthy();
+    unmount();
+    render(<KanbanBoard columns={columns()} canWrite={false} canManageStages pipelineId="p1" {...props} />);
+    expect(screen.queryByRole("button", { name: /Stage options/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add stage" })).toBeNull();
+    expect(within(column("To do")).getByTestId("column-count").textContent).toBe("2");
+  });
+});
 
 describe("KanbanBoard task creation", () => {
   it("gives writers an add button at the bottom of each column, named after the stage", () => {

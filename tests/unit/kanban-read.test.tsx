@@ -152,13 +152,17 @@ describe("PipelinePage", () => {
     expect(useCases.listStages).toHaveBeenCalledWith({ pipelineId: PIPELINE_ID, limit: 200, offset: 0 });
   });
 
-  it("offers stage management to owners only, with each stage's task count", async () => {
+  it("offers stage management to owners only, in each column header, and no separate panel", async () => {
     const owner = renderToStaticMarkup(await PipelinePage({ params: params() }));
-    expect(owner).toContain("Manage stages");
-    expect(owner).toContain('aria-label="Move To do right"');
+    expect(owner).toContain('aria-label="Stage options for To do"');
+    expect(owner).toContain('aria-label="Stage options for Done"');
+    expect(owner).toContain("Add stage");
+    expect(owner).not.toContain("Manage stages");
     for (const role of ["member", "guest"]) {
       useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE_ID, boardId: BOARD_ID, name: "Sprint", description: "" }, role });
-      expect(renderToStaticMarkup(await PipelinePage({ params: params() }))).not.toContain("Manage stages");
+      const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+      expect(html).not.toContain("Stage options for");
+      expect(html).not.toContain(">Add stage<");
     }
   });
 

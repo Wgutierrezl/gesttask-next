@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
 import { describeFailure, type AuthErrors } from "@/components/auth/form-error";
+import { AddStageColumn } from "./add-stage-column";
 import { AddTaskButton } from "./add-task-button";
 import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
@@ -16,6 +17,7 @@ import { KanbanColumn } from "./kanban-column";
 import { collideBoard } from "./collision";
 import { PipelineTabs, tabElementId, type PipelineSwitcherData } from "./pipeline-tabs";
 import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
+import { manageContextFor } from "./stage-management";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
 import type { ColumnView, MemberOption } from "./types";
 
@@ -44,13 +46,18 @@ interface KanbanBoardProps {
   switcher?: PipelineSwitcherData;
   /** Who a new task can be assigned to. Writers get an add-task button per column only when this is given. */
   members?: MemberOption[];
+  /** The owner can rename, reorder, flag as done and delete stages from each column, and add one at the end. Needs `pipelineId`. */
+  canManageStages?: boolean;
+  pipelineId?: string;
+  /** Some tasks were not loaded: no stage is assumed empty when one is deleted. */
+  tasksTruncated?: boolean;
 }
 
 /**
  * The board. Writers can drag cards (pointer or keyboard) or use each card's Move menu; both go through one
  * optimistic path that rolls back and explains when the server refuses. Viewers get the same columns read-only.
  */
-export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members }: KanbanBoardProps) {
+export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members, canManageStages = false, pipelineId, tasksTruncated = false }: KanbanBoardProps) {
   const router = useRouter();
   const tErrors = useTranslations("auth.errors");
   const t = useTranslations("kanban");
@@ -169,9 +176,12 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
       {status}
       {tabs}
       {scroller(
-        shown.map((column) => (
-          <DroppableColumn key={column.stage.id} column={column} columns={shown} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
-        )),
+        <>
+          {shown.map((column, index) => (
+          <DroppableColumn key={column.stage.id} column={column} columns={shown} manage={canManageStages && pipelineId ? manageContextFor(shown.map((candidate) => candidate.stage), index, tasksTruncated) : undefined} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
+          ))}
+          {canManageStages && pipelineId ? <AddStageColumn pipelineId={pipelineId} /> : null}
+        </>,
       )}
       <DragOverlay>
         {/* A visual copy only: hidden from assistive tech so the card never appears twice. */}

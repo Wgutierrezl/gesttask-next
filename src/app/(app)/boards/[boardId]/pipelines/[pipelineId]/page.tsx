@@ -10,7 +10,6 @@ import { Alert } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { buildColumns } from "@/components/kanban/columns";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
-import { StageManager } from "@/components/kanban/stage-manager";
 import { getContainer } from "@/infrastructure/container";
 
 function Notice({ children }: { children: ReactNode }) {
@@ -62,10 +61,7 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
       {data.stages.truncated ? <Notice>{t("page.truncatedStages", { count: count(LIST_LOAD_CAP) })}</Notice> : null}
       {data.members.truncated ? <Notice>{t("page.truncatedMembers", { count: count(LIST_LOAD_CAP) })}</Notice> : null}
       {canWrite && columns.length === 0 ? <Notice>{t("addStageFirst")}</Notice> : null}
-      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} switcher={{ boardId, pipelineId, pipelines: data.pipelines }} members={canWrite ? data.members.items.map(({ userId, name }) => ({ userId, name })) : undefined} />
-      {data.role === "owner" ? (
-        <StageManager pipelineId={pipelineId} truncated={data.loaded.truncated} stages={columns.map(({ stage, tasks }) => ({ ...stage, taskCount: tasks.length }))} />
-      ) : null}
+      <KanbanBoard columns={columns} canWrite={canWrite} names={Object.fromEntries(data.names)} taskBase={`/boards/${boardId}/pipelines/${pipelineId}/tasks/`} switcher={{ boardId, pipelineId, pipelines: data.pipelines }} members={canWrite ? data.members.items.map(({ userId, name }) => ({ userId, name })) : undefined} pipelineId={pipelineId} canManageStages={data.role === "owner"} tasksTruncated={data.loaded.truncated} />
     </main>
   );
 }
