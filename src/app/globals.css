@@ -104,6 +104,11 @@
   --color-tint-violet-fg: var(--tint-violet-fg);
   --color-wordmark-from: var(--wordmark-from);
   --color-wordmark-to: var(--wordmark-to);
+  --color-stat-blue: var(--stat-blue);
+  --color-stat-violet: var(--stat-violet);
+  --color-stat-green: var(--stat-green);
+  --color-stat-orange: var(--stat-orange);
+  --color-stat-pink: var(--stat-pink);
   --color-elevated-edge: var(--elevated-edge);
   --shadow-dialog: var(--elev-dialog);
   --shadow-card: var(--elev-card);
@@ -149,6 +154,11 @@
   --tint-violet-from: #f5f3ff;
   --tint-violet-to: #faf5ff;
   --tint-violet-fg: #7c3aed;
+  --stat-blue: #1d4ed8;
+  --stat-violet: #7e22ce;
+  --stat-green: #047857;
+  --stat-orange: #c2410c;
+  --stat-pink: #be185d;
   --wordmark-from: #2563eb;
   --wordmark-to: #4f46e5;
   --elevated-edge: transparent;
@@ -203,6 +213,11 @@
   --tint-violet-from: #2a1f52;
   --tint-violet-to: #33225e;
   --tint-violet-fg: #c4b0ff;
+  --stat-blue: #93b5ff;
+  --stat-violet: #d8b4fe;
+  --stat-green: #6ee7b7;
+  --stat-orange: #fdba74;
+  --stat-pink: #f9a8d4;
   --wordmark-from: #60a5fa;
   --wordmark-to: #818cf8;
   --elevated-edge: #263248;
@@ -256,6 +271,11 @@
     --tint-violet-from: #2a1f52;
     --tint-violet-to: #33225e;
     --tint-violet-fg: #c4b0ff;
+    --stat-blue: #93b5ff;
+    --stat-violet: #d8b4fe;
+    --stat-green: #6ee7b7;
+    --stat-orange: #fdba74;
+    --stat-pink: #f9a8d4;
     --wordmark-from: #60a5fa;
     --wordmark-to: #818cf8;
     --elevated-edge: #263248;
@@ -278,6 +298,23 @@
 /* The pipeline's own accent: saturated enough to carry a white icon on both themes (decorative, never text). */
 @utility bg-violet-gradient {
   background-image: linear-gradient(135deg, #7c3aed, #9333ea);
+}
+
+/* Icon boxes of the dashboard cards: saturated enough to carry a white glyph on both themes (decorative, never text). */
+@utility bg-stat-blue-gradient {
+  background-image: linear-gradient(135deg, #3b82f6, #4f46e5);
+}
+@utility bg-stat-violet-gradient {
+  background-image: linear-gradient(135deg, #a855f7, #9333ea);
+}
+@utility bg-stat-green-gradient {
+  background-image: linear-gradient(135deg, #10b981, #059669);
+}
+@utility bg-stat-orange-gradient {
+  background-image: linear-gradient(135deg, #f97316, #ea580c);
+}
+@utility bg-stat-pink-gradient {
+  background-image: linear-gradient(135deg, #ec4899, #db2777);
 }
 
 /* Wordmark text: lighter stops in dark keep it readable on the dark canvas. */
