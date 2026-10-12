@@ -8,7 +8,7 @@ import type { Locale } from "@/i18n/config";
 import { requestUploadAction } from "@/app/_actions/uploads";
 import { describeFailure } from "@/components/auth/form-error";
 import { formatBytes } from "./format";
-import { uploadFile } from "./upload-strategy";
+import { UploadError, uploadFile } from "./upload-strategy";
 
 export const MAX_FILES_PER_COMMENT = MAX_ATTACHMENTS_PER_COMMENT;
 
@@ -78,9 +78,12 @@ export function useAttachments(taskId: string) {
         if (signal.aborted) return;
         pending.current.delete(key);
         patch(key, { status: "ready", attachmentId: job.attachmentId, retryable: false });
-      } catch {
+      } catch (error) {
         // Whatever failed (the storage said no, the network dropped), the visitor gets the same safe, localized message.
         if (signal.aborted) return;
+        // The storage's own refusals are expected; anything else is a bug that would otherwise look like a bad network.
+        // eslint-disable-next-line no-console -- the browser console is the only logger on the client
+        if (!(error instanceof UploadError)) console.error("attachment upload failed", error);
         patch(key, { status: "failed", retryable: true, message: t("uploadFailed") });
       }
     },

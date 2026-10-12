@@ -304,7 +304,7 @@
   },
   "comments": {
     "heading": "Comments ({count})",
-    "truncated": "Showing the first 200 comments of this task.",
+    "truncated": "Showing the first {count} comments of this task.",
     "empty": "No comments yet.",
     "by": "Comment by {name}",
     "posted": "Posted",

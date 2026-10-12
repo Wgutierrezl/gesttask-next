@@ -136,7 +136,7 @@ export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Lev
 
 export function TaskComments({ detail }: { detail: TaskDetail }) {
   const { task, comments, canWrite, actor } = detail;
-  return <CommentsSection taskId={task.id} comments={comments.items.map(toCommentRow)} truncated={comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />;
+  return <CommentsSection taskId={task.id} comments={comments.items.map(toCommentRow)} truncated={comments.truncated} loadCap={LIST_LOAD_CAP} canAttach={canWrite} demoGuest={actor.isGuest} />;
 }
 
 export function StagesTruncatedNotice({ detail }: { detail: TaskDetail }) {

@@ -135,21 +135,21 @@ describe("CommentForm", () => {
 
 describe("CommentsSection", () => {
   it("lists the comments oldest first under a heading and offers the form", () => {
-    render(<CommentsSection taskId="t1" comments={[row({ id: "a", body: "first" }), row({ id: "b", body: "second", authorName: "Marco" })]} truncated={false} canAttach demoGuest={false} />);
+    render(<CommentsSection taskId="t1" comments={[row({ id: "a", body: "first" }), row({ id: "b", body: "second", authorName: "Marco" })]} truncated={false} loadCap={200} canAttach demoGuest={false} />);
     expect(screen.getByRole("heading", { name: "Comments (2)" })).toBeTruthy();
     expect(screen.getAllByRole("article").map((a) => a.textContent)).toEqual([expect.stringContaining("first"), expect.stringContaining("second")]);
     expect(screen.getByLabelText("Add a comment")).toBeTruthy();
   });
 
   it("says so when there are none", () => {
-    render(<CommentsSection taskId="t1" comments={[]} truncated={false} canAttach demoGuest={false} />);
+    render(<CommentsSection taskId="t1" comments={[]} truncated={false} loadCap={200} canAttach demoGuest={false} />);
     expect(screen.getByText("No comments yet.")).toBeTruthy();
     expect(screen.queryAllByRole("article")).toEqual([]);
   });
 
   it("says when older or newer comments are left out of the page", () => {
-    render(<CommentsSection taskId="t1" comments={[row()]} truncated canAttach demoGuest={false} />);
-    expect(screen.getByRole("status").textContent).toMatch(/first 200 comments/i);
+    render(<CommentsSection taskId="t1" comments={[row()]} truncated loadCap={50} canAttach demoGuest={false} />);
+    expect(screen.getByRole("status").textContent).toBe("Showing the first 50 comments of this task.");
   });
 });
 
@@ -200,13 +200,13 @@ describe("comments in Spanish", () => {
   });
 
   it("counts, warns about truncation, says when empty and explains why guests cannot attach", () => {
-    const { rerender } = render(<CommentsSection taskId="t1" comments={[]} truncated canAttach={false} demoGuest={false} />, es);
+    const { rerender } = render(<CommentsSection taskId="t1" comments={[]} truncated loadCap={200} canAttach={false} demoGuest={false} />, es);
     expect(screen.getByRole("heading", { name: "Comentarios (0)" })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe("Se muestran los primeros 200 comentarios de esta tarea.");
     expect(screen.getByText("Aún no hay comentarios.")).toBeTruthy();
     expect(screen.getByText("Los invitados pueden comentar, pero solo los miembros pueden adjuntar archivos.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Comentar" })).toBeTruthy();
-    rerender(<CommentsSection taskId="t1" comments={[row()]} truncated={false} canAttach demoGuest={false} />);
+    rerender(<CommentsSection taskId="t1" comments={[row()]} truncated={false} loadCap={200} canAttach demoGuest={false} />);
     expect(screen.getByRole("heading", { name: "Comentarios (1)" })).toBeTruthy();
     expect(screen.queryByText("Aún no hay comentarios.")).toBeNull();
   });

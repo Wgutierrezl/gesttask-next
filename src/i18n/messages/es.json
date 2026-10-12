@@ -304,7 +304,7 @@
   },
   "comments": {
     "heading": "Comentarios ({count})",
-    "truncated": "Se muestran los primeros 200 comentarios de esta tarea.",
+    "truncated": "Se muestran los primeros {count} comentarios de esta tarea.",
     "empty": "Aún no hay comentarios.",
     "by": "Comentario de {name}",
     "posted": "Publicado",
