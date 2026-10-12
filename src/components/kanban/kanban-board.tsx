@@ -19,9 +19,7 @@ import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from 
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
 import type { ColumnView, MemberOption } from "./types";
 
-const FAILED = "The task could not be moved. Try again.";
-
-async function sendMove(request: MoveRequest, t: AuthErrors): Promise<SendResult> {
+async function sendMove(request: MoveRequest, t: AuthErrors, failed: string): Promise<SendResult> {
   const form = new FormData();
   form.set("taskId", request.taskId);
   form.set("toStageId", request.toStageId);
@@ -29,9 +27,9 @@ async function sendMove(request: MoveRequest, t: AuthErrors): Promise<SendResult
   try {
     const result = await (request.toEnd ? moveTaskToEndAction : moveTaskAction)(undefined, form);
     if (result?.ok) return { ok: true };
-    return { ok: false, message: (result && describeFailure(result, [], t)) || FAILED };
+    return { ok: false, message: (result && describeFailure(result, [], t)) || failed };
   } catch {
-    return { ok: false, message: FAILED };
+    return { ok: false, message: failed };
   }
 }
 
@@ -55,7 +53,8 @@ interface KanbanBoardProps {
 export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members }: KanbanBoardProps) {
   const router = useRouter();
   const tErrors = useTranslations("auth.errors");
-  const sendWithErrors = useCallback((request: MoveRequest) => sendMove(request, tErrors), [tErrors]);
+  const t = useTranslations("kanban");
+  const sendWithErrors = useCallback((request: MoveRequest) => sendMove(request, tErrors, t("moveFailed")), [tErrors, t]);
   const [announcement, setAnnouncement] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStageId, setOverStageId] = useState<string | null>(null);
@@ -69,9 +68,9 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   const crossing = useRef(false);
   const [crossPending, setCrossPending] = useState(false);
   const onSettled = (request: MoveRequest, result: SendResult) => {
-    const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? t("untitled");
     const stage = columns.find((column) => column.stage.id === request.toStageId)?.stage.name ?? "";
-    setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
+    setAnnouncement(result.ok ? t("announce.moved", { title, destination: stage }) : t("announce.restored", { title }));
     if (result.ok) setCrossError(null);
   };
   const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendWithErrors, { refresh: router.refresh, onSettled });
@@ -81,12 +80,12 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     if (crossing.current) return; // one move across at a time: a second drop would race the first one's refresh
     crossing.current = true;
     setCrossPending(true);
-    const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? t("untitled");
     setCrossError(null);
-    setAnnouncement(`Moving ${title} to ${destination}`);
+    setAnnouncement(t("announce.moving", { title, destination }));
     // Queued behind any move still in flight inside this pipeline, so the server sees them in the order they were made.
     const result = await queue(() => sendWithErrors(request));
-    setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title}`);
+    setAnnouncement(result.ok ? t("announce.moved", { title, destination }) : t("announce.failedAcross", { title }));
     if (!result.ok) setCrossError(result.message);
     router.refresh();
     crossing.current = false;
@@ -99,7 +98,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   const destinationOf = (stageId: string) => {
     const pipeline = pipelines.find((candidate) => candidate.stages.some((stage) => stage.id === stageId));
     const stage = pipeline?.stages.find((candidate) => candidate.id === stageId);
-    return pipeline && stage ? `${stage.name} in ${pipeline.name}` : "another pipeline";
+    return pipeline && stage ? t("announce.destination", { stage: stage.name, pipeline: pipeline.name }) : t("announce.anotherPipeline");
   };
   const move = (request: MoveRequest) => {
     if (!shown.some((column) => column.stage.id === request.toStageId)) {
@@ -130,7 +129,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     if (!over) return;
     const tab = switcher ? resolveTabDrop(pipelines, switcher.pipelineId, shown, String(dragged.id), String(over.id)) : null;
     if (tab) {
-      void moveAcross(tab.request, `${tab.stageName} in ${tab.pipelineName}`);
+      void moveAcross(tab.request, t("announce.destination", { stage: tab.stageName, pipeline: tab.pipelineName }));
       return;
     }
     const request = resolveDrop(shown, String(dragged.id), String(over.id));
@@ -138,7 +137,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   };
   const messages = crossError === null ? errors : [...errors, crossError];
   const status = (
-    <div role="status" aria-label="Board updates" aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : undefined}>
+    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : undefined}>
       <span className="sr-only">{announcement}</span>
       {messages.map((message, i) => (
         <p key={i}>{message}</p>
@@ -166,7 +165,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     );
   }
   return (
-    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
+    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines, t), screenReaderInstructions: { draggable: t("dragInstructions") } }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
       {status}
       {tabs}
       {scroller(

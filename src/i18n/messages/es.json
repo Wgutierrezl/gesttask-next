@@ -83,7 +83,8 @@
     "board": "Tablero",
     "boardSettings": "Ajustes del tablero",
     "boardDashboard": "Panel del tablero",
-    "dashboard": "Panel"
+    "dashboard": "Panel",
+    "pipeline": "Pipeline"
   },
   "guest": {
     "banner": "Estás explorando un espacio de demostración — los datos se restablecen en 24 h.",
@@ -177,6 +178,74 @@
       "active": "Activas",
       "inactive": "Inactivas",
       "overdue": "Vencidas"
+    }
+  },
+  "kanban": {
+    "priority": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta"
+    },
+    "pipelines": "Pipelines",
+    "tasks": "{count, plural, one {# tarea} other {# tareas}}",
+    "columnLabel": "{name}, {count, plural, one {# tarea} other {# tareas}}",
+    "doneStage": "Etapa final",
+    "noTasks": "Sin tareas",
+    "unassigned": "Sin asignar",
+    "formerMember": "Ex miembro",
+    "untitled": "tarea",
+    "due": "Vence {date}",
+    "overdue": "Vencida",
+    "completed": "Completada",
+    "drag": "Arrastrar",
+    "dragAria": "Arrastrar {title}",
+    "move": "Mover",
+    "moveOptions": "Opciones para mover {title}",
+    "moveUp": "Mover {title} arriba",
+    "moveDown": "Mover {title} abajo",
+    "moveToStage": "Mover {title} a {stage}",
+    "moveToPipelineStage": "Mover {title} a {pipeline} / {stage}",
+    "pipelineGroup": "Pipeline {name}",
+    "boardUpdates": "Actualizaciones del tablero",
+    "moveFailed": "No se pudo mover la tarea. Inténtalo de nuevo.",
+    "dragInstructions": "Para levantar un elemento, pulsa la barra espaciadora. Mientras lo arrastras, usa las flechas para moverlo. Pulsa espacio de nuevo para soltarlo en su nueva posición, o escape para cancelar.",
+    "announce": {
+      "pickedUp": "Has levantado {title}.",
+      "notOver": "{title} no está sobre una zona de destino.",
+      "original": "{title} está en su lugar original.",
+      "over": "{title} está sobre {where}.",
+      "dropped": "Has soltado {title} en {where}.",
+      "droppedOutside": "{title} se soltó fuera del tablero y sigue donde estaba.",
+      "cancelled": "Movimiento cancelado. {title} sigue donde estaba.",
+      "wherePipeline": "el pipeline {name}",
+      "whereColumn": "la columna {name}",
+      "whereCard": "{title} en {stage}",
+      "moving": "Moviendo {title} a {destination}",
+      "moved": "Se movió {title} a {destination}",
+      "restored": "No se pudo mover {title} — restaurada",
+      "failedAcross": "No se pudo mover {title}",
+      "destination": "{stage} en {pipeline}",
+      "anotherPipeline": "otro pipeline"
+    },
+    "addTask": "Añadir tarea",
+    "addTaskTo": "Añadir tarea a {stage}",
+    "newTask": "Nueva tarea",
+    "adding": "Añadiendo...",
+    "addStageFirst": "Añade primero una etapa: las tareas viven dentro de las etapas.",
+    "fields": {
+      "stage": "Etapa",
+      "title": "Título",
+      "description": "Descripción",
+      "priority": "Prioridad",
+      "dueDate": "Fecha de vencimiento",
+      "assignee": "Responsable"
+    },
+    "page": {
+      "breadcrumb": "Ruta de navegación",
+      "back": "Volver al tablero",
+      "truncatedTasks": "Se muestran las primeras {count} tareas de este pipeline.",
+      "truncatedStages": "Se muestran las primeras {count} etapas de este pipeline.",
+      "truncatedMembers": "Se muestran los primeros {count} miembros para elegir responsable."
     }
   }
 }

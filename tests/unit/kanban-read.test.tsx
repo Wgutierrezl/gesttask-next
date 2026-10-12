@@ -10,6 +10,8 @@ const notFound = vi.fn(() => {
 });
 vi.mock("next/navigation", () => ({ redirect, notFound, useRouter: () => ({ refresh: vi.fn() }) }));
 
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
+
 const getActor = vi.fn();
 const useCases = { getPipeline: vi.fn(), listStages: vi.fn(), listTasksByPipeline: vi.fn(), listMemberProfiles: vi.fn(), getBoardDashboard: vi.fn() };
 const logger = { error: vi.fn() };
@@ -19,7 +21,7 @@ const { buildColumns } = await import("@/components/kanban/columns");
 const { TaskCard } = await import("@/components/kanban/task-card");
 const { KanbanColumn } = await import("@/components/kanban/kanban-column");
 const { loadCapped, toStageView, toTaskCardView } = await import("@/app/_shared/kanban-data");
-const { default: PipelinePage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
+const { default: PipelinePage, generateMetadata } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/page");
 const { PipelineList } = await import("@/components/boards/pipeline-list");
 
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";
@@ -197,6 +199,13 @@ describe("PipelinePage", () => {
     getActor.mockResolvedValue(null);
     await expect(PipelinePage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
     expect(useCases.getPipeline).not.toHaveBeenCalled();
+  });
+
+  it("titles the page from the catalog and names the breadcrumb and back link", async () => {
+    expect(await generateMetadata()).toEqual({ title: "Pipeline" });
+    const html = renderToStaticMarkup(await PipelinePage({ params: params() }));
+    expect(html).toContain('aria-label="Breadcrumb"');
+    expect(html).toContain("Back to board");
   });
 
   it("warns when only part of a very large pipeline is shown", async () => {

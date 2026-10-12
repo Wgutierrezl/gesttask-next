@@ -1,6 +1,7 @@
 "use client";
 
 import { GripVertical } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { MoveMenu } from "./move-menu";
@@ -21,6 +22,7 @@ interface SortableCardProps {
 
 /** A card that can be dragged by its handle with the pointer or the keyboard (space, arrows, space), or moved from its menu. */
 export function SortableCard({ task, assigneeName, href, columns, otherPipelines, onMove, registerHandle }: SortableCardProps) {
+  const t = useTranslations("kanban");
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const handle = (
     <button
@@ -31,11 +33,11 @@ export function SortableCard({ task, assigneeName, href, columns, otherPipelines
       }}
       {...attributes}
       {...listeners}
-      aria-label={`Drag ${task.title}`}
+      aria-label={t("dragAria", { title: task.title })}
       className="inline-flex h-7 cursor-grab touch-none items-center gap-1 rounded-control border border-border-strong bg-surface px-2 text-xs text-fg-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
     >
       <GripVertical aria-hidden="true" className="size-3.5" />
-      Drag
+      {t("drag")}
     </button>
   );
   return (

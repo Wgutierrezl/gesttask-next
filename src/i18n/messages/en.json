@@ -83,7 +83,8 @@
     "board": "Board",
     "boardSettings": "Board settings",
     "boardDashboard": "Board dashboard",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "pipeline": "Pipeline"
   },
   "guest": {
     "banner": "You're exploring a demo sandbox — data resets in 24h.",
@@ -177,6 +178,74 @@
       "active": "Active",
       "inactive": "Inactive",
       "overdue": "Overdue"
+    }
+  },
+  "kanban": {
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "pipelines": "Pipelines",
+    "tasks": "{count, plural, one {# task} other {# tasks}}",
+    "columnLabel": "{name}, {count, plural, one {# task} other {# tasks}}",
+    "doneStage": "Done stage",
+    "noTasks": "No tasks",
+    "unassigned": "Unassigned",
+    "formerMember": "Former member",
+    "untitled": "task",
+    "due": "Due {date}",
+    "overdue": "Overdue",
+    "completed": "Completed",
+    "drag": "Drag",
+    "dragAria": "Drag {title}",
+    "move": "Move",
+    "moveOptions": "Move options for {title}",
+    "moveUp": "Move {title} up",
+    "moveDown": "Move {title} down",
+    "moveToStage": "Move {title} to {stage}",
+    "moveToPipelineStage": "Move {title} to {pipeline} / {stage}",
+    "pipelineGroup": "{name} pipeline",
+    "boardUpdates": "Board updates",
+    "moveFailed": "The task could not be moved. Try again.",
+    "dragInstructions": "To pick up a draggable item, press the space bar. While dragging, use the arrow keys to move the item. Press space again to drop the item in its new position, or press escape to cancel.",
+    "announce": {
+      "pickedUp": "Picked up {title}.",
+      "notOver": "{title} is not over a drop area.",
+      "original": "{title} is in its original place.",
+      "over": "{title} is over {where}.",
+      "dropped": "Dropped {title} on {where}.",
+      "droppedOutside": "{title} was dropped outside the board and stays where it was.",
+      "cancelled": "Move cancelled. {title} stays where it was.",
+      "wherePipeline": "pipeline {name}",
+      "whereColumn": "the {name} column",
+      "whereCard": "{title} in {stage}",
+      "moving": "Moving {title} to {destination}",
+      "moved": "Moved {title} to {destination}",
+      "restored": "Couldn't move {title} — restored",
+      "failedAcross": "Couldn't move {title}",
+      "destination": "{stage} in {pipeline}",
+      "anotherPipeline": "another pipeline"
+    },
+    "addTask": "Add task",
+    "addTaskTo": "Add task to {stage}",
+    "newTask": "New task",
+    "adding": "Adding...",
+    "addStageFirst": "Add a stage first: tasks live inside stages.",
+    "fields": {
+      "stage": "Stage",
+      "title": "Title",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "assignee": "Assignee"
+    },
+    "page": {
+      "breadcrumb": "Breadcrumb",
+      "back": "Back to board",
+      "truncatedTasks": "Showing the first {count} tasks of this pipeline.",
+      "truncatedStages": "Showing the first {count} stages of this pipeline.",
+      "truncatedMembers": "Showing the first {count} members to choose as assignee."
     }
   }
 }

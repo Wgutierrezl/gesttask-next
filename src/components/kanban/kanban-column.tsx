@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
@@ -7,17 +8,17 @@ import type { ColumnView } from "./types";
 /** The frame of a column: header with the done marker and count, the empty message, the list its `children` fill, and an optional `footer`. */
 export function ColumnShell({ column, listRef, isOver = false, footer, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; footer?: ReactNode; children: ReactNode }) {
   const { stage, tasks } = column;
-  const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
+  const t = useTranslations("kanban");
   return (
-    <section aria-label={`${stage.name}, ${count}`} data-drop-target={isOver} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card p-3 transition-colors duration-[var(--duration-fast)]", isOver ? "bg-brand-soft ring-2 ring-ring" : "bg-surface-muted")}>
+    <section aria-label={t("columnLabel", { name: stage.name, count: tasks.length })} data-drop-target={isOver} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card p-3 transition-colors duration-[var(--duration-fast)]", isOver ? "bg-brand-soft ring-2 ring-ring" : "bg-surface-muted")}>
       <header className="flex items-center justify-between gap-2">
         <h3 className="font-semibold text-fg">{stage.name}</h3>
         <span className="flex items-center gap-2">
-          {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
+          {stage.isDone ? <Badge tone="success">{t("doneStage")}</Badge> : null}
           <span data-testid="column-count" className="inline-flex min-w-6 justify-center rounded-pill bg-surface px-2 py-0.5 text-xs font-medium text-fg-strong">{tasks.length}</span>
         </span>
       </header>
-      {tasks.length === 0 ? <p className="rounded-control border border-dashed border-border-strong px-3 py-4 text-center text-xs text-fg-muted">No tasks</p> : null}
+      {tasks.length === 0 ? <p className="rounded-control border border-dashed border-border-strong px-3 py-4 text-center text-xs text-fg-muted">{t("noTasks")}</p> : null}
       <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
         {children}
       </ul>
