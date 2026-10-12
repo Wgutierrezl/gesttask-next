@@ -20,7 +20,7 @@ test("a visitor in Spanish creates a board, a pipeline with their own stages, a 
     await boardDialog.getByRole("button", { name: "Crear", exact: true }).click();
     await expect(boardDialog).toBeHidden();
     await expect(page).toHaveURL(/\/boards\/[0-9a-f-]{36}$/);
-    boardId = /\/boards\/([0-9a-f-]{36})/.exec(page.url())?.[1] ?? "";
+    boardId = /\/boards\/([0-9a-f-]{36})/.exec(page.url())![1]!;
     await expect(page.getByRole("heading", { name: board, level: 1 })).toBeVisible();
 
     await page.getByRole("button", { name: "Crear pipeline" }).first().click();
@@ -53,6 +53,6 @@ test("a visitor in Spanish creates a board, a pipeline with their own stages, a 
     await expect(modal.getByRole("heading", { name: "Comentarios (1)" })).toBeVisible();
     await expect(modal.getByRole("article").locator("p").first()).toHaveText("Listo para revisar");
   } finally {
-    if (boardId) await page.request.delete(`/api/v1/boards/${boardId}`);
+    if (boardId) expect((await page.request.delete(`/api/v1/boards/${boardId}`)).ok()).toBe(true);
   }
 });

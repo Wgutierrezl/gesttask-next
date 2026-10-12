@@ -164,7 +164,7 @@ comments without them and says so). Switching drivers later does not migrate exi
 Deploy from `main`. Migrations are NOT run by the build: apply new migrations to Neon (`pnpm db:migrate`, step 3) BEFORE
 promoting a version that needs them.
 
-After EVERY deploy that ships a release touching the demo content, re-run `pnpm db:seed` (step 3) against the production
+After a deploy of a release that changes the demo content, re-run `pnpm db:seed` (step 3) against the production
 database: it adds only what is missing, for example the second "Backlog" pipeline of the shared demo board. The seed is
 idempotent and safe to repeat.
 
@@ -180,7 +180,7 @@ In this order, against the production URL:
    CORS rule and the IAM policy: if the upload fails in the browser, look at the CORS origin first.
 4. Drag a card to another stage and reload.
    Also switch the language (Preferences menu, English/Spanish) and the theme (Light/Dark/System): both persist in cookies.
-   The shared demo board shows a "Backlog" pipeline; if it is missing, run `pnpm db:seed` again (step 7).
+   The shared demo board shows a "Backlog" pipeline; if it is missing, run `pnpm db:seed` again (step 3).
 5. The cron:
 
 ```bash

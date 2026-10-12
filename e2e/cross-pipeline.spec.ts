@@ -109,11 +109,14 @@ test.describe("moving cards between pipelines of a board", () => {
     await openTaskPage(page, "To do", title);
     const url = page.url();
     const plain = await browser.newContext({ javaScriptEnabled: false, storageState: AUTH_FILE });
-    const bare = await plain.newPage();
-    await bare.goto(url);
-    await bare.getByLabel("Move to stage").selectOption({ label: "Refined" });
-    await bare.getByRole("button", { name: "Move task" }).click();
-    await expect(bare.getByRole("complementary", { name: "Task details" }).locator("dd").getByText("Refined", { exact: true })).toBeVisible();
-    await plain.close();
+    try {
+      const bare = await plain.newPage();
+      await bare.goto(url);
+      await bare.getByLabel("Move to stage").selectOption({ label: "Refined" });
+      await bare.getByRole("button", { name: "Move task" }).click();
+      await expect(bare.getByRole("complementary", { name: "Task details" }).locator("dd").getByText("Refined", { exact: true })).toBeVisible();
+    } finally {
+      await plain.close();
+    }
   });
 });

@@ -11,6 +11,8 @@ const LOCALES = ["en", "es"] as const;
 
 async function scan(page: Page, label: string, include?: string): Promise<void> {
   // Let entry animations settle: a half-transparent element gives a false contrast reading.
+  // Two frames first: an entry animation is registered only once the browser has styled the freshly opened element.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
   let builder = new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]);
   if (include) builder = builder.include(include);
@@ -18,6 +20,9 @@ async function scan(page: Page, label: string, include?: string): Promise<void> 
   const summary = violations.map((v) => `${v.id}: ${v.help}\n${v.nodes.map((n) => `    ${n.target.join(" ")} ${n.failureSummary?.split("\n")[1] ?? ""}`).join("\n")}`);
   expect(summary, `axe violations on ${label}`).toEqual([]);
 }
+
+/** The link of the first card on the board, whichever stage it is in: independent of what other specs did to a column. */
+const anyCard = (page: Page) => page.getByTestId("board-scroller").getByRole("article").first().getByRole("link").first();
 
 for (const theme of THEMES) {
   for (const locale of LOCALES) {
@@ -72,21 +77,24 @@ for (const theme of THEMES) {
           await expect(page.getByRole("menu")).toBeVisible();
           await scan(page, "stage menu");
           await page.keyboard.press("Escape");
+          await expect(page.getByRole("menu")).toBeHidden();
           const todo = page.getByRole("region", { name: /^To do, \d+ (?:tasks?|tareas?)$/ });
           await todo.getByRole("button", { name: /^(Add task to|Añadir tarea a) To do$/ }).click();
           await expect(page.getByRole("dialog")).toBeVisible();
           await scan(page, "create-task modal");
           await page.keyboard.press("Escape");
           await expect(page.getByRole("dialog")).toBeHidden();
-          await todo.getByRole("link").first().click();
+          await anyCard(page).click();
           await expect(page.getByRole("dialog")).toBeVisible();
           await waitForHydration(page);
+          // The modal opens on a loading skeleton and the task streams in with its own entry animation: scan the loaded content.
+          await expect(page.getByRole("dialog").locator("dt").first()).toBeVisible();
           await scan(page, "task modal");
         });
 
         test("the full task page", async ({ page }) => {
           await openKanban(page);
-          const href = await page.getByRole("region", { name: /^To do, \d+ (?:tasks?|tareas?)$/ }).getByRole("link").first().getAttribute("href");
+          const href = await anyCard(page).getAttribute("href");
           await page.goto(href!);
           await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
           await scan(page, "full task page");

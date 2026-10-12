@@ -21,6 +21,8 @@ test.describe("signed out", () => {
   });
 });
 
+// The 422 (not 403) is expected: the API's same-origin check lets a cookie session through when the request carries no
+// foreign Origin / Sec-Fetch-Site (Playwright's request context sends none), so validation is what refuses the body.
 test.describe("signed in", () => {
   test.use({ storageState: AUTH_FILE });
   test("404 and 422 bodies are the same bytes with the es cookie, and in English", async ({ context, baseURL }) => {

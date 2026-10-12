@@ -90,11 +90,15 @@ The interface runs on one design system: Tailwind tokens in `src/app/globals.css
 ([ADR 0020](docs/adr/0020-design-system.md)). Cards can also move between the pipelines of a board
 ([ADR 0019](docs/adr/0019-cross-pipeline-move.md)). To look at it on port 3002 (leaving 3000 free):
 
-1. Start the local stack: `pnpm db:up && pnpm db:migrate && pnpm db:seed`. Re-run `pnpm db:seed` after pulling, it adds anything the demo board is missing.
-2. Run the app with the environment spelled out, so nothing depends on a stray `.env.local`:
+1. Start the local stack and set up the database with the environment spelled out, so nothing depends on a stray `.env.local`. Re-run the seed after pulling, it adds anything the demo board is missing:
 
 ```bash
-DB_DRIVER=pg DATABASE_URL=postgres://gesttask:gesttask@localhost:5433/gesttask STORAGE_DRIVER=local \
+export DB_DRIVER=pg DATABASE_URL=postgres://gesttask:gesttask@localhost:5433/gesttask STORAGE_DRIVER=local
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+```
+2. Run the app with the same variables (the secret below is for this local review ONLY: never reuse it anywhere else):
+
+```bash
 BETTER_AUTH_SECRET=local-review-secret-0123456789abcdef BETTER_AUTH_URL=http://localhost:3002 \
 pnpm dev -p 3002
 ```
