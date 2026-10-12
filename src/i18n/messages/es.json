@@ -263,6 +263,12 @@
     "page": {
       "breadcrumb": "Ruta de navegación",
       "back": "Volver al tablero",
+      "backShort": "Volver",
+      "pipelineBadge": "Pipeline",
+      "subtitle": "{board} • {description}",
+      "stagesTitle": "Etapas del pipeline",
+      "stagesHelp": "Arrastra y suelta las tareas entre etapas para gestionar su progreso",
+      "stagesReadOnly": "Vista de solo lectura: no puedes mover tareas",
       "truncatedTasks": "Se muestran las primeras {count} tareas de este pipeline.",
       "truncatedStages": "Se muestran las primeras {count} etapas de este pipeline.",
       "truncatedMembers": "Se muestran los primeros {count} miembros para elegir responsable."

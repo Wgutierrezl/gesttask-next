@@ -263,6 +263,12 @@
     "page": {
       "breadcrumb": "Breadcrumb",
       "back": "Back to board",
+      "backShort": "Back",
+      "pipelineBadge": "Pipeline",
+      "subtitle": "{board} • {description}",
+      "stagesTitle": "Stages of the pipeline",
+      "stagesHelp": "Drag and drop tasks between stages to manage their progress",
+      "stagesReadOnly": "Read-only view: you cannot move tasks",
       "truncatedTasks": "Showing the first {count} tasks of this pipeline.",
       "truncatedStages": "Showing the first {count} stages of this pipeline.",
       "truncatedMembers": "Showing the first {count} members to choose as assignee."

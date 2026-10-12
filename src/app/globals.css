@@ -31,6 +31,7 @@
   --radius-pill: 9999px;
 
   --shadow-brand: 0 4px 14px rgb(79 70 229 / 25%);
+  --shadow-violet: 0 10px 15px -3px rgb(124 58 237 / 30%), 0 4px 6px -4px rgb(124 58 237 / 30%);
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -272,6 +273,11 @@
 /* Starts at brand-600 so white text keeps >= 4.5:1 on the whole gradient. */
 @utility bg-brand-gradient {
   background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
+}
+
+/* The pipeline's own accent: saturated enough to carry a white icon on both themes (decorative, never text). */
+@utility bg-violet-gradient {
+  background-image: linear-gradient(135deg, #7c3aed, #9333ea);
 }
 
 /* Wordmark text: lighter stops in dark keep it readable on the dark canvas. */

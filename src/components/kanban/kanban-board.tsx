@@ -169,7 +169,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   };
   const messages = crossError === null ? errors : [...errors, crossError];
   const status = (
-    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : undefined}>
+    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : "sr-only"}>
       <span className="sr-only">{announcement}</span>
       {messages.map((message, i) => (
         <p key={i}>{message}</p>
