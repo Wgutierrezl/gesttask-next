@@ -364,7 +364,7 @@ describe("KanbanBoard dragging by the card body", () => {
     pointer("pointerUp", document, 20, 20);
     await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
     expect(fireEvent.click(body)).toBe(false); // the release click is swallowed (default prevented, so no hard navigation)
-    await waitFor(() => expect(fireEvent.click(body)).toBe(true)); // and the next real click is not
+    expect(fireEvent.click(body)).toBe(true); // and the next real click is not: the guard goes away with the first one it swallowed
   });
 
   it("starts a keyboard drag from the focused card, not from the controls inside it", async () => {
@@ -389,6 +389,153 @@ describe("KanbanBoard dragging by the card body", () => {
     expect(overlay.getAttribute("aria-hidden")).toBe("true");
     expect(within(overlay).getByRole("heading", { level: 4, hidden: true }).textContent).toBe("Task a");
     expect(within(overlay).queryByLabelText(/Move options/)).toBeNull();
+  });
+});
+
+describe("KanbanBoard keyboard, click guard, touch and scroll", () => {
+  const scroller = () => screen.getByTestId("board-scroller");
+  const press = (target: Element, code: string) => fireEvent.keyDown(target, { code, key: code === "Space" ? " " : code });
+  const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+  const options = (title: string) => screen.getByLabelText(`Move options for ${title}`);
+
+  it("keeps Enter and Space on the title link, the options button and the menu items from starting a drag", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    for (const code of ["Enter", "Space"]) {
+      press(screen.getByRole("link", { name: "Task a" }), code);
+      press(options("Task a"), code);
+      await settle();
+      expect(scroller().getAttribute("data-dragging")).toBe("false");
+    }
+    await userEvent.click(options("Task a"));
+    for (const code of ["Enter", "Space"]) {
+      press(screen.getByRole("button", { name: "Move Task a to Done" }), code);
+      await settle();
+      expect(scroller().getAttribute("data-dragging")).toBe("false");
+    }
+  });
+
+  it("picks the focused card up with Space only: Enter on the card does not start a drag", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const card = screen.getByRole("article", { name: "Drag Task a" });
+    press(card, "Enter");
+    await settle();
+    expect(scroller().getAttribute("data-dragging")).toBe("false");
+    press(card, "Space");
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+    await userEvent.keyboard("{Escape}"); // a held drag keeps listening on the document: let it go
+    await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+  });
+
+  it("tells screen reader users to focus the card and press Space", () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    expect(document.body.textContent).toContain("focus the card and press Space");
+  });
+
+  it("opens the options menu with Enter or Space, puts the focus in it, closes it with Escape back on the button, and Enter on an item moves the card", async () => {
+    const user = userEvent.setup();
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    options("Task a").focus();
+    await user.keyboard("{Enter}");
+    const first = await screen.findByRole("button", { name: "Move Task a down" });
+    expect(document.activeElement).toBe(first);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("button", { name: "Move Task a down" })).toBeNull();
+    expect(document.activeElement).toBe(options("Task a"));
+    await user.keyboard(" ");
+    expect(await screen.findByRole("button", { name: "Move Task a to Done" })).toBeTruthy();
+    screen.getByRole("button", { name: "Move Task a to Done" }).focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(moveTaskToEndAction).toHaveBeenCalled());
+    expect(sent(0, moveTaskToEndAction)).toEqual({ taskId: "a", toStageId: "done" });
+  });
+
+  describe("the release click of a drag", () => {
+    const pointer = (type: "pointerDown" | "pointerMove" | "pointerUp", target: Element | Document, x: number, y: number) =>
+      fireEvent[type](target, { pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0, buttons: type === "pointerUp" ? 0 : 1, clientX: x, clientY: y });
+
+    it("is never swallowed after a keyboard drag", async () => {
+      render(<KanbanBoard columns={columns()} canWrite {...props} />);
+      const card = screen.getByRole("article", { name: "Drag Task a" });
+      press(card, "Space");
+      await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+      expect(fireEvent.click(card)).toBe(true); // not even while it is held
+      await userEvent.keyboard("{Escape}");
+      await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+      expect(fireEvent.click(card)).toBe(true);
+    });
+
+    it("stops being swallowed after a while when no click ever arrives", async () => {
+      render(<KanbanBoard columns={columns()} canWrite {...props} />);
+      const card = screen.getByRole("article", { name: "Drag Task a" });
+      pointer("pointerDown", card, 20, 20);
+      pointer("pointerMove", document, 40, 40);
+      await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("true"));
+      pointer("pointerUp", document, 40, 40);
+      await waitFor(() => expect(scroller().getAttribute("data-dragging")).toBe("false"));
+      await waitFor(() => expect(fireEvent.click(card)).toBe(true), { timeout: 1500 });
+    });
+  });
+
+  it("keeps a touch press on a card from opening the browser's context menu, and the card from being selected", () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const card = screen.getByRole("article", { name: "Drag Task a" });
+    fireEvent.touchStart(card, { touches: [{ clientX: 20, clientY: 20 }] });
+    expect(fireEvent.contextMenu(card)).toBe(false);
+  });
+
+  it("does not move the board's scroll position when the drag starts", async () => {
+    render(<KanbanBoard columns={columns()} canWrite {...props} />);
+    const el = scroller();
+    let left = 300;
+    Object.defineProperty(el, "scrollLeft", { get: () => left, set: (value: number) => (left = value), configurable: true });
+    // Switching snapping off lets some browsers re-resolve the scroll position: simulated as a reset on every class change.
+    const setAttribute = el.setAttribute.bind(el);
+    el.setAttribute = (name: string, value: string) => {
+      setAttribute(name, value);
+      if (name === "class") left = 0;
+    };
+    press(screen.getByRole("article", { name: "Drag Task a" }), "Space");
+    await waitFor(() => expect(el.getAttribute("data-dragging")).toBe("true"));
+    expect(left).toBe(300);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(el.getAttribute("data-dragging")).toBe("false"));
+  });
+
+  describe("the options popover", () => {
+    const hr = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight")!;
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", hr);
+    });
+    const buttonAt = (top: number) => {
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 200 });
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ top, bottom: top + 28, left: 500, right: 530, width: 30, height: 28, x: 500, y: top, toJSON: () => ({}) } as DOMRect);
+    };
+
+    it("opens below the button when there is room, and above it (never clipped by the board) when there is not", async () => {
+      buttonAt(100);
+      const user = userEvent.setup();
+      const { unmount } = render(<KanbanBoard columns={columns()} canWrite {...props} />);
+      await user.click(options("Task a"));
+      expect((await screen.findByTestId("move-popover")).style.top).toBe("132px");
+      unmount();
+      cleanup();
+      buttonAt(700); // the window is 768px tall: 728 + 4 + 200 does not fit
+      render(<KanbanBoard columns={columns()} canWrite {...props} />);
+      await user.click(options("Task a"));
+      const popover = await screen.findByTestId("move-popover");
+      expect(popover.style.top).toBe("");
+      expect(popover.style.bottom).toBe("72px");
+    });
+
+    it("closes when the page scrolls or the window resizes, as the stage menu does", async () => {
+      const user = userEvent.setup();
+      render(<KanbanBoard columns={columns()} canWrite {...props} />);
+      await user.click(options("Task a"));
+      expect(await screen.findByTestId("move-popover")).toBeTruthy();
+      fireEvent.scroll(window);
+      await waitFor(() => expect(screen.queryByTestId("move-popover")).toBeNull());
+    });
   });
 });
 

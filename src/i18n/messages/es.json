@@ -228,7 +228,7 @@
     "pipelineGroup": "Pipeline {name}",
     "boardUpdates": "Actualizaciones del tablero",
     "moveFailed": "No se pudo mover la tarea. Inténtalo de nuevo.",
-    "dragInstructions": "Para levantar un elemento, pulsa la barra espaciadora. Mientras lo arrastras, usa las flechas para moverlo. Pulsa espacio de nuevo para soltarlo en su nueva posición, o escape para cancelar.",
+    "dragInstructions": "Para levantar una tarea, enfoca la tarjeta y pulsa Espacio. Mientras la arrastras, usa las flechas para moverla. Pulsa Espacio de nuevo para soltarla en su nueva posición, o Escape para cancelar.",
     "announce": {
       "pickedUp": "Has levantado {title}.",
       "notOver": "{title} no está sobre una zona de destino.",

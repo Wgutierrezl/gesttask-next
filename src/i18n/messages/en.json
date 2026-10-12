@@ -228,7 +228,7 @@
     "pipelineGroup": "{name} pipeline",
     "boardUpdates": "Board updates",
     "moveFailed": "The task could not be moved. Try again.",
-    "dragInstructions": "To pick up a draggable item, press the space bar. While dragging, use the arrow keys to move the item. Press space again to drop the item in its new position, or press escape to cancel.",
+    "dragInstructions": "To pick up a task, focus the card and press Space. While dragging, use the arrow keys to move it. Press Space again to drop it in its new position, or press Escape to cancel.",
     "announce": {
       "pickedUp": "Picked up {title}.",
       "notOver": "{title} is not over a drop area.",

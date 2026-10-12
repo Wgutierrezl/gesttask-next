@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useRef } from "react";
 
-/** How long after the drop the release click can still arrive. */
-const RELEASE_GRACE_MS = 100;
+/** If no click follows the drop (the pointer let go elsewhere), the guard goes away by itself after this long. */
+const FALLBACK_MS = 500;
 
-const preventClick = (event: Event) => event.preventDefault();
+const startedWithPointer = (event: Event | null | undefined) => event?.type === "pointerdown" || event?.type === "mousedown";
 
 /**
- * A card is a link, so letting go of a dragged card over its own title produces a click on that link. dnd-kit keeps that click
- * from reaching React but not from reaching the browser, which would then follow the link (a full page load instead of the
- * modal). Between `arm` (the drag starts) and shortly after `release` (it ends), clicks are cancelled before anything sees them.
+ * A card is a link, so letting go of a pointer-dragged card over its own title produces a click on that link. dnd-kit keeps
+ * that click from reaching React but not from reaching the browser, which would then follow the link (a full page load
+ * instead of the modal). After a drag that began with a pointer, the first click is cancelled before anything sees it.
+ * Keyboard and touch drags produce no such click, so they never arm it and no later click is ever swallowed.
  */
 export function useDragClickGuard() {
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const arm = useCallback(() => {
-    clearTimeout(timer.current);
-    window.addEventListener("click", preventClick, true);
+  const pointerDrag = useRef(false);
+  const disarm = useRef<(() => void) | null>(null);
+  const begin = useCallback((activatorEvent: Event | null | undefined) => {
+    pointerDrag.current = startedWithPointer(activatorEvent);
   }, []);
-  const release = useCallback(() => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => window.removeEventListener("click", preventClick, true), RELEASE_GRACE_MS);
+  const end = useCallback(() => {
+    if (!pointerDrag.current) return;
+    pointerDrag.current = false;
+    disarm.current?.();
+    const swallow = (event: Event) => {
+      event.preventDefault();
+      disarm.current?.();
+    };
+    const timer = setTimeout(() => disarm.current?.(), FALLBACK_MS);
+    disarm.current = () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", swallow, true);
+      disarm.current = null;
+    };
+    window.addEventListener("click", swallow, true);
   }, []);
-  useEffect(() => () => {
-    clearTimeout(timer.current);
-    window.removeEventListener("click", preventClick, true);
-  }, []);
-  return { arm, release };
+  useEffect(() => () => disarm.current?.(), []);
+  return { begin, end };
 }

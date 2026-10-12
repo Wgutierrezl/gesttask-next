@@ -88,6 +88,16 @@ test.describe("board and Kanban (REQ-NFR-04, REQ-NFR-06)", () => {
     await expect(page.getByRole("dialog", { name: title, exact: true })).toHaveCount(0);
   });
 
+  test("Enter on a card's title link opens the task instead of picking the card up", async ({ page }) => {
+    const title = uniqueTitle("Enter link");
+    await openKanban(page);
+    await addTask(page, title, "To do");
+    await column(page, "To do").getByRole("link", { name: title }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog", { name: title, exact: true })).toBeVisible();
+    await expect(page.getByTestId("board-scroller")).toHaveAttribute("data-dragging", "false");
+  });
+
   test("the keyboard moves a focused card: space, an arrow, space, and the move is saved", async ({ page }) => {
     const title = uniqueTitle("Keyboard move");
     await openKanban(page);
@@ -97,6 +107,7 @@ test.describe("board and Kanban (REQ-NFR-04, REQ-NFR-06)", () => {
     // dnd-kit speaks about the picked-up card through its own live region.
     await expect(page.locator('[id^="DndLiveRegion"]')).toContainText(title);
     await expect(page.getByTestId("board-scroller")).toHaveAttribute("data-dragging", "true"); // the arrows are listened to from here on
+    await page.waitForTimeout(150); // dnd-kit starts listening to the keys a tick after the drag starts
     await page.keyboard.press("ArrowRight");
     await expect(page.locator('[id^="DndLiveRegion"]')).toContainText("in In progress");
     await page.keyboard.press("Space");
