@@ -1,6 +1,8 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { removeMemberAction } from "@/app/_actions/members";
 import { failureOf } from "@/app/_shared/mutation-state";
 import { FormError } from "@/components/auth/form-error";
@@ -12,16 +14,19 @@ interface RemoveMemberFormProps {
   name: string;
   /** Removing oneself ends the owner's access, so the confirmation says so. */
   isSelf?: boolean;
+  /** v1's row control: the confirmation sits beside a red trash button instead of a labelled "Remove" button. */
+  compact?: boolean;
 }
 
 /** Removal needs an explicit confirmation (a required checkbox, so it also works without JavaScript). */
-export function RemoveMemberForm({ boardId, userId, name, isSelf }: RemoveMemberFormProps) {
+export function RemoveMemberForm({ boardId, userId, name, isSelf, compact = false }: RemoveMemberFormProps) {
+  const t = useTranslations("board.member");
   const [state, formAction] = useActionState(removeMemberAction, undefined);
   const failure = failureOf(state);
   const confirmError = failure?.fieldErrors?.confirm;
   const errorId = `confirm-error-${userId}`;
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form action={formAction} className={compact ? "flex flex-wrap items-center gap-2" : "flex flex-col gap-2"}>
       <input type="hidden" name="boardId" value={boardId} />
       <input type="hidden" name="userId" value={userId} />
       <label className="flex items-start gap-2 text-xs">
@@ -34,18 +39,24 @@ export function RemoveMemberForm({ boardId, userId, name, isSelf }: RemoveMember
           aria-describedby={confirmError ? errorId : undefined}
           className="mt-0.5"
         />
-        <span>{isSelf ? "I will lose access to this board" : `${name} will lose access to this board`}</span>
+        <span>{isSelf ? t("loseAccessSelf") : t("loseAccess", { name })}</span>
       </label>
       {confirmError ? (
-        <p id={errorId} role="alert" className="text-xs text-danger-700">
+        <p id={errorId} role="alert" className="text-xs text-danger-fg">
           {confirmError.join(" ")}
         </p>
       ) : null}
       <FormError failure={failure} inlineFields={["confirm"]} />
       <div>
-        <SubmitButton variant="danger" pendingLabel="Removing..." ariaLabel={`Remove ${name}`}>
-          Remove
-        </SubmitButton>
+        {compact ? (
+          <SubmitButton variant="danger-secondary" pendingLabel={t("removing")} ariaLabel={t("removeAria", { name })}>
+            <Trash2 aria-hidden="true" className="size-4" />
+          </SubmitButton>
+        ) : (
+          <SubmitButton variant="danger" pendingLabel={t("removing")} ariaLabel={t("removeAria", { name })}>
+            {t("remove")}
+          </SubmitButton>
+        )}
       </div>
     </form>
   );

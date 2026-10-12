@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError, ValidationError } from "@/domain/errors";
 
@@ -10,11 +10,14 @@ const notFound = vi.fn(() => {
 });
 vi.mock("next/navigation", () => ({ redirect, notFound }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const active = vi.hoisted(() => ({ locale: "en" as "en" | "es" }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServerFor(active));
 const getActor = vi.fn();
 const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn(), getBoardDashboard: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger: { error: vi.fn() } }) }));
 
-const { default: TaskPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
+const { default: TaskPage, generateMetadata } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page");
+const { loadTaskDetail } = await import("@/app/_shared/task-detail");
 
 const BOARD = "00000000-0000-4000-8000-000000000001";
 const PIPELINE = "00000000-0000-4000-8000-000000000002";
@@ -27,6 +30,7 @@ const task = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  active.locale = "en";
   getActor.mockResolvedValue({ userId: "u1", isGuest: false });
   useCases.getTask.mockResolvedValue(task());
   useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "owner" });
@@ -66,14 +70,25 @@ const asideOf = (html: string) => /<aside[^>]*aria-label="Task details"[^>]*>(.*
 const headingLevels = (html: string) => [...html.matchAll(/<h([1-6])[ >]/g)].map((m) => Number(m[1]));
 
 describe("TaskPage layout", () => {
-  it("keeps the task's content apart from a sidebar with its details and, for writers, the move and delete controls", async () => {
+  it("keeps the task's content apart from a sidebar with its details and, for writers, the move control", async () => {
     const html = renderToStaticMarkup(await TaskPage({ params: params() }));
     const aside = asideOf(html);
-    for (const text of ["Stage", "To do", "Priority", "High", "Assignee", "Olivia", "Due date", "Overdue", "Move to stage", "Delete task"]) expect(aside).toContain(text);
-    for (const text of ["Cut the tag", "Comments (0)", "Edit task", "Add a comment"]) {
+    for (const text of ["Stage", "To do", "Priority", "High", "Assignee", "Olivia", "Due date", "Overdue", "Move to stage"]) expect(aside).toContain(text);
+    for (const text of ["Cut the tag", "Comments (0)", "Add a comment"]) {
       expect(html).toContain(text);
       expect(aside).not.toContain(text);
     }
+  });
+
+  it("puts Edit and Delete in the page header for writers, as buttons that open modals rather than inline forms", async () => {
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }));
+    const header = /<header[^>]*>(.*?)<\/header>/s.exec(html)?.[1] ?? "";
+    expect(header).toContain("Ship the release");
+    expect(header).toMatch(/<button[^>]*>.*?Edit<\/button>/s);
+    expect(header).toMatch(/<button[^>]*>.*?Delete<\/button>/s);
+    expect(asideOf(html)).not.toContain("Delete");
+    expect(html).not.toContain('name="confirm"');
+    expect(html).not.toContain('name="title"');
   });
 
   it("adds no landmark regions beside the aside itself, and sizes its headings alike", async () => {
@@ -83,7 +98,7 @@ describe("TaskPage layout", () => {
     expect(aside).not.toContain("aria-labelledby");
     expect(html).not.toMatch(/<section[^>]*aria-labelledby="edit-heading"/);
     const sizes = [...aside.matchAll(/<h2[^>]*class="([^"]*)"/g)].map((m) => /text-(?:base|lg|xl)/.exec(m[1]!)?.[0]);
-    expect(sizes).toHaveLength(3);
+    expect(sizes).toHaveLength(2);
     expect(new Set(sizes).size).toBe(1);
   });
 
@@ -93,7 +108,7 @@ describe("TaskPage layout", () => {
     expect(aside).toMatch(/<dt[^>]*>Stage<\/dt><dd[^>]*>.*To do/s);
     expect(aside).toContain("Priority");
     expect(aside).not.toContain("Move to stage");
-    expect(aside).not.toContain("Delete task");
+    expect(aside).not.toContain("Delete");
   });
 
   it.each(["owner", "guest"])("is one landmark with one h1 and no skipped heading level for a %s", async (role) => {
@@ -118,8 +133,8 @@ describe("TaskPage", () => {
     expect(html).toContain("Overdue");
     expect(html).toContain("Olivia");
     expect(html).toContain("Cut the tag");
-    expect(html).toContain("Edit task");
-    expect(html).toContain("Delete task");
+    expect(html).toContain(">Edit</button>");
+    expect(html).toContain(">Delete</button>");
     expect(html).toContain("Move to stage");
     expect(html).toContain(`href="/boards/${BOARD}/pipelines/${PIPELINE}"`);
   });
@@ -177,7 +192,7 @@ describe("TaskPage", () => {
     expect(renderToStaticMarkup(await TaskPage({ params: params() }))).toContain("Former member");
   });
 
-  it("looks the assignee up by id, so a member beyond the first 200 is still named and kept in the edit form", async () => {
+  it("looks the assignee up by id, so a member beyond the first 200 is still named and offered when editing", async () => {
     useCases.getTask.mockResolvedValue(task({ assigneeId: "far" }));
     useCases.listMemberProfiles.mockImplementation(async (input: { userIds?: string[] }) =>
       input.userIds ? [{ userId: "far", role: "member", name: "Far Away", email: null }] : [{ userId: "u1", role: "owner", name: "Olivia", email: null }],
@@ -186,13 +201,16 @@ describe("TaskPage", () => {
     expect(html).toContain("Far Away");
     expect(html).not.toContain("Former member");
     expect(useCases.listMemberProfiles).toHaveBeenCalledWith({ boardId: BOARD, userIds: ["far"] });
-    expect(html).toContain('<option value="far" selected="">Far Away</option>');
+    // The edit form lives in a modal that is not rendered until opened: what it gets is the member list, with the assignee in it.
+    expect((await loadTaskDetail(await params(), { isGuest: false })).members).toContainEqual({ userId: "far", name: "Far Away" });
   });
 
   it("is read-only for viewers", async () => {
     useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
     const html = renderToStaticMarkup(await TaskPage({ params: params() }));
     expect(html).toContain("Ship the release");
+    expect(html).not.toContain(">Edit</button>");
+    expect(html).not.toContain(">Delete</button>");
     expect(html).not.toContain("Edit task");
     expect(html).not.toContain("Delete task");
     expect(html).not.toContain("Move to stage");
@@ -218,5 +236,41 @@ describe("TaskPage", () => {
     getActor.mockResolvedValue(null);
     await expect(TaskPage({ params: params() })).rejects.toMatchObject({ digest: expect.stringContaining("/login") });
     expect(useCases.getTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("TaskPage in Spanish", () => {
+  const comment = { id: "c1", taskId: TASK, authorId: "u1", authorName: "Olivia", body: "Needs a changelog", createdAt: new Date("2026-10-09T10:00:00Z"), canManage: true, attachments: [{ id: "a1", fileName: "plan.pdf", contentType: "application/pdf", size: 1536 }] };
+
+  it("titles the page from the catalog in both languages", async () => {
+    expect(await generateMetadata()).toEqual({ title: "Task" });
+    active.locale = "es";
+    expect(await generateMetadata()).toEqual({ title: "Tarea" });
+  });
+
+  it("translates the chrome, details, move form and comments while task and user data stay as written", async () => {
+    active.locale = "es";
+    useCases.getTask.mockResolvedValue(task({ stageId: "s2", completedAt: new Date("2026-10-09T10:00:00Z"), overdue: true }));
+    useCases.listComments.mockResolvedValue([comment]);
+    const html = renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" });
+    for (const text of [
+      "Volver al pipeline", 'aria-label="Ruta de navegación"', 'aria-label="Detalles de la tarea"', ">Detalles<", "Etapa final", "Prioridad", ">Alta<", "Responsable", "Olivia",
+      "Fecha de vencimiento", "Vence 1 oct 2026", "Vencida", "Completada 9 oct 2026", "Creada", "20 sept 2026", "Mover a la etapa", "Mover tarea",
+      "Comentarios (1)", 'aria-label="Comentario de Olivia"', "Publicado 9 oct 2026", "(1,5 KB)", ">Editar<", ">Eliminar<", "Añadir un comentario", "Adjuntar archivos",
+      "hasta 5,0 MB cada uno y 5 por comentario",
+    ]) expect(html, text).toContain(text);
+    for (const text of ["Ship the release", "Cut the tag", "To do", "plan.pdf", "Needs a changelog"]) expect(html, text).toContain(text);
+    for (const text of ["Back to pipeline", "Details", "Comments (", "Overdue", "Add a comment"]) expect(html, text).not.toContain(text);
+  });
+
+  it("names an unassigned task and a former member in Spanish, and a viewer reads the guest note", async () => {
+    active.locale = "es";
+    useCases.getTask.mockResolvedValue(task({ assigneeId: null }));
+    useCases.getPipeline.mockResolvedValue({ pipeline: { id: PIPELINE, boardId: BOARD, name: "Sprint", description: "" }, role: "guest" });
+    const unassigned = renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" });
+    expect(unassigned).toContain("Sin asignar");
+    expect(unassigned).toContain("Los invitados pueden comentar, pero solo los miembros pueden adjuntar archivos.");
+    useCases.getTask.mockResolvedValue(task({ assigneeId: "gone" }));
+    expect(renderToStaticMarkup(await TaskPage({ params: params() }), { locale: "es" })).toContain("Ex miembro");
   });
 });

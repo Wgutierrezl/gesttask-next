@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { FormFooter } from "@/components/ui/form-footer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -86,6 +88,20 @@ describe("EmptyState and PageHeader", () => {
     expect(screen.getByRole("button", { name: "Create" })).toBeTruthy();
   });
 
+  it("puts the icon in a rounded box above a heading, like v1's empty state", () => {
+    const { container } = render(<EmptyState icon={<svg data-testid="glyph" />} title="No boards" />);
+    const box = screen.getByTestId("glyph").parentElement!;
+    expect(box.getAttribute("aria-hidden")).toBe("true");
+    expect(box.className).toContain("rounded-2xl");
+    expect(screen.getByRole("heading", { level: 2, name: "No boards" })).toBeTruthy();
+    expect(container.querySelector("p")).toBeNull();
+  });
+
+  it("takes the heading level of the place it sits in", () => {
+    render(<EmptyState as="h3" title="Nothing here" />);
+    expect(screen.getByRole("heading", { level: 3, name: "Nothing here" })).toBeTruthy();
+  });
+
   it("PageHeader renders the h1", () => {
     render(<PageHeader title="Your boards" description="All of them" actions={<a href="/x">New</a>} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your boards" })).toBeTruthy();
@@ -101,6 +117,14 @@ describe("Avatar", () => {
     const style = el.getAttribute("style");
     rerender(<Avatar name="Ana Perez" />);
     expect((container.firstElementChild as HTMLElement).getAttribute("style")).toBe(style);
+  });
+
+  it("carries only the hue inline; lightness comes from the theme tokens", () => {
+    const { container } = render(<Avatar name="Ana Perez" />);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.getAttribute("style")).toMatch(/^--avatar-hue:\s*\d+;?$/);
+    expect(el.getAttribute("style")).not.toMatch(/hsl|rgb|#/);
+    expect(el.className).toContain("avatar");
   });
 
   it("handles astral characters in names", () => {
@@ -148,6 +172,11 @@ describe("Dialog", () => {
     expect(screen.getByText("content")).toBeTruthy();
   });
 
+  it("names the Close button in the active locale", () => {
+    render(<Dialog title="T" open onClose={vi.fn()}>x</Dialog>, { locale: "es" });
+    expect(screen.getByRole("button", { name: "Cerrar", hidden: true })).toBeTruthy();
+  });
+
   it("the Close button closes the dialog and reports it exactly once", async () => {
     const onClose = vi.fn();
     render(<Dialog title="T" open onClose={onClose}>x</Dialog>);
@@ -174,6 +203,30 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("shows an optional subtitle and header actions next to the title, inside the dialog's name", () => {
+    render(<Dialog title="Ship it" subtitle={"Sprint \u2192 To do"} actions={<button type="button">Edit</button>} open onClose={vi.fn()}>x</Dialog>);
+    const dialog = screen.getByRole("dialog", { name: "Ship it" });
+    expect(within(dialog).getByText("Sprint \u2192 To do")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeTruthy();
+  });
+
+  it("keeps the decorative icon out of the accessibility tree", () => {
+    render(<Dialog title="T" icon={<svg data-testid="glyph" />} open onClose={vi.fn()}>x</Dialog>);
+    expect(screen.getByTestId("glyph").closest("[aria-hidden='true']")).toBeTruthy();
+  });
+
+  it("does not report a nested dialog's close as its own", async () => {
+    const onOuter = vi.fn();
+    const onInner = vi.fn();
+    render(<Dialog title="Outer" open onClose={onOuter}><Dialog title="Inner" open onClose={onInner}>x</Dialog></Dialog>);
+    await userEvent.click(within(screen.getByRole("dialog", { name: "Inner" })).getByRole("button", { name: "Close" }));
+    expect(onInner).toHaveBeenCalledTimes(1);
+    expect(onOuter).not.toHaveBeenCalled();
+    fireEvent(screen.getByRole("dialog", { name: "Outer" }), new Event("close"));
+    expect(onOuter).toHaveBeenCalledTimes(1);
+  });
+
   it("closes the native dialog when open becomes false, without calling onClose again, and can reopen", () => {
     const onClose = vi.fn();
     const { rerender } = render(<Dialog title="T" open onClose={onClose}>x</Dialog>);
@@ -193,5 +246,23 @@ describe("TabNav", () => {
     expect(screen.getByRole("link", { name: "A" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "B" }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByRole("link", { name: "B" }).getAttribute("href")).toBe("/b");
+  });
+});
+
+describe("FormFooter", () => {
+  it("offers Cancel and a submit button with the given label", async () => {
+    const onCancel = vi.fn();
+    render(<form><FormFooter onCancel={onCancel} submitLabel="Save task" /></form>);
+    expect((screen.getByRole("button", { name: "Save task" }) as HTMLButtonElement).type).toBe("submit");
+    const cancel = screen.getByRole("button", { name: "Cancel" }) as HTMLButtonElement;
+    expect(cancel.type).toBe("button");
+    await userEvent.click(cancel);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits Cancel when there is nothing to cancel out of", () => {
+    render(<form><FormFooter submitLabel="Save task" /></form>);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save task" })).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SeededGuestSandbox, sandboxBoardId } from "@/infrastructure/auth/guest-sandbox";
 import * as schema from "@/infrastructure/db/schema";
@@ -12,6 +12,7 @@ const request = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => request.headers }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 /** Work a Server Action defers with `after()`: collected here so a test can run it like the framework would. */
 const deferred = vi.hoisted(() => [] as (() => Promise<void>)[]);
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: (work: () => Promise<void>) => void deferred.push(work) }));
@@ -194,6 +195,21 @@ describe("member and pipeline actions on Postgres", () => {
     expect(stages.filter((s) => s.isDone).map((s) => s.name)).toEqual(["Done"]);
   });
 
+  it("creates a pipeline with the stages posted as repeated fields, and reports a duplicate on the stages field", async () => {
+    const t = await team();
+    const posted = new FormData();
+    for (const [key, value] of [["boardId", t.boardId], ["name", "Flow"], ["stages", "Backlog"], ["stages", "Review"], ["stages", "Shipped"]] as const) posted.append(key, value);
+    expect(await pipelines.createPipelineAction(undefined, posted)).toEqual({ ok: true, data: null });
+    const stages = await handle.db.select().from(schema.stages);
+    expect(stages.map((s) => s.name).sort()).toEqual(["Backlog", "Review", "Shipped"]);
+    expect(stages.filter((s) => s.isDone).map((s) => s.name)).toEqual(["Shipped"]);
+
+    const duplicated = new FormData();
+    for (const [key, value] of [["boardId", t.boardId], ["name", "Other"], ["stages", "A"], ["stages", "a"]] as const) duplicated.append(key, value);
+    expect(await pipelines.createPipelineAction(undefined, duplicated)).toMatchObject({ ok: false, code: "VALIDATION", fieldErrors: { stages: ["Stage names must be unique"] } });
+    expect(await handle.db.select().from(schema.pipelines)).toHaveLength(1);
+  });
+
   it("lets an owner who removes themselves leave for the board list", async () => {
     const t = await team();
     await members.addMemberAction(undefined, form({ boardId: t.boardId, email: "invitee@example.com", role: "owner" }));
@@ -263,7 +279,7 @@ describe("pages on Postgres", () => {
     as(a.headers);
     const list = await BoardsPage({ searchParams: Promise.resolve({}) });
     expect(text(list)).toContain("Your boards");
-    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Pipelines");
+    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Board pipelines");
     expect(text(await SettingsPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Delete board");
 
     as(b.headers);

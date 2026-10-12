@@ -1,25 +1,35 @@
 "use client";
 
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, KeyboardSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
-import { describeFailure } from "@/components/auth/form-error";
+import { describeFailure, type AuthErrors } from "@/components/auth/form-error";
+import { AddStageColumn } from "./add-stage-column";
+import { AddTaskButton } from "./add-task-button";
 import { TaskCard } from "./task-card";
 import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
 import { KanbanColumn } from "./kanban-column";
 import { collideBoard } from "./collision";
+import { MousePointerSensor } from "./mouse-pointer-sensor";
 import { PipelineTabs, tabElementId, type PipelineSwitcherData } from "./pipeline-tabs";
 import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
+import { manageContextFor } from "./stage-management";
+import { useDragClickGuard } from "./use-drag-click-guard";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
-import type { ColumnView } from "./types";
+import type { ColumnView, MemberOption } from "./types";
 
-const FAILED = "The task could not be moved. Try again.";
+/** Pixels a pointer travels before a press becomes a drag; below it the press is a click. */
+const DRAG_DISTANCE = 5;
+/** How long a finger rests on a card before it is picked up, and how far it may wander meanwhile (beyond that it is a scroll). */
+const TOUCH_HOLD_MS = 250;
+const TOUCH_TOLERANCE = 8;
 
-async function sendMove(request: MoveRequest): Promise<SendResult> {
+async function sendMove(request: MoveRequest, t: AuthErrors, failed: string): Promise<SendResult> {
   const form = new FormData();
   form.set("taskId", request.taskId);
   form.set("toStageId", request.toStageId);
@@ -27,9 +37,9 @@ async function sendMove(request: MoveRequest): Promise<SendResult> {
   try {
     const result = await (request.toEnd ? moveTaskToEndAction : moveTaskAction)(undefined, form);
     if (result?.ok) return { ok: true };
-    return { ok: false, message: (result && describeFailure(result)) || FAILED };
+    return { ok: false, message: (result && describeFailure(result, [], t)) || failed };
   } catch {
-    return { ok: false, message: FAILED };
+    return { ok: false, message: failed };
   }
 }
 
@@ -42,14 +52,24 @@ interface KanbanBoardProps {
   taskBase: string;
   /** The board's pipelines, for the tabs and for moving cards between pipelines. Without it (or with one pipeline) the board is self-contained. */
   switcher?: PipelineSwitcherData;
+  /** Who a new task can be assigned to. Writers get an add-task button per column only when this is given. */
+  members?: MemberOption[];
+  /** The owner can rename, reorder, flag as done and delete stages from each column, and add one at the end. Needs `pipelineId`. */
+  canManageStages?: boolean;
+  pipelineId?: string;
+  /** Some tasks were not loaded: no stage is assumed empty when one is deleted. */
+  tasksTruncated?: boolean;
 }
 
 /**
  * The board. Writers can drag cards (pointer or keyboard) or use each card's Move menu; both go through one
  * optimistic path that rolls back and explains when the server refuses. Viewers get the same columns read-only.
  */
-export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: KanbanBoardProps) {
+export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, members, canManageStages = false, pipelineId, tasksTruncated = false }: KanbanBoardProps) {
   const router = useRouter();
+  const tErrors = useTranslations("auth.errors");
+  const t = useTranslations("kanban");
+  const sendWithErrors = useCallback((request: MoveRequest) => sendMove(request, tErrors, t("moveFailed")), [tErrors, t]);
   const [announcement, setAnnouncement] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStageId, setOverStageId] = useState<string | null>(null);
@@ -63,24 +83,24 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
   const crossing = useRef(false);
   const [crossPending, setCrossPending] = useState(false);
   const onSettled = (request: MoveRequest, result: SendResult) => {
-    const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    const title = columns.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? t("untitled");
     const stage = columns.find((column) => column.stage.id === request.toStageId)?.stage.name ?? "";
-    setAnnouncement(result.ok ? `Moved ${title} to ${stage}` : `Couldn't move ${title} \u2014 restored`);
+    setAnnouncement(result.ok ? t("announce.moved", { title, destination: stage }) : t("announce.restored", { title }));
     if (result.ok) setCrossError(null);
   };
-  const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendMove, { refresh: router.refresh, onSettled });
+  const { columns: shown, move: send, queue, errors, pending } = useOptimisticMove(columns, sendWithErrors, { refresh: router.refresh, onSettled });
   const pipelines = switcher && switcher.pipelines.length > 1 ? switcher.pipelines : [];
   /** Not optimistic: the card belongs to another page afterwards, so the server answers first and the page is re-read. */
   const moveAcross = async (request: MoveRequest, destination: string) => {
     if (crossing.current) return; // one move across at a time: a second drop would race the first one's refresh
     crossing.current = true;
     setCrossPending(true);
-    const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? "task";
+    const title = shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === request.taskId)?.title ?? t("untitled");
     setCrossError(null);
-    setAnnouncement(`Moving ${title} to ${destination}`);
+    setAnnouncement(t("announce.moving", { title, destination }));
     // Queued behind any move still in flight inside this pipeline, so the server sees them in the order they were made.
-    const result = await queue(() => sendMove(request));
-    setAnnouncement(result.ok ? `Moved ${title} to ${destination}` : `Couldn't move ${title}`);
+    const result = await queue(() => sendWithErrors(request));
+    setAnnouncement(result.ok ? t("announce.moved", { title, destination }) : t("announce.failedAcross", { title }));
     if (!result.ok) setCrossError(result.message);
     router.refresh();
     crossing.current = false;
@@ -93,7 +113,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
   const destinationOf = (stageId: string) => {
     const pipeline = pipelines.find((candidate) => candidate.stages.some((stage) => stage.id === stageId));
     const stage = pipeline?.stages.find((candidate) => candidate.id === stageId);
-    return pipeline && stage ? `${stage.name} in ${pipeline.name}` : "another pipeline";
+    return pipeline && stage ? t("announce.destination", { stage: stage.name, pipeline: pipeline.name }) : t("announce.anotherPipeline");
   };
   const move = (request: MoveRequest) => {
     if (!shown.some((column) => column.stage.id === request.toStageId)) {
@@ -110,11 +130,39 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
     handles.current.get(refocus.current)?.focus();
     refocus.current = null;
   }, [pending, shown]);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  // A press that moves a few pixels grabs the card (a plain click still follows its link); on a touch screen a short hold does,
+  // so a swipe still scrolls the board. The keyboard grabs the focused card.
+  const sensors = useSensors(
+    useSensor(MousePointerSensor, { activationConstraint: { distance: DRAG_DISTANCE } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: TOUCH_HOLD_MS, tolerance: TOUCH_TOLERANCE } }),
+    // Space picks the focused card up (Enter stays with the link and the buttons inside it); Space or Enter drops it.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] } }),
+  );
+  // A deleted stage takes its menu button with it: the focus goes to the next column's button (or Add stage) once it is gone.
+  const afterDelete = useRef<{ deleted: string; next: string | null } | null>(null);
+  useEffect(() => {
+    const intent = afterDelete.current;
+    if (!intent || shown.some((column) => column.stage.id === intent.deleted)) return;
+    afterDelete.current = null;
+    const target = (intent.next && document.querySelector<HTMLElement>(`[data-stage-menu="${intent.next}"]`)) || document.querySelector<HTMLElement>("[data-add-stage]");
+    target?.focus({ preventScroll: true });
+  }, [shown]);
   const nameOf = (userId: string) => names[userId] ?? null;
   const taskHref = (taskId: string) => `${taskBase}${taskId}`;
   const active = activeId ? shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === activeId) : undefined;
+  const clickGuard = useDragClickGuard();
+  // Dragging turns snapping off (it fights the drag's own auto-scroll); some browsers re-resolve the scroll position when
+  // that happens, so the offset the board had when the card was picked up is put back before the next paint.
+  const boardScroller = useRef<HTMLDivElement>(null);
+  const scrolledTo = useRef(0);
+  const rememberScroll = () => {
+    scrolledTo.current = boardScroller.current?.scrollLeft ?? 0;
+  };
+  useLayoutEffect(() => {
+    if (activeId !== null && boardScroller.current) boardScroller.current.scrollLeft = scrolledTo.current;
+  }, [activeId]);
   const stopDragging = () => {
+    clickGuard.end();
     setActiveId(null);
     setOverStageId(null);
   };
@@ -124,7 +172,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
     if (!over) return;
     const tab = switcher ? resolveTabDrop(pipelines, switcher.pipelineId, shown, String(dragged.id), String(over.id)) : null;
     if (tab) {
-      void moveAcross(tab.request, `${tab.stageName} in ${tab.pipelineName}`);
+      void moveAcross(tab.request, t("announce.destination", { stage: tab.stageName, pipeline: tab.pipelineName }));
       return;
     }
     const request = resolveDrop(shown, String(dragged.id), String(over.id));
@@ -132,7 +180,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
   };
   const messages = crossError === null ? errors : [...errors, crossError];
   const status = (
-    <div role="status" aria-label="Board updates" aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-50 px-3 py-2 text-sm text-danger-700" : undefined}>
+    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : "sr-only"}>
       <span className="sr-only">{announcement}</span>
       {messages.map((message, i) => (
         <p key={i}>{message}</p>
@@ -142,6 +190,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
   const tabs = switcher && pipelines.length > 0 ? <PipelineTabs data={switcher} droppable={canWrite} dragging={activeId !== null} /> : null;
   const scroller = (children: ReactNode) => (
     <div
+      ref={boardScroller}
       data-testid="board-scroller"
       data-dragging={activeId !== null}
       // Snapping and smooth scrolling fight the drag's own auto-scroll, so both are off while a card is held.
@@ -160,18 +209,25 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher }: Ka
     );
   }
   return (
-    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines) }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
+    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines, t), screenReaderInstructions: { draggable: t("dragInstructions") } }} onDragStart={({ active, activatorEvent }) => {
+      clickGuard.begin(activatorEvent);
+      rememberScroll();
+      setActiveId(String(active.id));
+    }} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
       {status}
       {tabs}
       {scroller(
-        shown.map((column) => (
-          <DroppableColumn key={column.stage.id} column={column} columns={shown} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} />
-        )),
+        <>
+          {shown.map((column, index) => (
+          <DroppableColumn key={column.stage.id} column={column} columns={shown} manage={canManageStages && pipelineId ? { ...manageContextFor(shown.map((candidate) => candidate.stage), index, tasksTruncated), onDeleting: (deleted, next) => (afterDelete.current = { deleted, next }) } : undefined} otherPipelines={pipelines.filter((p) => p.id !== switcher?.pipelineId)} isOver={overStageId === column.stage.id} nameOf={nameOf} taskHref={taskHref} onMove={move} registerHandle={registerHandle} footer={members ? <AddTaskButton stage={column.stage} stages={shown.map((candidate) => candidate.stage)} members={members} /> : undefined} />
+          ))}
+          {canManageStages && pipelineId ? <AddStageColumn pipelineId={pipelineId} /> : null}
+        </>,
       )}
       <DragOverlay>
         {/* A visual copy only: hidden from assistive tech so the card never appears twice. */}
         {active ? (
-          <div aria-hidden="true">
+          <div aria-hidden="true" data-testid="drag-overlay">
             <TaskCard task={active} assigneeName={active.assigneeId ? nameOf(active.assigneeId) : null} lifted />
           </div>
         ) : null}

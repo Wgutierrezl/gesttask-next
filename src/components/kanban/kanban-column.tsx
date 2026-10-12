@@ -1,26 +1,27 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
+import { StageHeader } from "./stage-header";
+import type { StageManagement } from "./stage-management";
 import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
-/** The frame of a column: header with the done marker and count, the empty message, and the list its `children` fill. */
-export function ColumnShell({ column, listRef, isOver = false, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; children: ReactNode }) {
+/** The frame of a column: header (with its menu for `manage`), the drop zone (empty message and the list its `children` fill), and an optional `footer`. */
+export function ColumnShell({ column, listRef, isOver = false, footer, manage, children }: { column: ColumnView; listRef?: (element: HTMLElement | null) => void; isOver?: boolean; footer?: ReactNode; manage?: StageManagement; children: ReactNode }) {
   const { stage, tasks } = column;
-  const count = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
+  const t = useTranslations("kanban");
   return (
-    <section aria-label={`${stage.name}, ${count}`} data-drop-target={isOver} className={cn("flex w-72 shrink-0 snap-start flex-col gap-3 rounded-card p-3 transition-colors duration-[var(--duration-fast)]", isOver ? "bg-brand-50 ring-2 ring-brand-600" : "bg-slate-100")}>
-      <header className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-slate-900">{stage.name}</h3>
-        <span className="flex items-center gap-2">
-          {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
-          <span data-testid="column-count" className="inline-flex min-w-6 justify-center rounded-pill bg-white px-2 py-0.5 text-xs font-medium text-slate-700">{tasks.length}</span>
-        </span>
-      </header>
-      {tasks.length === 0 ? <p className="rounded-control border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-600">No tasks</p> : null}
-      <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
-        {children}
-      </ul>
+    <section aria-label={t("columnLabel", { name: stage.name, count: tasks.length })} data-drop-target={isOver} className="flex w-80 shrink-0 snap-start flex-col rounded-card border border-border bg-surface-hover p-4">
+      <StageHeader stage={stage} count={tasks.length} manage={manage} />
+      {/* The drop zone is the whole open area under the header. Its dashed highlight is drawn in the negative margin it
+          pads itself with, so the cards do not move when it appears. */}
+      <div ref={listRef} className={cn("-m-2.5 flex min-h-[400px] flex-1 flex-col rounded-xl border-2 p-2 transition-colors duration-[var(--duration-fast)]", isOver ? "border-dashed border-border-hover bg-brand-soft" : "border-transparent")}>
+        {tasks.length === 0 && !isOver ? <p className="flex h-32 items-center justify-center text-sm text-fg-subtle">{t("noTasks")}</p> : null}
+        <ul className="flex flex-col gap-3">
+          {children}
+        </ul>
+      </div>
+      {footer ? <div className="mt-3">{footer}</div> : null}
     </section>
   );
 }
