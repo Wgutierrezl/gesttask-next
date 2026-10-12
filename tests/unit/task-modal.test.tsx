@@ -55,11 +55,11 @@ describe("task modal (intercepted route)", () => {
   });
 
   it("offers Edit and Delete to writers and neither to viewers, who still read the details and comments", async () => {
-    expect(renderToStaticMarkup(await TaskModalPage({ params: params() }))).toMatch(/>Edit<\/button>.*>Delete<\/button>/s);
+    expect(renderToStaticMarkup(await TaskModalPage({ params: params() }))).toMatch(/<button[^>]*aria-label="Edit"[^>]*>.*<button[^>]*aria-label="Delete"/s);
     useCases.getPipeline.mockResolvedValue(pipeline("guest"));
     const viewer = renderToStaticMarkup(await TaskModalPage({ params: params() }));
-    expect(viewer).not.toContain(">Edit</button>");
-    expect(viewer).not.toContain(">Delete</button>");
+    expect(viewer).not.toContain('aria-label="Edit"');
+    expect(viewer).not.toContain('aria-label="Delete"');
     expect(viewer).not.toContain("Move to stage");
     expect(viewer).toContain("Details");
     expect(viewer).toContain("Comments (0)");
@@ -85,7 +85,7 @@ describe("task modal in Spanish", () => {
     expect(await generateMetadata()).toEqual({ title: "Tarea" });
     useCases.getTask.mockResolvedValue({ ...(await useCases.getTask()), stageId: "missing" });
     const html = renderToStaticMarkup(await TaskModalPage({ params: params() }), { locale: "es" });
-    for (const text of ["Sprint → Etapa desconocida", "Detalles", "Sin fecha de vencimiento", "Mover tarea", "Mover a la etapa", "Comentarios (0)", "Aún no hay comentarios.", ">Editar<", ">Eliminar<"]) expect(html, text).toContain(text);
+    for (const text of ["Sprint → Etapa desconocida", "Detalles", "Sin fecha de vencimiento", "Mover tarea", "Mover a la etapa", "Comentarios (0)", "Aún no hay comentarios.", 'aria-label="Editar"', 'aria-label="Eliminar"']) expect(html, text).toContain(text);
     for (const text of ["Unknown stage", "No due date", "No comments yet."]) expect(html, text).not.toContain(text);
   });
 });

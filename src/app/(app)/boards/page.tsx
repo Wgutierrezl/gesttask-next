@@ -7,7 +7,7 @@ import { BoardCard } from "@/components/boards/board-card";
 import { CreateBoardDialog } from "@/components/boards/create-dialogs";
 import { PastTheEnd, Pager } from "@/components/boards/pager";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHero } from "@/components/ui/page-hero";
 import { getContainer } from "@/infrastructure/container";
 
 export async function generateMetadata() {
@@ -26,16 +26,21 @@ export default async function BoardsPage({ searchParams }: { searchParams: Promi
     return { ...shown, roles: new Map(memberships.map((m) => [m.boardId, m.role])) };
   });
   return (
-    <main>
-      <PageHeader title={t("title")} description={t("description")} actions={<CreateBoardDialog />} />
+    <main className="flex flex-col gap-10">
+      <PageHero
+        title={t("title")}
+        description={t("description")}
+        meta={items.length > 0 ? { icon: <LayoutGrid />, text: t(page === 1 && !hasNext ? "activeCount" : "activeCountPage", { count: items.filter((board) => board.status === "active").length }) } : undefined}
+        actions={<CreateBoardDialog />}
+      />
       {items.length === 0 ? (
         page > 1 ? (
           <PastTheEnd what="boards" href="/boards" />
         ) : (
-          <EmptyState icon={<LayoutGrid className="size-8" />} title={t("emptyTitle")} description={t("emptyDescription")} />
+          <EmptyState icon={<LayoutGrid className="size-10" />} title={t("emptyTitle")} description={t("emptyDescription")} />
         )
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((board) => (
             <BoardCard key={board.id} board={board} role={roles.get(board.id)} />
           ))}

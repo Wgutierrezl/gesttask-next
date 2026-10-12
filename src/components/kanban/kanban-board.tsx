@@ -1,10 +1,10 @@
 "use client";
 
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, KeyboardSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { moveTaskAction, moveTaskToEndAction } from "@/app/_actions/tasks";
 import { cn } from "@/components/ui/cn";
 import { describeFailure, type AuthErrors } from "@/components/auth/form-error";
@@ -15,11 +15,19 @@ import { announcementsFor } from "./announcements";
 import { DroppableColumn } from "./droppable-column";
 import { KanbanColumn } from "./kanban-column";
 import { collideBoard } from "./collision";
+import { MousePointerSensor } from "./mouse-pointer-sensor";
 import { PipelineTabs, tabElementId, type PipelineSwitcherData } from "./pipeline-tabs";
 import { resolveDrop, resolveTabDrop, stageOfDroppable, type MoveRequest } from "./move";
 import { manageContextFor } from "./stage-management";
+import { useDragClickGuard } from "./use-drag-click-guard";
 import { useOptimisticMove, type SendResult } from "./use-optimistic-move";
 import type { ColumnView, MemberOption } from "./types";
+
+/** Pixels a pointer travels before a press becomes a drag; below it the press is a click. */
+const DRAG_DISTANCE = 5;
+/** How long a finger rests on a card before it is picked up, and how far it may wander meanwhile (beyond that it is a scroll). */
+const TOUCH_HOLD_MS = 250;
+const TOUCH_TOLERANCE = 8;
 
 async function sendMove(request: MoveRequest, t: AuthErrors, failed: string): Promise<SendResult> {
   const form = new FormData();
@@ -122,7 +130,14 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     handles.current.get(refocus.current)?.focus();
     refocus.current = null;
   }, [pending, shown]);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  // A press that moves a few pixels grabs the card (a plain click still follows its link); on a touch screen a short hold does,
+  // so a swipe still scrolls the board. The keyboard grabs the focused card.
+  const sensors = useSensors(
+    useSensor(MousePointerSensor, { activationConstraint: { distance: DRAG_DISTANCE } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: TOUCH_HOLD_MS, tolerance: TOUCH_TOLERANCE } }),
+    // Space picks the focused card up (Enter stays with the link and the buttons inside it); Space or Enter drops it.
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] } }),
+  );
   // A deleted stage takes its menu button with it: the focus goes to the next column's button (or Add stage) once it is gone.
   const afterDelete = useRef<{ deleted: string; next: string | null } | null>(null);
   useEffect(() => {
@@ -135,7 +150,19 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   const nameOf = (userId: string) => names[userId] ?? null;
   const taskHref = (taskId: string) => `${taskBase}${taskId}`;
   const active = activeId ? shown.flatMap((column) => column.tasks).find((candidate) => candidate.id === activeId) : undefined;
+  const clickGuard = useDragClickGuard();
+  // Dragging turns snapping off (it fights the drag's own auto-scroll); some browsers re-resolve the scroll position when
+  // that happens, so the offset the board had when the card was picked up is put back before the next paint.
+  const boardScroller = useRef<HTMLDivElement>(null);
+  const scrolledTo = useRef(0);
+  const rememberScroll = () => {
+    scrolledTo.current = boardScroller.current?.scrollLeft ?? 0;
+  };
+  useLayoutEffect(() => {
+    if (activeId !== null && boardScroller.current) boardScroller.current.scrollLeft = scrolledTo.current;
+  }, [activeId]);
   const stopDragging = () => {
+    clickGuard.end();
     setActiveId(null);
     setOverStageId(null);
   };
@@ -153,7 +180,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   };
   const messages = crossError === null ? errors : [...errors, crossError];
   const status = (
-    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : undefined}>
+    <div role="status" aria-label={t("boardUpdates")} aria-busy={crossPending || undefined} className={messages.length > 0 ? "rounded-control bg-danger-soft px-3 py-2 text-sm text-danger-fg" : "sr-only"}>
       <span className="sr-only">{announcement}</span>
       {messages.map((message, i) => (
         <p key={i}>{message}</p>
@@ -163,6 +190,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
   const tabs = switcher && pipelines.length > 0 ? <PipelineTabs data={switcher} droppable={canWrite} dragging={activeId !== null} /> : null;
   const scroller = (children: ReactNode) => (
     <div
+      ref={boardScroller}
       data-testid="board-scroller"
       data-dragging={activeId !== null}
       // Snapping and smooth scrolling fight the drag's own auto-scroll, so both are off while a card is held.
@@ -181,7 +209,11 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
     );
   }
   return (
-    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines, t), screenReaderInstructions: { draggable: t("dragInstructions") } }} onDragStart={({ active }) => setActiveId(String(active.id))} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
+    <DndContext id="kanban" sensors={sensors} collisionDetection={collideBoard} accessibility={{ announcements: announcementsFor(shown, pipelines, t), screenReaderInstructions: { draggable: t("dragInstructions") } }} onDragStart={({ active, activatorEvent }) => {
+      clickGuard.begin(activatorEvent);
+      rememberScroll();
+      setActiveId(String(active.id));
+    }} onDragOver={onDragOver} onDragCancel={stopDragging} onDragEnd={onDragEnd}>
       {status}
       {tabs}
       {scroller(
@@ -195,7 +227,7 @@ export function KanbanBoard({ columns, canWrite, names, taskBase, switcher, memb
       <DragOverlay>
         {/* A visual copy only: hidden from assistive tech so the card never appears twice. */}
         {active ? (
-          <div aria-hidden="true">
+          <div aria-hidden="true" data-testid="drag-overlay">
             <TaskCard task={active} assigneeName={active.assigneeId ? nameOf(active.assigneeId) : null} lifted />
           </div>
         ) : null}

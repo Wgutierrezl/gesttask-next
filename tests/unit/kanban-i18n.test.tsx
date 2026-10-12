@@ -52,12 +52,12 @@ describe("kanban in Spanish", () => {
     es_(<KanbanBoard columns={columns()} canWrite names={{}} taskBase="/t/" switcher={{ boardId: "b", pipelineId: "p1", pipelines }} members={[{ userId: "u", name: "Olivia" }]} />);
     const todo = screen.getByRole("region", { name: "Por hacer, 2 tareas" });
     expect(screen.getByRole("region", { name: "Hecho, 0 tareas" })).toBeTruthy();
-    expect(within(todo).getByRole("button", { name: "Arrastrar Tarea a" })).toBeTruthy();
+    expect(within(todo).getByRole("article", { name: "Arrastrar Tarea a" })).toBeTruthy();
     expect(within(todo).getByRole("button", { name: "Añadir tarea a Por hacer" })).toBeTruthy();
     expect(screen.getByRole("status", { name: "Actualizaciones del tablero" })).toBeTruthy();
-    await userEvent.click(within(todo).getAllByText("Mover", { selector: "summary" })[0]!);
-    expect(within(todo).getAllByRole("button", { name: "Mover Tarea a a Backlog / Ideas" })).toHaveLength(1);
-    await userEvent.click(within(todo).getAllByRole("button", { name: "Mover Tarea a a Hecho" })[0]!);
+    await userEvent.click(within(todo).getByLabelText("Opciones para mover Tarea a"));
+    expect(screen.getAllByRole("button", { name: "Mover Tarea a a Backlog / Ideas" })).toHaveLength(1);
+    await userEvent.click(screen.getAllByRole("button", { name: "Mover Tarea a a Hecho" })[0]!);
     expect(await screen.findByText("Se movió Tarea a a Hecho")).toBeTruthy();
   });
 

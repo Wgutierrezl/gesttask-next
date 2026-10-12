@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
@@ -18,7 +19,10 @@ export function CommentsSection({ taskId, comments, truncated, loadCap, canAttac
   const t = useTranslations("comments");
   return (
     <section aria-labelledby="comments-heading" className="flex flex-col gap-4">
-      <h2 id="comments-heading" className="text-lg font-semibold text-fg">{t("heading", { count: comments.length })}</h2>
+      <div className="flex items-center gap-2">
+        <MessageSquare aria-hidden="true" className="size-5 text-icon-fg" />
+        <h2 id="comments-heading" className="text-lg font-semibold text-fg">{t("heading", { count: comments.length })}</h2>
+      </div>
       {truncated ? <p role="status" className="rounded-control bg-warning-soft px-3 py-2 text-sm text-warning-fg">{t("truncated", { count: loadCap })}</p> : null}
       {comments.length === 0 ? <p className="text-sm text-fg-muted">{t("empty")}</p> : (
         <div className="flex flex-col gap-3">

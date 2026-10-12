@@ -155,6 +155,12 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     const boardUrl = page.url();
     await expectLegible(page, 3);
 
+    // The members dialog: the add panel, the member cards and the permissions legend, on the elevated surface.
+    await page.getByRole("button", { name: "Manage members" }).click();
+    await expect(page.getByRole("dialog", { name: "Manage members" })).toBeVisible();
+    await expectLegible(page, 6, "dialog[open]");
+    await page.keyboard.press("Escape");
+
     await page.goto(`${boardUrl}/dashboard`);
     await expectLegible(page, 5);
 
