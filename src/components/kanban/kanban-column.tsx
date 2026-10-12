@@ -6,18 +6,22 @@ import type { StageManagement } from "./stage-management";
 import { TaskCard } from "./task-card";
 import type { ColumnView } from "./types";
 
-/** The frame of a column: header (with its menu for `manage`), the empty message, the list its `children` fill, and an optional `footer`. */
-export function ColumnShell({ column, listRef, isOver = false, footer, manage, children }: { column: ColumnView; listRef?: (element: HTMLUListElement | null) => void; isOver?: boolean; footer?: ReactNode; manage?: StageManagement; children: ReactNode }) {
+/** The frame of a column: header (with its menu for `manage`), the drop zone (empty message and the list its `children` fill), and an optional `footer`. */
+export function ColumnShell({ column, listRef, isOver = false, footer, manage, children }: { column: ColumnView; listRef?: (element: HTMLElement | null) => void; isOver?: boolean; footer?: ReactNode; manage?: StageManagement; children: ReactNode }) {
   const { stage, tasks } = column;
   const t = useTranslations("kanban");
   return (
-    <section aria-label={t("columnLabel", { name: stage.name, count: tasks.length })} data-drop-target={isOver} className={cn("flex w-80 shrink-0 snap-start flex-col gap-3 rounded-card border border-border p-4 transition-colors duration-[var(--duration-fast)]", isOver ? "bg-brand-soft ring-2 ring-ring" : "bg-surface-muted")}>
+    <section aria-label={t("columnLabel", { name: stage.name, count: tasks.length })} data-drop-target={isOver} className="flex w-80 shrink-0 snap-start flex-col rounded-card border border-border bg-surface-hover p-4">
       <StageHeader stage={stage} count={tasks.length} manage={manage} />
-      {tasks.length === 0 ? <p className="rounded-control border border-dashed border-border-strong px-3 py-4 text-center text-xs text-fg-muted">{t("noTasks")}</p> : null}
-      <ul ref={listRef} className="flex min-h-12 flex-col gap-2">
-        {children}
-      </ul>
-      {footer}
+      {/* The drop zone is the whole open area under the header. Its dashed highlight is drawn in the negative margin it
+          pads itself with, so the cards do not move when it appears. */}
+      <div ref={listRef} className={cn("-m-2.5 flex min-h-[400px] flex-1 flex-col rounded-xl border-2 p-2 transition-colors duration-[var(--duration-fast)]", isOver ? "border-dashed border-border-hover bg-brand-soft" : "border-transparent")}>
+        {tasks.length === 0 && !isOver ? <p className="flex h-32 items-center justify-center text-sm text-fg-subtle">{t("noTasks")}</p> : null}
+        <ul className="flex flex-col gap-3">
+          {children}
+        </ul>
+      </div>
+      {footer ? <div className="mt-3">{footer}</div> : null}
     </section>
   );
 }

@@ -149,6 +149,16 @@ describe("KanbanBoard dragging", () => {
     await waitFor(() => expect(scroller.getAttribute("data-dragging")).toBe("false"));
   });
 
+  it("hides the empty-column message while a card hovers it, and brings it back when the card leaves", () => {
+    render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
+    const done = () => screen.getByRole("region", { name: "Done, 0 tasks" });
+    expect(within(done()).getByText("No tasks")).toBeTruthy();
+    act(() => dnd.props!.onDragOver({ over: { id: "column:s2" } }));
+    expect(within(done()).queryByText("No tasks")).toBeNull();
+    act(() => dnd.props!.onDragOver({ over: null }));
+    expect(within(done()).getByText("No tasks")).toBeTruthy();
+  });
+
   it("marks the column the pointer is over as the drop target, from a card id or a column id", () => {
     render(<KanbanBoard columns={columns} canWrite names={{}} taskBase="/t/" />);
     const done = () => screen.getByRole("region", { name: "Done, 0 tasks" });

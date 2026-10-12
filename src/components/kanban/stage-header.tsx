@@ -120,15 +120,15 @@ export function StageHeader({ stage, count, manage }: { stage: StageView; count:
     trigger.current?.focus();
   }, [renaming]);
   return (
-    <header className="flex flex-col gap-1">
+    <header className="mb-4 flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", stage.isDone ? "bg-success-fg" : "bg-accent")} />
-          {renaming ? <RenameForm stage={stage} onDone={stopRenaming} onCancel={stopRenaming} /> : <h3 className="min-w-0 truncate text-sm font-semibold text-fg">{stage.name}</h3>}
+          {renaming ? <RenameForm stage={stage} onDone={stopRenaming} onCancel={stopRenaming} /> : <h3 className="min-w-0 truncate text-sm font-medium text-fg">{stage.name}</h3>}
         </div>
         <span className="flex shrink-0 items-center gap-1.5">
           {stage.isDone ? <Badge tone="success">{t("doneStage")}</Badge> : null}
-          <span data-testid="column-count" className="inline-flex min-w-6 justify-center rounded-lg border border-border bg-surface px-2 py-0.5 text-xs font-medium text-fg-strong">{count}</span>
+          <span data-testid="column-count" className="inline-flex min-w-6 justify-center rounded-lg border border-border bg-surface px-2 py-0.5 text-xs text-fg-muted">{count}</span>
           {manage ? (
             <StageMenu
               stage={stage}
