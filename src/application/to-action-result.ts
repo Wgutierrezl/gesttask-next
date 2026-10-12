@@ -1,9 +1,9 @@
-import { isDomainError, type FieldErrors, type FieldReasons } from "@/domain/errors";
+import { DEFAULT_MESSAGES, isDomainError, type FieldErrors, type FieldReasons } from "@/domain/errors";
 import type { ActionFailure, ActionResult } from "./result";
 
 /** The single translation from thrown domain errors to the serializable result Server Actions return. */
 export function toActionFailure(error: unknown): ActionFailure {
-  if (!isDomainError(error)) return { ok: false, code: "INTERNAL", message: "Something went wrong" };
+  if (!isDomainError(error)) return { ok: false, code: "INTERNAL", message: DEFAULT_MESSAGES.INTERNAL };
   const failure: ActionFailure = { ok: false, code: error.code, message: error.message };
   // Structural, not `instanceof`: the error may come from another copy of the domain module.
   const { fieldErrors, fieldReasons, retryAfterSeconds } = error as { fieldErrors?: FieldErrors; fieldReasons?: FieldReasons; retryAfterSeconds?: number };

@@ -2,7 +2,7 @@
 
 import type { MutationState } from "../_shared/mutation-state";
 import { TASK_PAGE } from "../_shared/paths";
-import { checked, runMutation, text, texts } from "../_shared/run-mutation";
+import { checked, confirmationRequired, runMutation, text, texts } from "../_shared/run-mutation";
 import { getContainer } from "@/infrastructure/container";
 
 const refresh = { revalidate: [TASK_PAGE] };
@@ -25,7 +25,7 @@ export async function editCommentAction(_previous: MutationState, form: FormData
 /** Deleting asks for confirmation; the objects of its attachments are removed from the storage after the response. */
 export async function deleteCommentAction(_previous: MutationState, form: FormData): Promise<MutationState> {
   if (!checked(form, "confirm")) {
-    return { ok: false, code: "VALIDATION", message: "Confirmation required", fieldErrors: { confirm: ["Confirm that you want to delete this comment"] } };
+    return confirmationRequired("deleteComment");
   }
   return runMutation(() => getContainer().useCases.deleteComment({ commentId: text(form, "commentId") }), { ...refresh, cleanupStorage: true });
 }

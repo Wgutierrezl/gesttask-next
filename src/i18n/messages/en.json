@@ -341,5 +341,92 @@
       "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "internal": "Something went wrong. Please try again."
     }
+  },
+  "errors": {
+    "code": {
+      "VALIDATION": "Invalid input",
+      "UNAUTHENTICATED": "Authentication required",
+      "FORBIDDEN": "Insufficient permissions",
+      "NOT_FOUND": "Resource not found",
+      "CONFLICT": "Conflict",
+      "RATE_LIMITED": "Too many requests",
+      "STORAGE": "Storage operation failed",
+      "UNAVAILABLE": "The service is temporarily unavailable",
+      "INTERNAL": "Something went wrong"
+    },
+    "reason": {
+      "guest": {
+        "boardLimit": "Guest limit reached: at most {max} boards. Sign up to create more.",
+        "taskLimit": "Guest limit reached: at most {max} tasks. Sign up to create more.",
+        "attachmentLimit": "Guest limit reached: at most {max} attachments. Sign up to attach more.",
+        "cannotInvite": "Create an account to invite people"
+      },
+      "stage": {
+        "doneExists": "The pipeline already has a done stage",
+        "nameTaken": "A stage with this name already exists in the pipeline",
+        "doneCannotDelete": "The done stage cannot be deleted: move the done flag to another stage first",
+        "hasTasks": "Stage has tasks: choose a destination stage",
+        "sameDestination": "Destination must be a different stage"
+      },
+      "member": {
+        "alreadyMember": "User is already a member of this board",
+        "lastOwner": "A board needs at least one owner"
+      },
+      "task": {
+        "movedConcurrently": "The task changed column concurrently; retry"
+      },
+      "attachment": {
+        "alreadyAttached": "This file is already attached to a comment"
+      },
+      "auth": {
+        "invalidCredentials": "Invalid email or password",
+        "emailTaken": "Email already registered",
+        "alreadyGuest": "Already signed in as a guest",
+        "alreadySignedIn": "Already signed in"
+      },
+      "confirmationRequired": "Confirmation required"
+    },
+    "validation": {
+      "tooSmall": "Too small: expected string to have >={min} characters",
+      "tooBig": "Too big: expected string to have <={max} characters",
+      "invalidEmail": "Invalid email address",
+      "name": {
+        "tooSmall": "Name is required",
+        "tooBig": "Name must be at most {max} characters"
+      },
+      "description": {
+        "tooBig": "Description must be at most {max} characters"
+      },
+      "body": {
+        "tooSmall": "Write something first",
+        "tooBig": "Comments are limited to {max} characters"
+      },
+      "fileName": {
+        "tooSmall": "File name is required"
+      },
+      "size": {
+        "tooSmall": "The file is empty",
+        "tooBig": "Files can be at most 5 MB"
+      },
+      "contentType": {
+        "invalid": "This file type is not allowed"
+      },
+      "email": {
+        "notFound": "No account found with that email"
+      },
+      "assigneeId": {
+        "notMember": "Assignee must be a member of the board"
+      },
+      "attachmentIds": {
+        "expired": "A file took too long to attach. Upload it again.",
+        "notUploaded": "A file did not finish uploading. Try attaching it again."
+      },
+      "confirm": {
+        "deleteBoard": "Confirm that you want to delete this board",
+        "deleteTask": "Confirm that you want to delete this task",
+        "deleteComment": "Confirm that you want to delete this comment",
+        "removeMember": "Confirm that you want to remove this member"
+      }
+    }
   }
 }

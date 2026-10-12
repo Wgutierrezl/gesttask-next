@@ -8,6 +8,19 @@ export type DomainErrorCode =
   | "STORAGE"
   | "UNAVAILABLE";
 
+/** The English text each code carries when its throw site has nothing more specific to say. */
+export const DEFAULT_MESSAGES = {
+  VALIDATION: "Invalid input",
+  UNAUTHENTICATED: "Authentication required",
+  FORBIDDEN: "Insufficient permissions",
+  NOT_FOUND: "Resource not found",
+  CONFLICT: "Conflict",
+  RATE_LIMITED: "Too many requests",
+  STORAGE: "Storage operation failed",
+  UNAVAILABLE: "The service is temporarily unavailable",
+  INTERNAL: "Something went wrong",
+} as const satisfies Record<DomainErrorCode | "INTERNAL", string>;
+
 /**
  * Shared across copies of this module on purpose: a bundler may load the domain twice (e.g. a route handler and the page
  * that built the container), and `instanceof` then fails between the copies while the brand still matches.
@@ -47,7 +60,7 @@ export type FieldReasons = Record<string, (ErrorDetail | null)[]>;
 
 export class ValidationError extends DomainError {
   constructor(
-    message = "Invalid input",
+    message: string = DEFAULT_MESSAGES.VALIDATION,
     readonly fieldErrors: FieldErrors = {},
     readonly fieldReasons: FieldReasons = {},
     detail?: ErrorDetail,
@@ -57,14 +70,14 @@ export class ValidationError extends DomainError {
 }
 
 export class UnauthenticatedError extends DomainError {
-  constructor(message = "Authentication required", detail?: ErrorDetail) {
+  constructor(message: string = DEFAULT_MESSAGES.UNAUTHENTICATED, detail?: ErrorDetail) {
     super("UNAUTHENTICATED", message, detail);
   }
 }
 
 /** Only for members whose role is insufficient; non-members get NotFoundError instead. */
 export class ForbiddenError extends DomainError {
-  constructor(message = "Insufficient permissions", detail?: ErrorDetail) {
+  constructor(message: string = DEFAULT_MESSAGES.FORBIDDEN, detail?: ErrorDetail) {
     super("FORBIDDEN", message, detail);
   }
 }
@@ -72,12 +85,12 @@ export class ForbiddenError extends DomainError {
 /** Missing and foreign resources MUST be indistinguishable (REQ-ISO-08): one fixed message. */
 export class NotFoundError extends DomainError {
   constructor() {
-    super("NOT_FOUND", "Resource not found");
+    super("NOT_FOUND", DEFAULT_MESSAGES.NOT_FOUND);
   }
 }
 
 export class ConflictError extends DomainError {
-  constructor(message = "Conflict", detail?: ErrorDetail) {
+  constructor(message: string = DEFAULT_MESSAGES.CONFLICT, detail?: ErrorDetail) {
     super("CONFLICT", message, detail);
   }
 }
@@ -85,21 +98,21 @@ export class ConflictError extends DomainError {
 export class RateLimitError extends DomainError {
   constructor(
     readonly retryAfterSeconds: number,
-    message = "Too many requests",
+    message: string = DEFAULT_MESSAGES.RATE_LIMITED,
   ) {
     super("RATE_LIMITED", message);
   }
 }
 
 export class StorageError extends DomainError {
-  constructor(message = "Storage operation failed") {
+  constructor(message: string = DEFAULT_MESSAGES.STORAGE) {
     super("STORAGE", message);
   }
 }
 
 /** The service cannot take the request right now because of how it is deployed or configured, not because of the request. */
 export class UnavailableError extends DomainError {
-  constructor(message = "The service is temporarily unavailable") {
+  constructor(message: string = DEFAULT_MESSAGES.UNAVAILABLE) {
     super("UNAVAILABLE", message);
   }
 }

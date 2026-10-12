@@ -341,5 +341,92 @@
       "rateLimited": "Demasiados intentos. Inténtalo de nuevo en {minutes, plural, one {# minuto} other {# minutos}}.",
       "internal": "Algo salió mal. Inténtalo de nuevo."
     }
+  },
+  "errors": {
+    "code": {
+      "VALIDATION": "Datos no válidos",
+      "UNAUTHENTICATED": "Se requiere iniciar sesión",
+      "FORBIDDEN": "Permisos insuficientes",
+      "NOT_FOUND": "Recurso no encontrado",
+      "CONFLICT": "Conflicto",
+      "RATE_LIMITED": "Demasiadas solicitudes",
+      "STORAGE": "Falló la operación de almacenamiento",
+      "UNAVAILABLE": "El servicio no está disponible temporalmente",
+      "INTERNAL": "Algo salió mal"
+    },
+    "reason": {
+      "guest": {
+        "boardLimit": "Límite de invitado alcanzado: máximo {max} tableros. Regístrate para crear más.",
+        "taskLimit": "Límite de invitado alcanzado: máximo {max} tareas. Regístrate para crear más.",
+        "attachmentLimit": "Límite de invitado alcanzado: máximo {max} adjuntos. Regístrate para adjuntar más.",
+        "cannotInvite": "Crea una cuenta para invitar a otras personas"
+      },
+      "stage": {
+        "doneExists": "El pipeline ya tiene una etapa de finalizado",
+        "nameTaken": "Ya existe una etapa con este nombre en el pipeline",
+        "doneCannotDelete": "No se puede eliminar la etapa de finalizado: mueve primero la marca a otra etapa",
+        "hasTasks": "La etapa tiene tareas: elige una etapa de destino",
+        "sameDestination": "El destino debe ser una etapa distinta"
+      },
+      "member": {
+        "alreadyMember": "Esta persona ya es miembro del tablero",
+        "lastOwner": "Un tablero necesita al menos un propietario"
+      },
+      "task": {
+        "movedConcurrently": "La tarea cambió de columna al mismo tiempo; inténtalo de nuevo"
+      },
+      "attachment": {
+        "alreadyAttached": "Este archivo ya está adjunto a un comentario"
+      },
+      "auth": {
+        "invalidCredentials": "Correo o contraseña incorrectos",
+        "emailTaken": "Este correo ya está registrado",
+        "alreadyGuest": "Ya iniciaste sesión como invitado",
+        "alreadySignedIn": "Ya iniciaste sesión"
+      },
+      "confirmationRequired": "Se requiere confirmación"
+    },
+    "validation": {
+      "tooSmall": "Demasiado corto: se esperaban al menos {min} caracteres",
+      "tooBig": "Demasiado largo: se esperaban como máximo {max} caracteres",
+      "invalidEmail": "Correo electrónico no válido",
+      "name": {
+        "tooSmall": "El nombre es obligatorio",
+        "tooBig": "El nombre admite como máximo {max} caracteres"
+      },
+      "description": {
+        "tooBig": "La descripción admite como máximo {max} caracteres"
+      },
+      "body": {
+        "tooSmall": "Escribe algo primero",
+        "tooBig": "Los comentarios están limitados a {max} caracteres"
+      },
+      "fileName": {
+        "tooSmall": "El nombre del archivo es obligatorio"
+      },
+      "size": {
+        "tooSmall": "El archivo está vacío",
+        "tooBig": "Los archivos pueden pesar como máximo 5 MB"
+      },
+      "contentType": {
+        "invalid": "Este tipo de archivo no está permitido"
+      },
+      "email": {
+        "notFound": "No se encontró ninguna cuenta con ese correo"
+      },
+      "assigneeId": {
+        "notMember": "La persona asignada debe ser miembro del tablero"
+      },
+      "attachmentIds": {
+        "expired": "Un archivo tardó demasiado en adjuntarse. Súbelo de nuevo.",
+        "notUploaded": "Un archivo no terminó de subirse. Intenta adjuntarlo de nuevo."
+      },
+      "confirm": {
+        "deleteBoard": "Confirma que quieres eliminar este tablero",
+        "deleteTask": "Confirma que quieres eliminar esta tarea",
+        "deleteComment": "Confirma que quieres eliminar este comentario",
+        "removeMember": "Confirma que quieres quitar a este miembro"
+      }
+    }
   }
 }
