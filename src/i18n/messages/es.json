@@ -430,6 +430,9 @@
         "tooBig": "Un pipeline puede tener como máximo {max} etapas",
         "custom": "Los nombres de las etapas deben ser únicos"
       },
+      "stageName": {
+        "required": "El nombre de la etapa es obligatorio"
+      },
       "body": {
         "tooSmall": "Escribe algo primero",
         "tooBig": "Los comentarios están limitados a {max} caracteres"

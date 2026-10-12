@@ -12,6 +12,9 @@ const ZOD_DEFAULT_MESSAGE = /^(Too (small|big): |Invalid )/;
  */
 function reasonOf(issue: z.core.$ZodIssue, field: string): ErrorDetail | null {
   if (field === "_") return null; // nothing to attach a field-scoped reason to: the English message stands
+  // A refinement can name its own reason (not scoped to a field): the same text is right wherever the schema is reused.
+  const own = issue.code === "custom" ? issue.params?.reason : undefined;
+  if (typeof own === "string") return { reason: own };
   const custom = !ZOD_DEFAULT_MESSAGE.test(issue.message);
   let code: string;
   let params: ErrorDetail["params"];

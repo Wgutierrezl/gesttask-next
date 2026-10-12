@@ -430,6 +430,9 @@
         "tooBig": "A pipeline can have at most {max} stages",
         "custom": "Stage names must be unique"
       },
+      "stageName": {
+        "required": "Stage name is required"
+      },
       "body": {
         "tooSmall": "Write something first",
         "tooBig": "Comments are limited to {max} characters"

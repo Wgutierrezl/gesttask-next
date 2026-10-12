@@ -89,7 +89,7 @@ describe("validation reasons of the real schemas", () => {
   it("scopes a reason to its field, so colliding field names cannot share a wrong text", () => {
     // `name` means different things per schema: custom wording is field-scoped, Zod's default wording is generic.
     expect(issuesOf(createBoardSchema, { name: " " }).fieldReasons.name).toEqual([{ reason: "name.tooSmall", params: { min: 1 } }]);
-    expect(issuesOf(createStageSchema, { pipelineId: ID, name: "" }).fieldReasons.name).toEqual([{ reason: "tooSmall", params: { min: 1 } }]);
+    expect(issuesOf(createStageSchema, { pipelineId: ID, name: "" }).fieldReasons.name).toEqual([{ reason: "stageName.required" }]);
   });
 
   it("words the upload limit from the policy, not from a literal", () => {

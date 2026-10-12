@@ -74,6 +74,19 @@ describe("pipelines", () => {
     expect(await ctx.repos.stages.listByPipeline(created.id)).toHaveLength(20);
   });
 
+  it("folds Unicode composition before comparing, and stores the names composed", async () => {
+    await expect(makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["É", "e\u0301"] })).rejects.toBeInstanceOf(ValidationError);
+    const created = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["Cafe\u0301", "Autre"] });
+    expect((await ctx.repos.stages.listByPipeline(created.id)).map((s) => s.name)).toEqual(["Café", "Autre"]);
+  });
+
+  it("says a blank stage name is required, on that row, with its own reason", async () => {
+    const error = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["A", "   ", ""] }).catch((e) => e);
+    expect(error.fieldErrors["stages.1"]).toEqual(["Stage name is required"]);
+    expect(error.fieldErrors["stages.2"]).toEqual(["Stage name is required"]);
+    expect(error.fieldReasons["stages.1"]).toEqual([{ reason: "stageName.required" }]);
+  });
+
   it("explains a duplicate on the stages field with a reason", async () => {
     const error = await makeCreatePipeline(ctx)(OWNER, { boardId, name: "P", stages: ["A", "a"] }).catch((e) => e);
     expect(error.fieldErrors.stages).toEqual(["Stage names must be unique"]);

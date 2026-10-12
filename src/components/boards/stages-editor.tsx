@@ -3,7 +3,7 @@
 import { ChevronDown, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
-import { MAX_INITIAL_STAGES } from "@/application/stage-limits";
+import { MAX_STAGES } from "@/application/stage-limits";
 import { cn } from "@/components/ui/cn";
 
 export interface StageRowState {
@@ -22,10 +22,10 @@ export function useStageRows(initial: readonly string[]) {
     rows,
     focus,
     clearFocus: () => setFocus(null),
-    canAdd: rows.length < MAX_INITIAL_STAGES,
+    canAdd: rows.length < MAX_STAGES,
     add() {
       const key = next.current++;
-      setRows((current) => (current.length < MAX_INITIAL_STAGES ? [...current, { key, name: "" }] : current));
+      setRows((current) => (current.length < MAX_STAGES ? [...current, { key, name: "" }] : current));
       setFocus({ key, control: "name" });
     },
     rename: (key: number, name: string) => setRows((current) => current.map((row) => (row.key === key ? { ...row, name } : row))),
@@ -90,7 +90,7 @@ export function StagesEditor({ editor, errors }: { editor: ReturnType<typeof use
                   aria-describedby={error ? errorId : undefined}
                   placeholder={t("stagePlaceholder", { n })}
                   maxLength={60}
-                  required
+                  aria-required="true"
                   className={cn("w-full rounded-xl border border-border-control bg-surface py-2.5 pr-4 pl-10 text-sm text-fg placeholder:text-fg-subtle focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring aria-invalid:border-danger-600")}
                 />
               </div>
