@@ -47,11 +47,22 @@ test.describe("creating a pipeline with its own stages", () => {
     await page.getByRole("link", { name: /Product launch/ }).first().click();
     await page.getByRole("button", { name: "Create pipeline" }).click();
     const dialog = page.getByRole("dialog", { name: "New pipeline" });
-    await dialog.getByLabel(/^Name/).fill(uniqueTitle("Dup"));
+    const name = uniqueTitle("Dup");
+    await dialog.getByLabel(/^Name/).fill(name);
+    await dialog.getByLabel("Description").fill("Kept after a refusal");
     await dialog.getByRole("textbox", { name: "Stage 2 name" }).fill("to do");
     await dialog.getByRole("button", { name: "Create pipeline" }).click();
     await expect(dialog.getByText("Stage names must be unique")).toBeVisible();
     await expect(dialog).toBeVisible();
+    // A refusal never clears what was typed.
+    await expect(dialog.getByLabel(/^Name/)).toHaveValue(name);
+    await expect(dialog.getByLabel("Description")).toHaveValue("Kept after a refusal");
+    await expect(dialog.getByRole("textbox", { name: "Stage 2 name" })).toHaveValue("to do");
+
+    // A blank stage name is refused on its own row, in words.
+    await dialog.getByRole("textbox", { name: "Stage 2 name" }).fill("   ");
+    await dialog.getByRole("button", { name: "Create pipeline" }).click();
+    await expect(dialog.getByText("Stage name is required")).toBeVisible();
   });
 
   test("works in Spanish: localized default names are saved as the stage names", async ({ page, context, baseURL }) => {
@@ -92,6 +103,7 @@ test.describe("managing stages from the column headers", () => {
     await expect(page.getByRole("menuitem", { name: "Move left" })).toHaveAttribute("aria-disabled", "true");
     await page.getByRole("menuitem", { name: "Move right" }).click();
     await expect.poll(() => columnNames(page)).toEqual(["Three", "One", "Two"]);
+    await expect(options(page, "One")).toBeFocused();
     await page.reload();
     expect(await columnNames(page)).toEqual(["Three", "One", "Two"]);
   });
@@ -128,6 +140,8 @@ test.describe("managing stages from the column headers", () => {
     await expect(dialog).toBeHidden();
     await expect(column(page, "Draft")).toHaveCount(0);
     await expect(column(page, "Review").getByRole("heading", { name: title })).toBeVisible();
+    // The deleted column's menu button is gone: the focus moves on to the next column's.
+    await expect(options(page, "Review")).toBeFocused();
   });
 
   test("the Add stage column creates a stage at the end of the board", async ({ page }) => {
