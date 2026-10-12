@@ -16,7 +16,8 @@
       "boards": "No boards on this page.",
       "members": "No members on this page.",
       "pipelines": "No pipelines on this page."
-    }
+    },
+    "active": "Active"
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -73,7 +74,12 @@
       "rateLimited": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "internal": "Something went wrong. Please try again.",
       "fixFields": "Please fix the highlighted fields."
-    }
+    },
+    "signInSubtitle": "Manage projects with boards and pipelines",
+    "signUpSubtitle": "Create your account and start today",
+    "footerTagline": "Organize • Collaborate • Deliver",
+    "emailPlaceholder": "you@email.com",
+    "namePlaceholder": "John Smith"
   },
   "meta": {
     "description": "Kanban task management",
@@ -93,7 +99,7 @@
   },
   "boards": {
     "title": "Your boards",
-    "description": "Everything you own or collaborate on.",
+    "description": "Organize your projects with boards, pipelines and custom stages",
     "create": "Create board",
     "newBoard": "New board",
     "emptyTitle": "You have no boards yet",
@@ -101,13 +107,16 @@
     "name": "Name",
     "descriptionField": "Description",
     "submit": "Create",
-    "submitting": "Creating..."
+    "submitting": "Creating...",
+    "activeCount": "{count, plural, one {# active board} other {# active boards}}",
+    "namePlaceholder": "e.g. Digital marketing project",
+    "descriptionPlaceholder": "Describe the purpose of this board...",
+    "activeCountPage": "{count, plural, one {# active board on this page} other {# active boards on this page}}"
   },
   "pipeline": {
-    "heading": "Pipelines",
+    "heading": "Board pipelines",
     "create": "Create pipeline",
     "newPipeline": "New pipeline",
-    "none": "No pipelines yet.",
     "submit": "Create pipeline",
     "submitting": "Creating...",
     "namePlaceholder": "e.g. Frontend development",
@@ -128,7 +137,16 @@
       "todo": "To do",
       "inProgress": "In progress",
       "done": "Done"
-    }
+    },
+    "description": "Each pipeline has its own stages to organize tasks",
+    "count": "{count, plural, one {# pipeline} other {# pipelines}}",
+    "stagesLabel": "Pipeline stages:",
+    "stageCount": "{count, plural, one {# stage} other {# stages}}",
+    "viewOnly": "View only",
+    "emptyTitle": "No pipelines on this board",
+    "emptyOwner": "Create your first pipeline with custom stages to organize your tasks",
+    "emptyViewer": "The board owner has not created any pipelines yet",
+    "countPage": "{count, plural, one {# pipeline on this page} other {# pipelines on this page}}"
   },
   "board": {
     "dashboard": "Dashboard",
@@ -174,6 +192,22 @@
       "removing": "Removing...",
       "loseAccessSelf": "I will lose access to this board",
       "loseAccess": "{name} will lose access to this board"
+    },
+    "header": {
+      "back": "Back to boards"
+    },
+    "dialog": {
+      "manage": "Manage members",
+      "addTitle": "Add new member",
+      "current": "Current members ({count})",
+      "you": "(You)",
+      "permissions": "Role permissions:",
+      "permission": {
+        "owner": "Full control of the board, pipelines, tasks and members",
+        "member": "Creates and edits tasks, comments and attaches files",
+        "guest": "Views the board and comments, without editing tasks"
+      },
+      "truncated": "Showing the first {count} members. The board settings list everyone."
     }
   },
   "dashboard": {
@@ -272,6 +306,10 @@
       "truncatedTasks": "Showing the first {count} tasks of this pipeline.",
       "truncatedStages": "Showing the first {count} stages of this pipeline.",
       "truncatedMembers": "Showing the first {count} members to choose as assignee."
+    },
+    "placeholders": {
+      "title": "e.g. Implement authentication",
+      "description": "Describe the details of the task..."
     }
   },
   "stages": {

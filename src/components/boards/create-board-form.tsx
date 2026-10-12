@@ -13,10 +13,10 @@ export function CreateBoardForm({ onCancel }: { onCancel?: () => void }) {
       {(failure) => (
         <>
           <Field label={t("name")} required error={failure?.fieldErrors?.name?.join(" ")}>
-            <Input name="name" maxLength={100} required />
+            <Input name="name" maxLength={100} placeholder={t("namePlaceholder")} required />
           </Field>
           <Field label={t("descriptionField")} error={failure?.fieldErrors?.description?.join(" ")}>
-            <Textarea name="description" rows={3} maxLength={2000} />
+            <Textarea name="description" rows={3} maxLength={2000} placeholder={t("descriptionPlaceholder")} />
           </Field>
           <FormFooter submitLabel={t("submit")} pendingLabel={t("submitting")} onCancel={onCancel} />
         </>

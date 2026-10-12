@@ -8,7 +8,7 @@ export function PipelineStats({ pipeline, boardId }: { pipeline: PipelineStatsDa
   const t = useTranslations("dashboard");
   const format = useFormatter();
   return (
-    <Card className="overflow-x-auto p-4">
+    <Card className="overflow-x-auto rounded-2xl p-6">
       <table className="w-full min-w-[32rem] border-collapse text-sm">
         <caption className="mb-2 text-left">
           <Link href={`/boards/${boardId}/pipelines/${pipeline.id}`} className="font-semibold text-brand-link underline">

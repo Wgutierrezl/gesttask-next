@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {t("skipToContent")}
       </a>
       <AppHeader />
-      <div id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 focus:outline-none sm:px-6 lg:px-8">
+      <div id="main" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-8 focus:outline-none sm:px-6 lg:px-8">
         {actor.isGuest ? <GuestBanner /> : null}
         {children}
       </div>
