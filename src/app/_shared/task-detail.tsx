@@ -69,12 +69,12 @@ export type TaskDetail = Awaited<ReturnType<typeof loadTaskDetail>>;
 
 /** Heading level of the sections: the page nests them under its h1, the modal under the dialog's h2. */
 type Level = 2 | 3;
-const Heading = ({ level, children, className = "mb-3 text-lg font-semibold text-slate-900" }: { level: Level; children: string; className?: string }) =>
+const Heading = ({ level, children, className = "mb-3 text-lg font-semibold text-fg" }: { level: Level; children: string; className?: string }) =>
   level === 2 ? <h2 className={className}>{children}</h2> : <h3 className={className}>{children}</h3>;
 
 export function TaskDescription({ description }: { description: string }) {
   if (!description) return null;
-  return <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-slate-800">{description}</p></CardBody></Card>;
+  return <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-fg-secondary">{description}</p></CardBody></Card>;
 }
 
 export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: Level }) {
@@ -85,30 +85,30 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
       <CardBody>
         <Heading level={level}>Details</Heading>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="font-medium text-slate-700">Stage</dt>
+          <dt className="font-medium text-fg-strong">Stage</dt>
           <dd className="flex flex-wrap items-center gap-1">
             <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
             {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
           </dd>
-          <dt className="font-medium text-slate-700">Priority</dt>
+          <dt className="font-medium text-fg-strong">Priority</dt>
           <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
-          <dt className="font-medium text-slate-700">Assignee</dt>
+          <dt className="font-medium text-fg-strong">Assignee</dt>
           <dd className="flex min-w-0 items-center gap-2">
             {assignee ? <Avatar name={assignee} size="sm" /> : null}
             <span className="min-w-0 truncate">{assigneeLabel(task.assigneeId, assignee)}</span>
           </dd>
-          <dt className="font-medium text-slate-700">Due date</dt>
+          <dt className="font-medium text-fg-strong">Due date</dt>
           <dd>
             {task.dueDate ? `Due ${formatDate(task.dueDate, locale)}` : "No due date"}
             {task.overdue ? <span className="ml-2"><Badge tone="danger">Overdue</Badge></span> : null}
           </dd>
           {task.completedAt ? (
             <>
-              <dt className="font-medium text-slate-700">Completed</dt>
+              <dt className="font-medium text-fg-strong">Completed</dt>
               <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
             </>
           ) : null}
-          <dt className="font-medium text-slate-700">Created</dt>
+          <dt className="font-medium text-fg-strong">Created</dt>
           <dd>{formatDate(task.createdAt.toISOString(), locale)}</dd>
         </dl>
       </CardBody>

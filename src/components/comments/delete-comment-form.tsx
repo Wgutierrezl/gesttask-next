@@ -17,7 +17,7 @@ export function DeleteCommentForm({ commentId }: { commentId: string }) {
               <input type="checkbox" name="confirm" value="yes" required aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} className="mt-0.5 size-4 accent-danger-600" />
               <span>I want to delete this comment</span>
             </label>
-            {error ? <p id={errorId} className="text-sm text-danger-700">{error.join(" ")}</p> : null}
+            {error ? <p id={errorId} className="text-sm text-danger-fg">{error.join(" ")}</p> : null}
             <div>
               <SubmitButton variant="danger" pendingLabel="Deleting...">Delete comment</SubmitButton>
             </div>

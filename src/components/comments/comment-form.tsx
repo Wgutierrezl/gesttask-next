@@ -30,7 +30,7 @@ export function CommentForm({ taskId, canAttach, demoGuest }: CommentFormProps) 
             {canAttach ? (
               <AttachmentPicker files={attachments.files} onPick={attachments.add} onRemove={attachments.remove} onRetry={attachments.retry} demoGuest={demoGuest} />
             ) : (
-              <p className="text-sm text-slate-600">Guests can comment, but only members can attach files.</p>
+              <p className="text-sm text-fg-muted">Guests can comment, but only members can attach files.</p>
             )}
             <div>
               <SubmitButton pendingLabel="Posting..." disabled={attachments.busy}>Comment</SubmitButton>

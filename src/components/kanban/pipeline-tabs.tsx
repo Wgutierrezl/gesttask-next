@@ -17,7 +17,7 @@ function TabLabel({ pipeline }: { pipeline: PipelineOption }) {
     <>
       {pipeline.name}
       <span className="sr-only">, {count}</span>
-      <span aria-hidden="true" className="inline-flex min-w-6 justify-center rounded-pill bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{pipeline.taskCount}</span>
+      <span aria-hidden="true" className="inline-flex min-w-6 justify-center rounded-pill bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-strong">{pipeline.taskCount}</span>
     </>
   );
 }

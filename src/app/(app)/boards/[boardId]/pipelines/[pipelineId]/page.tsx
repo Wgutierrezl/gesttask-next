@@ -49,7 +49,7 @@ export default async function PipelinePage({ params }: PipelinePageProps) {
   return (
     <main className="flex flex-col gap-4">
       <nav aria-label="Breadcrumb" className="text-sm">
-        <Link href={`/boards/${boardId}`} className="inline-flex items-center gap-1 text-slate-600 hover:text-brand-700 hover:underline"><ChevronLeft aria-hidden="true" className="size-4" />Back to board</Link>
+        <Link href={`/boards/${boardId}`} className="inline-flex items-center gap-1 text-fg-muted hover:text-brand-link hover:underline"><ChevronLeft aria-hidden="true" className="size-4" />Back to board</Link>
       </nav>
       <PageHeader title={data.pipeline.name} description={data.pipeline.description || undefined} />
       {data.loaded.truncated ? <Notice>Showing the first 1000 tasks of this pipeline.</Notice> : null}

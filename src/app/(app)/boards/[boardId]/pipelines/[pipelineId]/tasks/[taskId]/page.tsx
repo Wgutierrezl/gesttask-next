@@ -20,7 +20,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
   return (
     <main className="flex flex-col gap-6">
       <nav aria-label="Breadcrumb" className="text-sm">
-        <Link href={`/boards/${route.boardId}/pipelines/${route.pipelineId}`} className="inline-flex items-center gap-1 rounded text-slate-600 hover:text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"><ChevronLeft aria-hidden="true" className="size-4" />Back to pipeline</Link>
+        <Link href={`/boards/${route.boardId}/pipelines/${route.pipelineId}`} className="inline-flex items-center gap-1 rounded text-fg-muted hover:text-brand-link hover:underline focus-visible:outline-2 focus-visible:outline-ring"><ChevronLeft aria-hidden="true" className="size-4" />Back to pipeline</Link>
       </nav>
       <PageHeader title={task.title} actions={canWrite ? <TaskActions task={task} members={members} /> : undefined} />
       <StagesTruncatedNotice detail={detail} />

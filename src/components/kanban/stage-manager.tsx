@@ -7,8 +7,8 @@ import { StageRow, type ManagedStage } from "./stage-row";
  */
 export function StageManager({ pipelineId, stages, truncated = false }: { pipelineId: string; stages: ManagedStage[]; truncated?: boolean }) {
   return (
-    <details className="rounded-card border border-slate-200 bg-white p-4 shadow-card">
-      <summary className="cursor-pointer rounded text-sm font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-600">Manage stages</summary>
+    <details className="rounded-card border border-border bg-surface p-4 shadow-card">
+      <summary className="cursor-pointer rounded text-sm font-medium text-fg focus-visible:outline-2 focus-visible:outline-ring">Manage stages</summary>
       <div className="mt-3 flex flex-col gap-4">
         <ul aria-label="Stages" className="flex flex-col gap-2">
           {stages.map((stage, i) => (

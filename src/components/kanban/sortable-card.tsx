@@ -32,7 +32,7 @@ export function SortableCard({ task, assigneeName, href, columns, otherPipelines
       {...attributes}
       {...listeners}
       aria-label={`Drag ${task.title}`}
-      className="inline-flex h-7 cursor-grab touch-none items-center gap-1 rounded-control border border-slate-300 bg-white px-2 text-xs text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-600 active:cursor-grabbing"
+      className="inline-flex h-7 cursor-grab touch-none items-center gap-1 rounded-control border border-border-strong bg-surface px-2 text-xs text-fg-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
     >
       <GripVertical aria-hidden="true" className="size-3.5" />
       Drag

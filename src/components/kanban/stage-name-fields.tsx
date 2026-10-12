@@ -24,8 +24,8 @@ export function StageNameFields({ idPrefix, defaultName = "", offerDone, label =
         <Input id={`${idPrefix}-name`} name="name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={60} />
       </Field>
       {suggest ? (
-        <label className="flex items-start gap-2 text-xs text-slate-700">
-          <input type="checkbox" name="markDone" value="yes" className="mt-0.5 size-4 accent-brand-600" />
+        <label className="flex items-start gap-2 text-xs text-fg-strong">
+          <input type="checkbox" name="markDone" value="yes" className="mt-0.5 size-4 accent-accent" />
           <span>Mark as the done stage (tasks entering it count as completed)</span>
         </label>
       ) : null}

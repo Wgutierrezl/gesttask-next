@@ -23,7 +23,7 @@ export function TaskActions({ task, members }: TaskActionsProps) {
         <Pencil aria-hidden="true" className="size-4" />
         Edit
       </Button>
-      <Button variant="secondary" size="sm" onClick={() => setDeleting(true)} className="text-danger-700">
+      <Button variant="secondary" size="sm" onClick={() => setDeleting(true)} className="text-danger-fg">
         <Trash2 aria-hidden="true" className="size-4" />
         Delete
       </Button>
@@ -31,7 +31,7 @@ export function TaskActions({ task, members }: TaskActionsProps) {
         <EditTaskForm task={task} members={members} onSuccess={() => setEditing(false)} onCancel={() => setEditing(false)} />
       </Dialog>
       <Dialog title="Delete task" icon={<Trash2 className="size-5" />} open={deleting} onClose={() => setDeleting(false)}>
-        <p className="text-sm text-slate-700">Delete &ldquo;{task.title}&rdquo;? This cannot be undone.</p>
+        <p className="text-sm text-fg-strong">Delete &ldquo;{task.title}&rdquo;? This cannot be undone.</p>
         <DeleteTaskForm taskId={task.id} onCancel={() => setDeleting(false)} />
       </Dialog>
     </>

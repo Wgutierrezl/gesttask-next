@@ -6,7 +6,7 @@ import { pipelinePath } from "@/app/_shared/paths";
 import { RouteModal } from "@/components/ui/route-modal";
 
 const LABEL = "Loading task…";
-const bar = "h-4 animate-pulse rounded-md bg-slate-200";
+const bar = "h-4 animate-pulse rounded-md bg-border";
 
 /** Shown in the modal's place while the task loads: same frame as the loaded modal, so it does not jump. */
 export default function TaskModalLoading() {
@@ -17,7 +17,7 @@ export default function TaskModalLoading() {
         <div className={`${bar} w-3/4`} />
         <div className={`${bar} w-full`} />
         <div className={`${bar} w-5/6`} />
-        <div className="h-24 animate-pulse rounded-xl bg-slate-100" />
+        <div className="h-24 animate-pulse rounded-xl bg-surface-muted" />
       </div>
     </RouteModal>
   );

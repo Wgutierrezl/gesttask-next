@@ -40,9 +40,9 @@ function Move({ stage, direction, after }: { stage: ManagedStage; direction: "le
 export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHaveHiddenTasks }: StageRowProps) {
   const hasTasks = stage.taskCount > 0 || mayHaveHiddenTasks;
   return (
-    <li className="flex flex-col gap-3 rounded-card border border-slate-200 bg-white p-4 shadow-card">
+    <li className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-slate-900">{stage.name}</span>
+        <span className="font-medium text-fg">{stage.name}</span>
         {stage.isDone ? <Badge tone="success">Done stage</Badge> : null}
         {afterWhenLeft !== null ? <Move stage={stage} direction="left" after={afterWhenLeft} /> : null}
         {afterWhenRight !== null ? <Move stage={stage} direction="right" after={afterWhenRight} /> : null}
@@ -63,12 +63,12 @@ export function StageRow({ stage, afterWhenLeft, afterWhenRight, others, mayHave
         )}
       </MutationForm>
       {stage.isDone ? (
-        <p className="text-xs text-slate-600">The done stage cannot be deleted. Mark another stage as done first.</p>
+        <p className="text-xs text-fg-muted">The done stage cannot be deleted. Mark another stage as done first.</p>
       ) : (
         <MutationForm action={deleteStageAction} hidden={{ stageId: stage.id }} className="flex flex-wrap items-end gap-2">
           {() => (
             <>
-              <label className="flex flex-col gap-1 text-xs text-slate-700">
+              <label className="flex flex-col gap-1 text-xs text-fg-strong">
                 <span>{`Move tasks of ${stage.name} to`}</span>
                 <Select name="moveToStageId" required={hasTasks} defaultValue={hasTasks ? others[0]?.id : ""}>
                   {!hasTasks ? <option value="">No tasks to move</option> : null}
