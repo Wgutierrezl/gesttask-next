@@ -37,12 +37,14 @@ interface FieldProps {
   required?: boolean;
   /** A decorative glyph drawn at the start of the control (sized by the field), like the icons of v1's inputs. */
   icon?: ReactNode;
+  /** A decorative glyph before the label text (not part of the label's accessible name). */
+  labelIcon?: ReactNode;
   /** Exactly one control (Input, Select or Textarea): it receives the id and the aria links. */
   children: ReactElement<ControlProps>;
 }
 
 /** Label, control, hint and error wired together by ids. The caller's own id, aria-describedby and aria-invalid win or merge. */
-export function Field({ label, hint, error, required = false, icon, children }: FieldProps) {
+export function Field({ label, hint, error, required = false, icon, labelIcon, children }: FieldProps) {
   const generated = useId();
   const id = children.props.id ?? generated;
   const described = [children.props["aria-describedby"], hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ");
@@ -55,7 +57,8 @@ export function Field({ label, hint, error, required = false, icon, children }: 
   });
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-fg-strong">
+      <label htmlFor={id} className={cn("text-sm font-medium text-fg-strong", labelIcon ? "flex items-center gap-2" : undefined)}>
+        {labelIcon ? <span aria-hidden="true" className="flex text-fg-subtle [&>svg]:size-4">{labelIcon}</span> : null}
         {label}
         {required && <span aria-hidden="true" className="ml-0.5 text-danger-fg">*</span>}
       </label>

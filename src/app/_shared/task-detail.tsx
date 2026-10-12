@@ -10,8 +10,10 @@ import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { Alert } from "@/components/ui/field";
 import { getContainer } from "@/infrastructure/container";
+import { Calendar, Check, CircleAlert, Clock, Flag, User } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 
 export interface TaskRouteParams {
@@ -74,36 +76,97 @@ const Heading = ({ level, children, className = "mb-3 text-lg font-semibold text
 
 export function TaskDescription({ description }: { description: string }) {
   if (!description) return null;
-  return <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-fg-secondary">{description}</p></CardBody></Card>;
+  return <p className="whitespace-pre-wrap break-words text-fg-muted">{description}</p>;
 }
 
+/** The label of a detail box: a small decorative glyph and the name. */
+function BoxLabel({ icon, children }: { icon: ReactNode; children: string }) {
+  return (
+    <dt className="flex items-center gap-2 text-sm text-fg-muted">
+      <span aria-hidden="true" className="flex text-fg-subtle [&>svg]:size-4">{icon}</span>
+      {children}
+    </dt>
+  );
+}
+
+/**
+ * The task's facts. In the modal (level 3) they are v1's four boxes with the dates underneath; in the page's narrow sidebar
+ * (level 2) the same facts stay a compact list under a visible heading.
+ */
 export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, stage, assignee } = detail;
   const locale = useLocale() as Locale;
   const t = useTranslations("task.detail");
   const k = useTranslations("kanban");
+  const stageBadges = (
+    <>
+      <Badge tone="brand">{stage?.name ?? t("unknownStage")}</Badge>
+      {stage?.isDone ? <Badge tone="success">{k("doneStage")}</Badge> : null}
+    </>
+  );
+  const assigneeLine = (
+    <>
+      {assignee ? <Avatar name={assignee} size="sm" /> : null}
+      <span className="min-w-0 truncate">{task.assigneeId === null ? k("unassigned") : (assignee ?? k("formerMember"))}</span>
+    </>
+  );
+  const due = (
+    <>
+      {task.dueDate ? k("due", { date: formatDate(task.dueDate, locale) }) : t("noDueDate")}
+      {task.overdue ? <span className="ml-2"><Badge tone="danger">{k("overdue")}</Badge></span> : null}
+    </>
+  );
+  if (level === 3) {
+    const BOX = "rounded-xl border border-border bg-surface-hover p-4";
+    return (
+      <section>
+        <h3 className="sr-only">{t("details")}</h3>
+        <dl className="grid grid-cols-2 gap-4">
+          <div className={BOX}>
+            <BoxLabel icon={<Flag />}>{k("fields.priority")}</BoxLabel>
+            <dd className="mt-2"><Badge tone={priorityTone(task.priority)}>{k(`priority.${task.priority}`)}</Badge></dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<CircleAlert />}>{k("fields.stage")}</BoxLabel>
+            <dd className="mt-2 flex flex-wrap items-center gap-1">{stageBadges}</dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<User />}>{k("fields.assignee")}</BoxLabel>
+            <dd className="mt-2 flex min-w-0 items-center gap-2 text-sm text-fg">{assigneeLine}</dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<Calendar />}>{k("fields.dueDate")}</BoxLabel>
+            <dd className="mt-2 text-sm text-fg">{due}</dd>
+          </div>
+        </dl>
+        <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
+          <div>
+            <dt className="flex items-center gap-2 text-xs text-fg-subtle"><Clock aria-hidden="true" className="size-3.5" />{t("created")}</dt>
+            <dd className="mt-1 text-fg">{formatDate(task.createdAt.toISOString(), locale)}</dd>
+          </div>
+          {task.completedAt ? (
+            <div>
+              <dt className="flex items-center gap-2 text-xs text-fg-subtle"><Check aria-hidden="true" className="size-3.5" />{k("completed")}</dt>
+              <dd className="mt-1 text-fg"><LocalTime iso={task.completedAt.toISOString()} label={k("completed")} /></dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+    );
+  }
   return (
     <Card>
       <CardBody>
         <Heading level={level}>{t("details")}</Heading>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="font-medium text-fg-strong">{k("fields.stage")}</dt>
-          <dd className="flex flex-wrap items-center gap-1">
-            <Badge tone="brand">{stage?.name ?? t("unknownStage")}</Badge>
-            {stage?.isDone ? <Badge tone="success">{k("doneStage")}</Badge> : null}
-          </dd>
+          <dd className="flex flex-wrap items-center gap-1">{stageBadges}</dd>
           <dt className="font-medium text-fg-strong">{k("fields.priority")}</dt>
           <dd><Badge tone={priorityTone(task.priority)}>{k(`priority.${task.priority}`)}</Badge></dd>
           <dt className="font-medium text-fg-strong">{k("fields.assignee")}</dt>
-          <dd className="flex min-w-0 items-center gap-2">
-            {assignee ? <Avatar name={assignee} size="sm" /> : null}
-            <span className="min-w-0 truncate">{task.assigneeId === null ? k("unassigned") : (assignee ?? k("formerMember"))}</span>
-          </dd>
+          <dd className="flex min-w-0 items-center gap-2">{assigneeLine}</dd>
           <dt className="font-medium text-fg-strong">{k("fields.dueDate")}</dt>
-          <dd>
-            {task.dueDate ? k("due", { date: formatDate(task.dueDate, locale) }) : t("noDueDate")}
-            {task.overdue ? <span className="ml-2"><Badge tone="danger">{k("overdue")}</Badge></span> : null}
-          </dd>
+          <dd>{due}</dd>
           {task.completedAt ? (
             <>
               <dt className="font-medium text-fg-strong">{k("completed")}</dt>

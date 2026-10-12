@@ -279,7 +279,7 @@ describe("pages on Postgres", () => {
     as(a.headers);
     const list = await BoardsPage({ searchParams: Promise.resolve({}) });
     expect(text(list)).toContain("Your boards");
-    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Pipelines");
+    expect(text(await BoardPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Board pipelines");
     expect(text(await SettingsPage({ params: Promise.resolve({ boardId: a.boardId }), searchParams: Promise.resolve({}) }))).toContain("Delete board");
 
     as(b.headers);

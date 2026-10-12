@@ -109,7 +109,9 @@
     "descriptionField": "Description",
     "submit": "Create",
     "submitting": "Creating...",
-    "activeCount": "{count, plural, one {# active board} other {# active boards}}"
+    "activeCount": "{count, plural, one {# active board} other {# active boards}}",
+    "namePlaceholder": "e.g. Digital marketing project",
+    "descriptionPlaceholder": "Describe the purpose of this board..."
   },
   "pipeline": {
     "heading": "Board pipelines",
@@ -303,6 +305,10 @@
       "truncatedTasks": "Showing the first {count} tasks of this pipeline.",
       "truncatedStages": "Showing the first {count} stages of this pipeline.",
       "truncatedMembers": "Showing the first {count} members to choose as assignee."
+    },
+    "placeholders": {
+      "title": "e.g. Implement authentication",
+      "description": "Describe the details of the task..."
     }
   },
   "stages": {

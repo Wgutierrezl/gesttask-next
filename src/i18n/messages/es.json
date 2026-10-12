@@ -109,7 +109,9 @@
     "descriptionField": "Descripción",
     "submit": "Crear",
     "submitting": "Creando...",
-    "activeCount": "{count, plural, one {# tablero activo} other {# tableros activos}}"
+    "activeCount": "{count, plural, one {# tablero activo} other {# tableros activos}}",
+    "namePlaceholder": "Ej: Proyecto de marketing digital",
+    "descriptionPlaceholder": "Describe el propósito de este tablero..."
   },
   "pipeline": {
     "heading": "Pipelines del tablero",
@@ -303,6 +305,10 @@
       "truncatedTasks": "Se muestran las primeras {count} tareas de este pipeline.",
       "truncatedStages": "Se muestran las primeras {count} etapas de este pipeline.",
       "truncatedMembers": "Se muestran los primeros {count} miembros para elegir responsable."
+    },
+    "placeholders": {
+      "title": "Ej: Implementar autenticación",
+      "description": "Describe los detalles de la tarea..."
     }
   },
   "stages": {
