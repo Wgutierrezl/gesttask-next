@@ -142,7 +142,7 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
         <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
           <div>
             <dt className="flex items-center gap-2 text-xs text-fg-subtle"><Clock aria-hidden="true" className="size-3.5" />{t("created")}</dt>
-            <dd className="mt-1 text-fg">{formatDate(task.createdAt.toISOString(), locale)}</dd>
+            <dd className="mt-1 text-fg"><LocalTime iso={task.createdAt.toISOString()} /></dd>
           </div>
           {task.completedAt ? (
             <div>
@@ -174,7 +174,7 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
             </>
           ) : null}
           <dt className="font-medium text-fg-strong">{t("created")}</dt>
-          <dd>{formatDate(task.createdAt.toISOString(), locale)}</dd>
+          <dd><LocalTime iso={task.createdAt.toISOString()} /></dd>
         </dl>
       </CardBody>
     </Card>

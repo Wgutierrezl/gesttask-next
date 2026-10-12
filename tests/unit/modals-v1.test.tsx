@@ -117,7 +117,9 @@ describe("task detail like v1", () => {
     expect(screen.getByText("Camila Torres")).toBeTruthy();
     expect(screen.getByText("Due Oct 16, 2026")).toBeTruthy();
     expect(screen.getByText("Created")).toBeTruthy();
-    expect(screen.getByText("Oct 12, 2026")).toBeTruthy();
+    const created = screen.getByText("Created").closest("div")!.querySelector("time")!;
+    expect(created.getAttribute("datetime")).toBe("2026-10-12T10:00:00.000Z");
+    expect(created.textContent).toMatch(/Oct 12, 2026/);
     expect(screen.getByText("Completed", { selector: "dt" })).toBeTruthy();
   });
 

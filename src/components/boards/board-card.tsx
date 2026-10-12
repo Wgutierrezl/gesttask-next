@@ -1,8 +1,7 @@
 import { LayoutGrid } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { formatDay } from "@/components/kanban/format";
-import type { Locale } from "@/i18n/config";
+import { LocalDay } from "@/components/kanban/local-time";
 import type { RoleName } from "./role-label";
 
 /** One board in the list: name, description, whether it is archived, the caller's role and when it was created. */
@@ -22,7 +21,6 @@ const STATUS = {
 
 export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName | undefined }) {
   const t = useTranslations("common");
-  const locale = useLocale() as Locale;
   const created = board.createdAt.toISOString();
   return (
     <li>
@@ -40,7 +38,7 @@ export function BoardCard({ board, role }: { board: BoardSummary; role: RoleName
         <span className="mb-4 line-clamp-2 min-h-10 text-sm text-fg-muted">{board.description}</span>
         <span className="mt-auto flex items-center justify-between gap-2 border-t border-border-subtle pt-4 text-xs text-fg-subtle">
           <span>{role ? t(`roles.${role}`) : null}</span>
-          <time dateTime={created}>{formatDay(created, locale)}</time>
+          <LocalDay iso={created} />
         </span>
       </Link>
     </li>
