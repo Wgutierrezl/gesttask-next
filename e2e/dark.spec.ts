@@ -196,5 +196,21 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
   });
 });
 
+test.describe("dark theme legibility of the public pages (REQ-THM-04)", () => {
+  // Signed out: the landing, login and register pages are what a visitor sees first, in either language.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const locale of ["en", "es"] as const) {
+    for (const path of ["/", "/login", "/register"]) {
+      test(`${path} in ${locale}`, async ({ page, context, baseURL }) => {
+        await context.addCookies([{ name: "locale", value: locale, url: baseURL! }]);
+        await page.goto(path);
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expectLegible(page, 3);
+      });
+    }
+  }
+});
+
 // Both tests only read the seeded card ("Design the dashboard widgets"); the one spec that touches it (task-detail) only adds a comment to it,
 // and the comment count is matched with a regex here.
