@@ -45,10 +45,14 @@ async function audit(page: Page, root = "main"): Promise<Audit> {
       if (!rgb) {
         // lab()/oklab()/color-mix() results (Tailwind opacity modifiers): let the browser rasterize the color and read the pixel back.
         const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
-        context.clearRect(0, 0, 1, 1);
-        context.fillStyle = "#000";
+        // An invalid value leaves the previous fillStyle untouched: try it after two different sentinels, and throw only if both survive.
+        context.fillStyle = "#000000";
         context.fillStyle = value;
-        if (context.fillStyle === "#000000" && !/^(?:black|#0{3,8})$/i.test(value) && !/^(?:lab|oklab|lch|oklch|color)\(\s*0[\s%]/.test(value)) throw new Error(`unsupported color format: ${value}`);
+        const afterBlack = context.fillStyle;
+        context.fillStyle = "#ffffff";
+        context.fillStyle = value;
+        if (afterBlack === "#000000" && context.fillStyle === "#ffffff") throw new Error(`unsupported color format: ${value}`);
+        context.clearRect(0, 0, 1, 1);
         context.fillRect(0, 0, 1, 1);
         const [r = 0, g = 0, b = 0, a = 255] = context.getImageData(0, 0, 1, 1).data;
         return [r, g, b, a / 255];
@@ -129,7 +133,8 @@ function describeWorst(result: Audit): string {
 
 async function expectLegible(page: Page, minTextElements: number, root = "main"): Promise<Audit> {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // A dialog is audited on its own: wait for its content, not for the page behind it.
+  await expect(root === "main" ? page.getByRole("heading", { level: 1 }) : page.locator(root).getByRole("heading").first()).toBeVisible();
   const result = await audit(page, root);
   expect(result.checked, "text elements audited").toBeGreaterThanOrEqual(minTextElements);
   expect(result.findings, describeWorst(result)).toEqual([]);
@@ -176,7 +181,7 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     await page.keyboard.press("Escape");
     await expect(newTaskDialog(page)).toBeHidden();
 
-    await column(page, "In progress").getByRole("link", { name: "Design the dashboard widgets" }).click();
+    await column(page, "In progress").getByRole("link", { name: "Design the dashboard widgets", exact: true }).click();
     const modal = page.getByRole("dialog", { name: "Design the dashboard widgets", exact: true });
     await expect(modal).toBeVisible();
     await expect(modal.getByRole("heading", { name: /^Comments \(\d+\)$/ })).toBeVisible();
@@ -190,3 +195,6 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     await expectLegible(page, 8);
   });
 });
+
+// Both tests only read the seeded card ("Design the dashboard widgets"); the one spec that touches it (task-detail) only adds a comment to it,
+// and the comment count is matched with a regex here.
