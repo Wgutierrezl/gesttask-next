@@ -84,7 +84,8 @@
     "boardSettings": "Ajustes del tablero",
     "boardDashboard": "Panel del tablero",
     "dashboard": "Panel",
-    "pipeline": "Pipeline"
+    "pipeline": "Pipeline",
+    "task": "Tarea"
   },
   "guest": {
     "banner": "Estás explorando un espacio de demostración — los datos se restablecen en 24 h.",
@@ -273,6 +274,33 @@
     "deleting": "Eliminando...",
     "deleteAria": "Eliminar {name}",
     "suggestDone": "Marcar como etapa final (las tareas que entren se cuentan como completadas)"
+  },
+  "task": {
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "editTitle": "Editar tarea",
+    "deleteTitle": "Eliminar tarea",
+    "deletePrompt": "¿Eliminar “{title}”? Esta acción no se puede deshacer.",
+    "save": "Guardar tarea",
+    "saving": "Guardando...",
+    "deleteConfirm": "Quiero eliminar esta tarea",
+    "deleteSubmit": "Eliminar tarea",
+    "deleting": "Eliminando...",
+    "move": {
+      "heading": "Mover tarea",
+      "field": "Mover a la etapa",
+      "submit": "Mover tarea",
+      "pending": "Moviendo..."
+    },
+    "detail": {
+      "loading": "Cargando tarea…",
+      "back": "Volver al pipeline",
+      "aside": "Detalles de la tarea",
+      "details": "Detalles",
+      "unknownStage": "Etapa desconocida",
+      "noDueDate": "Sin fecha de vencimiento",
+      "created": "Creada"
+    }
   },
   "comments": {
     "heading": "Comentarios ({count})",

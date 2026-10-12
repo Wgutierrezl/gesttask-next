@@ -4,13 +4,13 @@ import { loadPage } from "@/app/_shared/load-page";
 import { CommentsSection } from "@/components/comments/comments-section";
 import { LocalTime } from "@/components/kanban/local-time";
 import { MoveTaskForm } from "@/components/kanban/move-task-form";
-import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
+import { formatDate } from "@/components/kanban/format";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { Alert } from "@/components/ui/field";
 import { getContainer } from "@/infrastructure/container";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { notFound } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 
@@ -80,35 +80,37 @@ export function TaskDescription({ description }: { description: string }) {
 export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, stage, assignee } = detail;
   const locale = useLocale() as Locale;
+  const t = useTranslations("task.detail");
+  const k = useTranslations("kanban");
   return (
     <Card>
       <CardBody>
-        <Heading level={level}>Details</Heading>
+        <Heading level={level}>{t("details")}</Heading>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="font-medium text-fg-strong">Stage</dt>
+          <dt className="font-medium text-fg-strong">{k("fields.stage")}</dt>
           <dd className="flex flex-wrap items-center gap-1">
-            <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
-            {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
+            <Badge tone="brand">{stage?.name ?? t("unknownStage")}</Badge>
+            {stage?.isDone ? <Badge tone="success">{k("doneStage")}</Badge> : null}
           </dd>
-          <dt className="font-medium text-fg-strong">Priority</dt>
-          <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
-          <dt className="font-medium text-fg-strong">Assignee</dt>
+          <dt className="font-medium text-fg-strong">{k("fields.priority")}</dt>
+          <dd><Badge tone={priorityTone(task.priority)}>{k(`priority.${task.priority}`)}</Badge></dd>
+          <dt className="font-medium text-fg-strong">{k("fields.assignee")}</dt>
           <dd className="flex min-w-0 items-center gap-2">
             {assignee ? <Avatar name={assignee} size="sm" /> : null}
-            <span className="min-w-0 truncate">{assigneeLabel(task.assigneeId, assignee)}</span>
+            <span className="min-w-0 truncate">{task.assigneeId === null ? k("unassigned") : (assignee ?? k("formerMember"))}</span>
           </dd>
-          <dt className="font-medium text-fg-strong">Due date</dt>
+          <dt className="font-medium text-fg-strong">{k("fields.dueDate")}</dt>
           <dd>
-            {task.dueDate ? `Due ${formatDate(task.dueDate, locale)}` : "No due date"}
-            {task.overdue ? <span className="ml-2"><Badge tone="danger">Overdue</Badge></span> : null}
+            {task.dueDate ? k("due", { date: formatDate(task.dueDate, locale) }) : t("noDueDate")}
+            {task.overdue ? <span className="ml-2"><Badge tone="danger">{k("overdue")}</Badge></span> : null}
           </dd>
           {task.completedAt ? (
             <>
-              <dt className="font-medium text-fg-strong">Completed</dt>
-              <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
+              <dt className="font-medium text-fg-strong">{k("completed")}</dt>
+              <dd><LocalTime iso={task.completedAt.toISOString()} label={k("completed")} /></dd>
             </>
           ) : null}
-          <dt className="font-medium text-fg-strong">Created</dt>
+          <dt className="font-medium text-fg-strong">{t("created")}</dt>
           <dd>{formatDate(task.createdAt.toISOString(), locale)}</dd>
         </dl>
       </CardBody>
@@ -119,9 +121,10 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
 /** Writers only. Level 3 is the modal (its sections nest under the dialog title), which also changes where a cross-pipeline move lands. */
 export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, pipeline, pipelines, stages } = detail;
+  const t = useTranslations("task.move");
   return (
     <div>
-      <Heading level={level}>Move task</Heading>
+      <Heading level={level}>{t("heading")}</Heading>
       <Card>
         <CardBody>
           <MoveTaskForm inModal={level === 3} taskId={task.id} pipelineId={pipeline.id} pipelineName={pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={pipelines.filter((p) => p.id !== pipeline.id)} />
@@ -137,5 +140,6 @@ export function TaskComments({ detail }: { detail: TaskDetail }) {
 }
 
 export function StagesTruncatedNotice({ detail }: { detail: TaskDetail }) {
-  return detail.stagesTruncated ? <Alert tone="warning">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</Alert> : null;
+  const t = useTranslations("kanban.page");
+  return detail.stagesTruncated ? <Alert tone="warning">{t("truncatedStages", { count: LIST_LOAD_CAP })}</Alert> : null;
 }

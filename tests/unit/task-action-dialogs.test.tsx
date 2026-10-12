@@ -79,3 +79,15 @@ describe("TaskActions", () => {
     expect(actions.deleteTaskAction).not.toHaveBeenCalled();
   });
 });
+
+describe("TaskActions in Spanish", () => {
+  it("names the buttons and both modals in Spanish and quotes the task title as written", async () => {
+    const user = userEvent.setup();
+    render(<TaskActions task={TASK} members={MEMBERS} />, { locale: "es" });
+    await user.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByRole("dialog", { name: "Editar tarea" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    const dialog = screen.getByRole("dialog", { name: "Eliminar tarea" });
+    expect(within(dialog).getByText("¿Eliminar “Ship”? Esta acción no se puede deshacer.")).toBeTruthy();
+  });
+});

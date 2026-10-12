@@ -84,7 +84,8 @@
     "boardSettings": "Board settings",
     "boardDashboard": "Board dashboard",
     "dashboard": "Dashboard",
-    "pipeline": "Pipeline"
+    "pipeline": "Pipeline",
+    "task": "Task"
   },
   "guest": {
     "banner": "You're exploring a demo sandbox — data resets in 24h.",
@@ -273,6 +274,33 @@
     "deleting": "Deleting...",
     "deleteAria": "Delete {name}",
     "suggestDone": "Mark as the done stage (tasks entering it count as completed)"
+  },
+  "task": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "editTitle": "Edit task",
+    "deleteTitle": "Delete task",
+    "deletePrompt": "Delete “{title}”? This cannot be undone.",
+    "save": "Save task",
+    "saving": "Saving...",
+    "deleteConfirm": "I want to delete this task",
+    "deleteSubmit": "Delete task",
+    "deleting": "Deleting...",
+    "move": {
+      "heading": "Move task",
+      "field": "Move to stage",
+      "submit": "Move task",
+      "pending": "Moving..."
+    },
+    "detail": {
+      "loading": "Loading task…",
+      "back": "Back to pipeline",
+      "aside": "Task details",
+      "details": "Details",
+      "unknownStage": "Unknown stage",
+      "noDueDate": "No due date",
+      "created": "Created"
+    }
   },
   "comments": {
     "heading": "Comments ({count})",

@@ -9,14 +9,6 @@ export function formatDate(value: string, locale: Locale): string {
   return DATE[locale].format(new Date(value.length === 10 ? `${value}T00:00:00Z` : value));
 }
 
-export const PRIORITY_LABELS = { low: "Low", medium: "Medium", high: "High" } as const;
-
-/** Shown when a task has no assignee. A name that cannot be resolved is a member who has since left the board. */
-export function assigneeLabel(assigneeId: string | null, name: string | null): string {
-  if (assigneeId === null) return "Unassigned";
-  return name ?? "Former member";
-}
-
 /**
  * "Oct 9, 2026, 10:00 AM UTC": an instant with its zone spelled out. Without a zone it is UTC, so the server (which
  * does not know the viewer's zone) and the first browser render agree; the browser then passes its own.

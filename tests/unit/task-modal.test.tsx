@@ -10,11 +10,13 @@ const redirect = vi.fn((to: string) => {
 });
 vi.mock("next/navigation", () => ({ redirect, notFound, useRouter: () => ({ back: vi.fn() }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const active = vi.hoisted(() => ({ locale: "en" as "en" | "es" }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServerFor(active));
 const getActor = vi.fn();
 const useCases = { getTask: vi.fn(), getPipeline: vi.fn(), listStages: vi.fn(), listMemberProfiles: vi.fn(), listComments: vi.fn(), getBoardDashboard: vi.fn() };
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor }, useCases, logger: { error: vi.fn() } }) }));
 
-const { default: TaskModalPage } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/(.)tasks/[taskId]/page");
+const { default: TaskModalPage, generateMetadata } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/(.)tasks/[taskId]/page");
 const { default: ModalSlotDefault } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/default");
 const { default: ModalSlotIdle } = await import("@/app/(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/page");
 
@@ -26,6 +28,7 @@ const pipeline = (role: string) => ({ pipeline: { id: PIPELINE, boardId: BOARD, 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  active.locale = "en";
   getActor.mockResolvedValue({ userId: "u1", isGuest: false });
   useCases.getTask.mockResolvedValue({
     id: TASK, boardId: BOARD, pipelineId: PIPELINE, stageId: "s1", title: "Ship the release", description: "Cut the tag", priority: "high", status: "active",
@@ -73,5 +76,16 @@ describe("task modal (intercepted route)", () => {
   it("renders nothing in the slot when no task is open, whether the page loaded fresh or the visitor navigated away", () => {
     expect(ModalSlotDefault()).toBeNull();
     expect(ModalSlotIdle()).toBeNull();
+  });
+});
+
+describe("task modal in Spanish", () => {
+  it("titles the route from the catalog and translates the subtitle, details, move form and comment section", async () => {
+    active.locale = "es";
+    expect(await generateMetadata()).toEqual({ title: "Tarea" });
+    useCases.getTask.mockResolvedValue({ ...(await useCases.getTask()), stageId: "missing" });
+    const html = renderToStaticMarkup(await TaskModalPage({ params: params() }), { locale: "es" });
+    for (const text of ["Sprint → Etapa desconocida", "Detalles", "Sin fecha de vencimiento", "Mover tarea", "Mover a la etapa", "Comentarios (0)", "Aún no hay comentarios.", ">Editar<", ">Eliminar<"]) expect(html, text).toContain(text);
+    for (const text of ["Unknown stage", "No due date", "No comments yet."]) expect(html, text).not.toContain(text);
   });
 });

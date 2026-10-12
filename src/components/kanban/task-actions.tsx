@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -15,23 +16,24 @@ interface TaskActionsProps {
 
 /** Edit and Delete for a task, each in its own modal. Writers only: the caller does not render this for viewers. */
 export function TaskActions({ task, members }: TaskActionsProps) {
+  const t = useTranslations("task");
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   return (
     <>
       <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
         <Pencil aria-hidden="true" className="size-4" />
-        Edit
+        {t("edit")}
       </Button>
       <Button variant="danger-secondary" size="sm" onClick={() => setDeleting(true)}>
         <Trash2 aria-hidden="true" className="size-4" />
-        Delete
+        {t("delete")}
       </Button>
-      <Dialog title="Edit task" icon={<Pencil className="size-5" />} open={editing} onClose={() => setEditing(false)}>
+      <Dialog title={t("editTitle")} icon={<Pencil className="size-5" />} open={editing} onClose={() => setEditing(false)}>
         <EditTaskForm task={task} members={members} onSuccess={() => setEditing(false)} onCancel={() => setEditing(false)} />
       </Dialog>
-      <Dialog title="Delete task" icon={<Trash2 className="size-5" />} open={deleting} onClose={() => setDeleting(false)}>
-        <p className="text-sm text-fg-strong">Delete &ldquo;{task.title}&rdquo;? This cannot be undone.</p>
+      <Dialog title={t("deleteTitle")} icon={<Trash2 className="size-5" />} open={deleting} onClose={() => setDeleting(false)}>
+        <p className="text-sm text-fg-strong">{t("deletePrompt", { title: task.title })}</p>
         <DeleteTaskForm taskId={task.id} onCancel={() => setDeleting(false)} />
       </Dialog>
     </>
