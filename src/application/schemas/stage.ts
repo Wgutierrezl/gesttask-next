@@ -2,6 +2,7 @@ import { z } from "zod";
 import { idSchema } from "./common";
 
 const name = z.string().trim().min(1).max(60);
+export const stageNameSchema = name;
 
 export const stageIdSchema = z.object({ stageId: idSchema });
 export const createStageSchema = z.object({ pipelineId: idSchema, name, isDone: z.boolean().default(false) });

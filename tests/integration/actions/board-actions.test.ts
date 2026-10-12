@@ -195,6 +195,21 @@ describe("member and pipeline actions on Postgres", () => {
     expect(stages.filter((s) => s.isDone).map((s) => s.name)).toEqual(["Done"]);
   });
 
+  it("creates a pipeline with the stages posted as repeated fields, and reports a duplicate on the stages field", async () => {
+    const t = await team();
+    const posted = new FormData();
+    for (const [key, value] of [["boardId", t.boardId], ["name", "Flow"], ["stages", "Backlog"], ["stages", "Review"], ["stages", "Shipped"]] as const) posted.append(key, value);
+    expect(await pipelines.createPipelineAction(undefined, posted)).toEqual({ ok: true, data: null });
+    const stages = await handle.db.select().from(schema.stages);
+    expect(stages.map((s) => s.name).sort()).toEqual(["Backlog", "Review", "Shipped"]);
+    expect(stages.filter((s) => s.isDone).map((s) => s.name)).toEqual(["Shipped"]);
+
+    const duplicated = new FormData();
+    for (const [key, value] of [["boardId", t.boardId], ["name", "Other"], ["stages", "A"], ["stages", "a"]] as const) duplicated.append(key, value);
+    expect(await pipelines.createPipelineAction(undefined, duplicated)).toMatchObject({ ok: false, code: "VALIDATION", fieldErrors: { stages: ["Stage names must be unique"] } });
+    expect(await handle.db.select().from(schema.pipelines)).toHaveLength(1);
+  });
+
   it("lets an owner who removes themselves leave for the board list", async () => {
     const t = await team();
     await members.addMemberAction(undefined, form({ boardId: t.boardId, email: "invitee@example.com", role: "owner" }));

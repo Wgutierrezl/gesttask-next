@@ -397,6 +397,11 @@
       "description": {
         "tooBig": "Description must be at most {max} characters"
       },
+      "stages": {
+        "tooSmall": "A pipeline needs at least one stage",
+        "tooBig": "A pipeline can have at most {max} stages",
+        "custom": "Stage names must be unique"
+      },
       "body": {
         "tooSmall": "Write something first",
         "tooBig": "Comments are limited to {max} characters"
