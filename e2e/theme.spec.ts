@@ -1,0 +1,59 @@
+import { expect, test } from "@playwright/test";
+
+const LIGHT_CANVAS = "rgb(248, 250, 252)";
+const DARK_CANVAS = "rgb(11, 17, 32)";
+
+// REQ-THM-01..03: the Preferences menu pins a theme on <html>, the choice persists and System returns to the OS.
+test("the Preferences menu switches to Dark, persists on reload and switches back to System", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+
+  await page.getByLabel("Preferences", { exact: true }).click();
+  await page.getByRole("button", { name: "Dark", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("body")).toHaveCSS("background-color", DARK_CANVAS);
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+
+  await page.getByLabel("Preferences", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Dark", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "System", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+});
+
+test.describe("with an OS that prefers dark", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("System follows the OS", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+    await expect(page.locator("body")).toHaveCSS("background-color", DARK_CANVAS);
+    await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  });
+
+  test("a pinned Light ignores the OS", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Preferences", { exact: true }).click();
+    await page.getByRole("button", { name: "Light", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("body")).toHaveCSS("background-color", LIGHT_CANVAS);
+    await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  });
+});
+
+// REQ-BRD-01: the brand mark is served as the favicon and the touch icon, and shown in the header.
+test("serves the favicon and the apple touch icon", async ({ page, request }) => {
+  await page.goto("/login");
+  const iconHref = await page.locator("link[rel='icon']").first().getAttribute("href");
+  const appleHref = await page.locator("link[rel='apple-touch-icon']").getAttribute("href");
+  expect(iconHref).toBeTruthy();
+  expect(appleHref).toBeTruthy();
+  const icon = await request.get(iconHref!);
+  expect(icon.status()).toBe(200);
+  expect(icon.headers()["content-type"]).toContain("image/svg+xml");
+  const apple = await request.get(appleHref!);
+  expect(apple.status()).toBe(200);
+  expect(apple.headers()["content-type"]).toContain("image/png");
+});

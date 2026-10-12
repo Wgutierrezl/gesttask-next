@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { runSeedContract } from "@tests/support/contracts/seed.contract";
-import { DEMO_BOARD_ID, DEMO_OWNER_ID, seedDemoBoard } from "@/infrastructure/seed/seed-demo-board";
+import { DEMO_BOARD_ID, DEMO_OWNER_ID, ensureBacklogPipeline, seedDemoBoard } from "@/infrastructure/seed/seed-demo-board";
 import { sequentialIds } from "@tests/support/app-context";
 import { memoryFiles } from "@tests/support/seed-files";
 import { drizzleHarness } from "./support/harness";
@@ -21,7 +21,8 @@ describe("demo seed under real concurrency", () => {
       ["1", "2", "3"].map((n) => seedDemoBoard({ ...deps, ids: sequentialIds(n) }, { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID, files })),
     );
     expect(results.filter((r) => r.created)).toHaveLength(1);
-    const tasks = await deps.repos.tasks.listByPipeline((await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 }))[0]!.id, { limit: 50, offset: 0 });
+    const launch = (await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 })).find((p) => p.name === "Launch plan")!;
+    const tasks = await deps.repos.tasks.listByPipeline(launch.id, { limit: 50, offset: 0 });
     const comments = (await Promise.all(tasks.map((t) => deps.repos.comments.listByTask(t.id, { limit: 50, offset: 0 })))).flat();
     const attachments = await deps.repos.attachments.listByComments(comments.map((c) => c.id));
     expect(attachments.length).toBeGreaterThan(0);
@@ -36,7 +37,20 @@ describe("demo seed under real concurrency", () => {
     );
     expect(results.filter((r) => r.created)).toHaveLength(1);
     const pipelines = await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 });
-    expect(pipelines).toHaveLength(1);
-    expect(await deps.repos.stages.listByPipeline(pipelines[0]!.id)).toHaveLength(3);
+    expect(pipelines.map((p) => p.name)).toEqual(["Backlog", "Launch plan"]);
+    for (const pipeline of pipelines) expect(await deps.repos.stages.listByPipeline(pipeline.id)).toHaveLength(3);
+  });
+
+  it("simultaneous ensure runs on a board without the Backlog add it exactly once", async () => {
+    const deps = drizzleDeps(handle);
+    await deps.uow.run(async (tx) => {
+      await tx.boards.insert({ id: DEMO_BOARD_ID, name: "Product launch (demo)", description: "", status: "active", createdAt: new Date() });
+      await tx.members.insert({ boardId: DEMO_BOARD_ID, userId: DEMO_OWNER_ID, role: "owner" });
+    });
+    const results = await Promise.all(
+      [1, 2, 3].map((n) => ensureBacklogPipeline({ ...deps, ids: sequentialIds(String(n)) }, { ownerId: DEMO_OWNER_ID, boardId: DEMO_BOARD_ID })),
+    );
+    expect(results.filter((r) => r.added)).toHaveLength(1);
+    expect((await deps.repos.pipelines.listByBoard(DEMO_BOARD_ID, { limit: 10, offset: 0 })).map((p) => p.name)).toEqual(["Backlog"]);
   });
 });

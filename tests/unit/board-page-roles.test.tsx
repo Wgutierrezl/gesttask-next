@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+import { renderWithIntl as render } from "@tests/support/render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), notFound: vi.fn() }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 vi.mock("@/app/_actions/pipelines", () => ({ createPipelineAction: async () => undefined }));
 
 const BOARD_ID = "00000000-0000-4000-8000-000000000001";
 const getBoard = vi.fn();
-const useCases = { getBoard, listMemberProfiles: vi.fn(async () => []), listPipelines: vi.fn(async () => []) };
+const useCases = { getBoard, listMemberProfiles: vi.fn(async () => []), listPipelines: vi.fn(async () => []), listStages: vi.fn(async () => []) };
 vi.mock("@/infrastructure/container", () => ({
   getContainer: () => ({ session: { getActor: async () => ({ userId: "u", isGuest: false }) }, useCases, logger: { error: vi.fn() } }),
 }));

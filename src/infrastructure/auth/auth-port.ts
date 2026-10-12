@@ -12,9 +12,9 @@ export function translateAuthError(error: unknown): never {
   if (!(error instanceof APIError)) throw error;
   const body = error.body as { code?: string; message?: string } | undefined;
   const code = body?.code ?? "";
-  if (code.includes("USER_ALREADY_EXISTS")) throw new ConflictError("Email already registered");
-  if (code.includes("CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY")) throw new ConflictError("Already signed in as a guest");
-  if (error.statusCode === 401 || error.statusCode === 403) throw new UnauthenticatedError(BAD_CREDENTIALS);
+  if (code.includes("USER_ALREADY_EXISTS")) throw new ConflictError("Email already registered", { reason: "auth.emailTaken" });
+  if (code.includes("CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY")) throw new ConflictError("Already signed in as a guest", { reason: "auth.alreadyGuest" });
+  if (error.statusCode === 401 || error.statusCode === 403) throw new UnauthenticatedError(BAD_CREDENTIALS, { reason: "auth.invalidCredentials" });
   if (error.statusCode === 400 || error.statusCode === 422) throw new ValidationError(body?.message ?? "Invalid input");
   throw error;
 }

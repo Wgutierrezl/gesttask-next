@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE, column, openKanban } from "./helpers";
+import { AUTH_FILE, openKanban, openTaskPage } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
@@ -8,8 +8,7 @@ const NOTE = "Release notes\nVersion 1.0 ships on Friday.\n";
 test.describe("task detail, comments and attachments (REQ-CMT-02, REQ-ATT-01..04)", () => {
   test("a seeded task shows its thread; a new comment with a file is stored, listed and downloadable", async ({ page }) => {
     await openKanban(page);
-    await column(page, "In progress").getByRole("link", { name: "Design the dashboard widgets" }).click();
-    await expect(page.getByRole("heading", { name: "Design the dashboard widgets", level: 1 })).toBeVisible();
+    await openTaskPage(page, "In progress", "Design the dashboard widgets");
 
     // The seed's comments (text only in a sandbox) are there before we add ours.
     await expect(page.getByRole("heading", { name: "Comments (2)" })).toBeVisible();
@@ -39,7 +38,7 @@ test.describe("task detail, comments and attachments (REQ-CMT-02, REQ-ATT-01..04
 
   test("a file type the policy does not allow is refused before anything is uploaded", async ({ page }) => {
     await openKanban(page);
-    await column(page, "To do").getByRole("link", { name: "Prepare onboarding checklist" }).click();
+    await openTaskPage(page, "To do", "Prepare onboarding checklist");
     await page.getByLabel("Attach files").setInputFiles({ name: "setup.exe", mimeType: "application/x-msdownload", buffer: Buffer.from("MZ") });
     await expect(page.getByText(/setup\.exe: .*(not allowed|unsupported|type)/i)).toBeVisible();
     await expect(page.getByText("setup.exe: ready")).toHaveCount(0);
@@ -47,7 +46,7 @@ test.describe("task detail, comments and attachments (REQ-CMT-02, REQ-ATT-01..04
 
   test("a comment can be edited and deleted by its author", async ({ page }) => {
     await openKanban(page);
-    await column(page, "To do").getByRole("link", { name: "Prepare onboarding checklist" }).click();
+    await openTaskPage(page, "To do", "Prepare onboarding checklist");
     await page.getByLabel("Add a comment").fill("Draft comment");
     await page.getByRole("button", { name: "Comment" }).click();
     const comment = page.getByRole("article", { name: /^Comment by / }).filter({ hasText: "Draft comment" });

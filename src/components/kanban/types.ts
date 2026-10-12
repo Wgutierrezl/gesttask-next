@@ -30,3 +30,11 @@ export interface MemberOption {
   userId: string;
   name: string;
 }
+
+/** A pipeline of the board as the switcher and the move menus see it; its stages are in column order. */
+export interface PipelineOption {
+  id: string;
+  name: string;
+  taskCount: number;
+  stages: { id: string; name: string }[];
+}
