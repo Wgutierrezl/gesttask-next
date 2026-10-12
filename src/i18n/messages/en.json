@@ -112,10 +112,9 @@
     "activeCount": "{count, plural, one {# active board} other {# active boards}}"
   },
   "pipeline": {
-    "heading": "Pipelines",
+    "heading": "Board pipelines",
     "create": "Create pipeline",
     "newPipeline": "New pipeline",
-    "none": "No pipelines yet.",
     "submit": "Create pipeline",
     "submitting": "Creating...",
     "namePlaceholder": "e.g. Frontend development",
@@ -136,7 +135,15 @@
       "todo": "To do",
       "inProgress": "In progress",
       "done": "Done"
-    }
+    },
+    "description": "Each pipeline has its own stages to organize tasks",
+    "count": "{count, plural, one {# pipeline} other {# pipelines}}",
+    "stagesLabel": "Pipeline stages:",
+    "stageCount": "{count, plural, one {# stage} other {# stages}}",
+    "viewOnly": "View only",
+    "emptyTitle": "No pipelines on this board",
+    "emptyOwner": "Create your first pipeline with custom stages to organize your tasks",
+    "emptyViewer": "The board owner has not created any pipelines yet"
   },
   "board": {
     "dashboard": "Dashboard",
@@ -182,6 +189,22 @@
       "removing": "Removing...",
       "loseAccessSelf": "I will lose access to this board",
       "loseAccess": "{name} will lose access to this board"
+    },
+    "header": {
+      "back": "Back to boards"
+    },
+    "dialog": {
+      "manage": "Manage members",
+      "addTitle": "Add new member",
+      "current": "Current members ({count})",
+      "you": "(You)",
+      "permissions": "Role permissions:",
+      "permission": {
+        "owner": "Full control of the board, pipelines, tasks and members",
+        "member": "Creates and edits tasks, comments and attaches files",
+        "guest": "Views the board and comments, without editing tasks"
+      },
+      "truncated": "Showing the first {count} members. The board settings list everyone."
     }
   },
   "dashboard": {

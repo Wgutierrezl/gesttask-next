@@ -32,7 +32,7 @@ vi.mock("@/infrastructure/container", () => ({
 const { GuestBanner } = await import("@/components/boards/guest-banner");
 const { BoardHeader } = await import("@/components/boards/board-header");
 const { BoardCard } = await import("@/components/boards/board-card");
-const { MembersPanel } = await import("@/components/boards/members-panel");
+const { MembersDialogBody } = await import("@/components/boards/members-dialog-body");
 const { PipelineList } = await import("@/components/boards/pipeline-list");
 const { Pager } = await import("@/components/boards/pager");
 const { CreateBoardDialog, CreatePipelineDialog } = await import("@/components/boards/create-dialogs");
@@ -77,16 +77,16 @@ describe("boards in Spanish", () => {
   });
 
   it("translates the board card, member list and pipeline list; user data stays as written", () => {
-    render(<><BoardCard board={BOARD} role="member" /><MembersPanel members={[member]} /><PipelineList boardId="b1" pipelines={[]} /></>, { locale: "es" });
+    render(<><BoardCard board={BOARD} role="member" /><MembersDialogBody boardId="b1" members={[member]} currentUserId="me" canManage={false} /><PipelineList boardId="b1" pipelines={[]} role="owner" /></>, { locale: "es" });
     expect(screen.getByText("Miembro")).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Miembros" })).toBeTruthy();
-    expect(screen.getByText("Lector")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Miembros actuales (1)" })).toBeTruthy();
+    expect(screen.getAllByText("Lector").length).toBeGreaterThan(0);
     expect(screen.getByText("Roadmap")).toBeTruthy();
-    expect(screen.getByText("Aún no hay pipelines.")).toBeTruthy();
+    expect(screen.getByText("No hay pipelines en este tablero")).toBeTruthy();
   });
 
   it("translates the pager and the past-the-end notes", () => {
-    render(<><Pager page={2} hasNext basePath="/boards" /><PipelineList boardId="b1" pipelines={[]} pastTheEndHref="/boards/b1" /></>, { locale: "es" });
+    render(<><Pager page={2} hasNext basePath="/boards" /><PipelineList boardId="b1" pipelines={[]} role="owner" pastTheEndHref="/boards/b1" /></>, { locale: "es" });
     expect(screen.getByRole("navigation", { name: "Paginación" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Anterior" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Siguiente" })).toBeTruthy();
@@ -210,8 +210,8 @@ describe("pages in Spanish", () => {
     useCases.getUserDashboard.mockResolvedValue({ boards: 2, assigned: ZEROS });
     const params = Promise.resolve({ boardId: "b1" });
     render(await boardPage.default({ params, searchParams: Promise.resolve({}) }), { locale: "es" });
-    expect(screen.getByRole("heading", { name: "Pipelines" })).toBeTruthy();
-    expect(screen.getByText("Aún no hay pipelines.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Pipelines del tablero" })).toBeTruthy();
+    expect(screen.getByText("No hay pipelines en este tablero")).toBeTruthy();
     cleanup();
     render(await settingsPage.default({ params, searchParams: Promise.resolve({}) }), { locale: "es" });
     expect(screen.getByRole("link", { name: "Volver a Roadmap" })).toBeTruthy();

@@ -13,18 +13,20 @@ interface PageHeroProps {
   meta?: { icon: ReactNode; text: string };
   /** The primary action(s), pinned to the end of the row. */
   actions?: ReactNode;
+  /** Id for the heading, so a section can name itself with `aria-labelledby`. */
+  headingId?: string;
   tone?: keyof typeof SPARKLE_TONES;
   className?: string;
 }
 
 /** The title block of v1's pages: a sparkle, a big title, a subtitle, a meta line and the main action on the right. */
-export function PageHero({ as: Heading = "h1", title, description, meta, actions, tone = "brand", className }: PageHeroProps) {
+export function PageHero({ as: Heading = "h1", title, description, meta, actions, headingId, tone = "brand", className }: PageHeroProps) {
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
         <div className="mb-3 flex items-center gap-3">
           <Sparkles aria-hidden="true" className={cn("size-6 shrink-0", SPARKLE_TONES[tone])} />
-          <Heading className="min-w-0 break-words text-3xl text-fg">{title}</Heading>
+          <Heading id={headingId} className="min-w-0 break-words text-3xl text-fg">{title}</Heading>
         </div>
         {description ? <p className="text-fg-muted">{description}</p> : null}
         {meta ? (

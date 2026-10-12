@@ -280,7 +280,7 @@ describe("PipelinePage beyond the load caps", () => {
 
 describe("PipelineList links", () => {
   it("links each pipeline to its Kanban page when given the board", () => {
-    const html = renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: PIPELINE_ID, name: "Sprint", description: "" }]} />);
+    const html = renderToStaticMarkup(<PipelineList boardId={BOARD_ID} pipelines={[{ id: PIPELINE_ID, name: "Sprint", description: "", stages: [] }]} role="owner" />);
     expect(html).toContain(`href="/boards/${BOARD_ID}/pipelines/${PIPELINE_ID}"`);
   });
 });
