@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import { useTranslations } from "next-intl";
 import { TabLink, TabNav } from "@/components/ui/tabs";
 import { pipelineTabId } from "./move";
 import type { PipelineOption } from "./types";
@@ -12,12 +13,12 @@ export interface PipelineSwitcherData {
 }
 
 function TabLabel({ pipeline }: { pipeline: PipelineOption }) {
-  const count = `${pipeline.taskCount} ${pipeline.taskCount === 1 ? "task" : "tasks"}`;
+  const t = useTranslations("kanban");
   return (
     <>
       {pipeline.name}
-      <span className="sr-only">, {count}</span>
-      <span aria-hidden="true" className="inline-flex min-w-6 justify-center rounded-pill bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{pipeline.taskCount}</span>
+      <span className="sr-only">, {t("tasks", { count: pipeline.taskCount })}</span>
+      <span aria-hidden="true" className="inline-flex min-w-6 justify-center rounded-pill bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-strong">{pipeline.taskCount}</span>
     </>
   );
 }
@@ -40,8 +41,9 @@ function DroppableTab({ boardId, pipeline, dragging }: { boardId: string; pipeli
 
 /** Links to every pipeline of the board with their task counts; with `droppable`, writers can drop cards on the other tabs. */
 export function PipelineTabs({ data, droppable, dragging = false }: { data: PipelineSwitcherData; droppable: boolean; dragging?: boolean }) {
+  const t = useTranslations("kanban");
   return (
-    <TabNav label="Pipelines">
+    <TabNav label={t("pipelines")}>
       {data.pipelines.map((pipeline) =>
         pipeline.id === data.pipelineId ? (
           <TabLink key={pipeline.id} id={tabElementId(pipeline.id)} href={hrefOf(data.boardId, pipeline.id)} current>

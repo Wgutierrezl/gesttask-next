@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { AUTH_FILE } from "./helpers";
+import { AUTH_FILE, column, newTaskDialog, openKanban, openNewTask, openTaskPage } from "./helpers";
 
 test.use({ storageState: AUTH_FILE });
 
@@ -26,23 +26,37 @@ interface Audit {
 }
 
 /**
- * Audits every visible text element and form control inside <main> in the page's own context:
+ * Audits every visible text element and form control inside `root` (<main> unless a dialog is given) in the page's own context:
  * - text: contrast of its color against the background it is painted on (every layer composited, the final
  *   result composited over the page canvas, element opacity applied), 4.5:1;
  * - control borders: contrast of the border against what is behind the control, 3:1.
- * Elements over a gradient or image are skipped and listed; colors other than rgb()/rgba() throw instead of being guessed.
+ * Elements over a gradient or image are skipped and listed; colors the parser does not read as rgb()/hex are rasterized by the browser (canvas), and unparseable ones throw.
  */
-async function audit(page: Page): Promise<Audit> {
+async function audit(page: Page, root = "main"): Promise<Audit> {
   await page.evaluate(() =>
     Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))),
   );
-  return page.evaluate(() => {
+  return page.evaluate((rootSelector) => {
     type Rgba = [number, number, number, number];
     const parse = (value: string): Rgba => {
       const hex = /^#([0-9a-f]{6})$/i.exec(value);
       if (hex) return [0, 2, 4].map((i) => parseInt(hex[1]!.slice(i, i + 2), 16)).concat(1) as Rgba;
       const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(value);
-      if (!rgb) throw new Error(`unsupported color format: ${value}`);
+      if (!rgb) {
+        // lab()/oklab()/color-mix() results (Tailwind opacity modifiers): let the browser rasterize the color and read the pixel back.
+        const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+        // An invalid value leaves the previous fillStyle untouched: try it after two different sentinels, and throw only if both survive.
+        context.fillStyle = "#000000";
+        context.fillStyle = value;
+        const afterBlack = context.fillStyle;
+        context.fillStyle = "#ffffff";
+        context.fillStyle = value;
+        if (afterBlack === "#000000" && context.fillStyle === "#ffffff") throw new Error(`unsupported color format: ${value}`);
+        context.clearRect(0, 0, 1, 1);
+        context.fillRect(0, 0, 1, 1);
+        const [r = 0, g = 0, b = 0, a = 255] = context.getImageData(0, 0, 1, 1).data;
+        return [r, g, b, a / 255];
+      }
       const alpha = rgb[4] === undefined ? 1 : rgb[4].endsWith("%") ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
       return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), alpha];
     };
@@ -82,7 +96,7 @@ async function audit(page: Page): Promise<Audit> {
       return rect.width >= 2 && rect.height >= 2 && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
     };
 
-    const main = document.querySelector("main")!;
+    const main = document.querySelector(rootSelector)!;
     const out: Audit = { checked: 0, controls: 0, skipped: [], findings: [] };
     for (const el of main.querySelectorAll("*")) {
       const hasText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== "");
@@ -109,7 +123,7 @@ async function audit(page: Page): Promise<Audit> {
     }
     out.findings.sort((a, b) => a.ratio - b.ratio);
     return out;
-  });
+  }, root);
 }
 
 function describeWorst(result: Audit): string {
@@ -117,10 +131,11 @@ function describeWorst(result: Audit): string {
   return worst ? `worst: ${worst.kind} ${worst.selector} "${worst.text}" ${worst.ratio.toFixed(2)}:1 (needs ${worst.min}:1); ${result.findings.length} in total` : "no offenders";
 }
 
-async function expectLegible(page: Page, minTextElements: number): Promise<Audit> {
+async function expectLegible(page: Page, minTextElements: number, root = "main"): Promise<Audit> {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const result = await audit(page);
+  // A dialog is audited on its own: wait for its content, not for the page behind it.
+  await expect(root === "main" ? page.getByRole("heading", { level: 1 }) : page.locator(root).getByRole("heading").first()).toBeVisible();
+  const result = await audit(page, root);
   expect(result.checked, "text elements audited").toBeGreaterThanOrEqual(minTextElements);
   expect(result.findings, describeWorst(result)).toEqual([]);
   return result;
@@ -140,6 +155,12 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     const boardUrl = page.url();
     await expectLegible(page, 3);
 
+    // The members dialog: the add panel, the member cards and the permissions legend, on the elevated surface.
+    await page.getByRole("button", { name: "Manage members" }).click();
+    await expect(page.getByRole("dialog", { name: "Manage members" })).toBeVisible();
+    await expectLegible(page, 6, "dialog[open]");
+    await page.keyboard.press("Escape");
+
     await page.goto(`${boardUrl}/dashboard`);
     await expectLegible(page, 5);
 
@@ -154,4 +175,48 @@ test.describe("dark theme legibility (REQ-THM-04)", () => {
     await expect(page.getByRole("heading", { name: "Your dashboard", level: 1 })).toBeVisible();
     await expectLegible(page, 5);
   });
+
+  test("the pipeline board (kanban), the task modal opened from a card and the create-task modal", async ({ page }) => {
+    await openKanban(page);
+    await expectLegible(page, 8);
+
+    await openNewTask(page, "To do");
+    await expect(newTaskDialog(page)).toBeVisible();
+    const create = await expectLegible(page, 4, "dialog[open]");
+    expect(create.controls, "form controls with a border audited").toBeGreaterThan(0);
+    await page.keyboard.press("Escape");
+    await expect(newTaskDialog(page)).toBeHidden();
+
+    await column(page, "In progress").getByRole("link", { name: "Design the dashboard widgets", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "Design the dashboard widgets", exact: true });
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole("heading", { name: /^Comments \(\d+\)$/ })).toBeVisible();
+    await expectLegible(page, 8, "dialog[open]");
+  });
+
+  test("the full task page with its comments", async ({ page }) => {
+    await openKanban(page);
+    await openTaskPage(page, "In progress", "Design the dashboard widgets");
+    await expect(page.getByRole("heading", { name: /^Comments \(\d+\)$/ })).toBeVisible();
+    await expectLegible(page, 8);
+  });
 });
+
+test.describe("dark theme legibility of the public pages (REQ-THM-04)", () => {
+  // Signed out: the landing, login and register pages are what a visitor sees first, in either language.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const locale of ["en", "es"] as const) {
+    for (const path of ["/", "/login", "/register"]) {
+      test(`${path} in ${locale}`, async ({ page, context, baseURL }) => {
+        await context.addCookies([{ name: "locale", value: locale, url: baseURL! }]);
+        await page.goto(path);
+        await expect(page.locator("html")).toHaveAttribute("lang", locale);
+        await expectLegible(page, 3);
+      });
+    }
+  }
+});
+
+// Both tests only read the seeded card ("Design the dashboard widgets"); the one spec that touches it (task-detail) only adds a comment to it,
+// and the comment count is matched with a regex here.

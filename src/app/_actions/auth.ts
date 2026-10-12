@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { ActionFailure } from "@/application/result";
 import { runAction } from "@/application/to-action-result";
 import { getContainer } from "@/infrastructure/container";
+import { localizeActionFailure } from "../_shared/localize-failure";
 import { safeNext } from "../_shared/safe-next";
 
 /** What `useActionState` holds: nothing yet, or the failure to show. Success never returns: it redirects. */
@@ -12,7 +13,7 @@ export type FormState = ActionFailure | undefined;
 async function run(work: () => Promise<unknown>, destination: string): Promise<FormState> {
   const { logger } = getContainer();
   const result = await runAction(work, (error) => logger.error("auth action failed", { error }));
-  if (!result.ok) return result;
+  if (!result.ok) return localizeActionFailure(result);
   redirect(destination);
 }
 

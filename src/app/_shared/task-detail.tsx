@@ -4,14 +4,16 @@ import { loadPage } from "@/app/_shared/load-page";
 import { CommentsSection } from "@/components/comments/comments-section";
 import { LocalTime } from "@/components/kanban/local-time";
 import { MoveTaskForm } from "@/components/kanban/move-task-form";
-import { assigneeLabel, formatDate, PRIORITY_LABELS } from "@/components/kanban/format";
+import { formatDate } from "@/components/kanban/format";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, priorityTone } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { Alert } from "@/components/ui/field";
 import { getContainer } from "@/infrastructure/container";
-import { useLocale } from "next-intl";
+import { Calendar, Check, CircleAlert, Clock, Flag, User } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 
 export interface TaskRouteParams {
@@ -69,47 +71,110 @@ export type TaskDetail = Awaited<ReturnType<typeof loadTaskDetail>>;
 
 /** Heading level of the sections: the page nests them under its h1, the modal under the dialog's h2. */
 type Level = 2 | 3;
-const Heading = ({ level, children, className = "mb-3 text-lg font-semibold text-slate-900" }: { level: Level; children: string; className?: string }) =>
+const Heading = ({ level, children, className = "mb-3 text-lg font-semibold text-fg" }: { level: Level; children: string; className?: string }) =>
   level === 2 ? <h2 className={className}>{children}</h2> : <h3 className={className}>{children}</h3>;
 
 export function TaskDescription({ description }: { description: string }) {
   if (!description) return null;
-  return <Card><CardBody><p className="whitespace-pre-wrap break-words text-sm text-slate-800">{description}</p></CardBody></Card>;
+  return <p className="whitespace-pre-wrap break-words text-fg-muted">{description}</p>;
 }
 
+/** The label of a detail box: a small decorative glyph and the name. */
+function BoxLabel({ icon, children }: { icon: ReactNode; children: string }) {
+  return (
+    <dt className="flex items-center gap-2 text-sm text-fg-muted">
+      <span aria-hidden="true" className="flex text-fg-subtle [&>svg]:size-4">{icon}</span>
+      {children}
+    </dt>
+  );
+}
+
+/**
+ * The task's facts. In the modal (level 3) they are v1's four boxes with the dates underneath; in the page's narrow sidebar
+ * (level 2) the same facts stay a compact list under a visible heading.
+ */
 export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, stage, assignee } = detail;
   const locale = useLocale() as Locale;
+  const t = useTranslations("task.detail");
+  const k = useTranslations("kanban");
+  const stageBadges = (
+    <>
+      <Badge tone="brand">{stage?.name ?? t("unknownStage")}</Badge>
+      {stage?.isDone ? <Badge tone="success">{k("doneStage")}</Badge> : null}
+    </>
+  );
+  const assigneeLine = (
+    <>
+      {assignee ? <Avatar name={assignee} size="sm" /> : null}
+      <span className="min-w-0 truncate">{task.assigneeId === null ? k("unassigned") : (assignee ?? k("formerMember"))}</span>
+    </>
+  );
+  const due = (
+    <>
+      {task.dueDate ? k("due", { date: formatDate(task.dueDate, locale) }) : t("noDueDate")}
+      {task.overdue ? <span className="ml-2"><Badge tone="danger">{k("overdue")}</Badge></span> : null}
+    </>
+  );
+  if (level === 3) {
+    const BOX = "rounded-xl border border-border bg-surface-hover p-4";
+    return (
+      <section>
+        <h3 className="sr-only">{t("details")}</h3>
+        <dl className="grid grid-cols-2 gap-4">
+          <div className={BOX}>
+            <BoxLabel icon={<Flag />}>{k("fields.priority")}</BoxLabel>
+            <dd className="mt-2"><Badge tone={priorityTone(task.priority)}>{k(`priority.${task.priority}`)}</Badge></dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<CircleAlert />}>{k("fields.stage")}</BoxLabel>
+            <dd className="mt-2 flex flex-wrap items-center gap-1">{stageBadges}</dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<User />}>{k("fields.assignee")}</BoxLabel>
+            <dd className="mt-2 flex min-w-0 items-center gap-2 text-sm text-fg">{assigneeLine}</dd>
+          </div>
+          <div className={BOX}>
+            <BoxLabel icon={<Calendar />}>{k("fields.dueDate")}</BoxLabel>
+            <dd className="mt-2 text-sm text-fg">{due}</dd>
+          </div>
+        </dl>
+        <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
+          <div>
+            <dt className="flex items-center gap-2 text-xs text-fg-subtle"><Clock aria-hidden="true" className="size-3.5" />{t("created")}</dt>
+            <dd className="mt-1 text-fg"><LocalTime iso={task.createdAt.toISOString()} /></dd>
+          </div>
+          {task.completedAt ? (
+            <div>
+              <dt className="flex items-center gap-2 text-xs text-fg-subtle"><Check aria-hidden="true" className="size-3.5" />{k("completed")}</dt>
+              <dd className="mt-1 text-fg"><LocalTime iso={task.completedAt.toISOString()} label={k("completed")} /></dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+    );
+  }
   return (
     <Card>
       <CardBody>
-        <Heading level={level}>Details</Heading>
+        <Heading level={level}>{t("details")}</Heading>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="font-medium text-slate-700">Stage</dt>
-          <dd className="flex flex-wrap items-center gap-1">
-            <Badge tone="brand">{stage?.name ?? "Unknown stage"}</Badge>
-            {stage?.isDone ? <Badge tone="success">Done stage</Badge> : null}
-          </dd>
-          <dt className="font-medium text-slate-700">Priority</dt>
-          <dd><Badge tone={priorityTone(task.priority)}>{PRIORITY_LABELS[task.priority]}</Badge></dd>
-          <dt className="font-medium text-slate-700">Assignee</dt>
-          <dd className="flex min-w-0 items-center gap-2">
-            {assignee ? <Avatar name={assignee} size="sm" /> : null}
-            <span className="min-w-0 truncate">{assigneeLabel(task.assigneeId, assignee)}</span>
-          </dd>
-          <dt className="font-medium text-slate-700">Due date</dt>
-          <dd>
-            {task.dueDate ? `Due ${formatDate(task.dueDate, locale)}` : "No due date"}
-            {task.overdue ? <span className="ml-2"><Badge tone="danger">Overdue</Badge></span> : null}
-          </dd>
+          <dt className="font-medium text-fg-strong">{k("fields.stage")}</dt>
+          <dd className="flex flex-wrap items-center gap-1">{stageBadges}</dd>
+          <dt className="font-medium text-fg-strong">{k("fields.priority")}</dt>
+          <dd><Badge tone={priorityTone(task.priority)}>{k(`priority.${task.priority}`)}</Badge></dd>
+          <dt className="font-medium text-fg-strong">{k("fields.assignee")}</dt>
+          <dd className="flex min-w-0 items-center gap-2">{assigneeLine}</dd>
+          <dt className="font-medium text-fg-strong">{k("fields.dueDate")}</dt>
+          <dd>{due}</dd>
           {task.completedAt ? (
             <>
-              <dt className="font-medium text-slate-700">Completed</dt>
-              <dd><LocalTime iso={task.completedAt.toISOString()} label="Completed" /></dd>
+              <dt className="font-medium text-fg-strong">{k("completed")}</dt>
+              <dd><LocalTime iso={task.completedAt.toISOString()} label={k("completed")} /></dd>
             </>
           ) : null}
-          <dt className="font-medium text-slate-700">Created</dt>
-          <dd>{formatDate(task.createdAt.toISOString(), locale)}</dd>
+          <dt className="font-medium text-fg-strong">{t("created")}</dt>
+          <dd><LocalTime iso={task.createdAt.toISOString()} /></dd>
         </dl>
       </CardBody>
     </Card>
@@ -119,9 +184,10 @@ export function TaskDetailsCard({ detail, level }: { detail: TaskDetail; level: 
 /** Writers only. Level 3 is the modal (its sections nest under the dialog title), which also changes where a cross-pipeline move lands. */
 export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Level }) {
   const { task, pipeline, pipelines, stages } = detail;
+  const t = useTranslations("task.move");
   return (
     <div>
-      <Heading level={level}>Move task</Heading>
+      <Heading level={level}>{t("heading")}</Heading>
       <Card>
         <CardBody>
           <MoveTaskForm inModal={level === 3} taskId={task.id} pipelineId={pipeline.id} pipelineName={pipeline.name} stages={stages.map(({ id, name }) => ({ id, name }))} currentStageId={task.stageId} otherPipelines={pipelines.filter((p) => p.id !== pipeline.id)} />
@@ -133,9 +199,10 @@ export function TaskMoveCard({ detail, level }: { detail: TaskDetail; level: Lev
 
 export function TaskComments({ detail }: { detail: TaskDetail }) {
   const { task, comments, canWrite, actor } = detail;
-  return <CommentsSection taskId={task.id} comments={comments.items.map(toCommentRow)} truncated={comments.truncated} canAttach={canWrite} demoGuest={actor.isGuest} />;
+  return <CommentsSection taskId={task.id} comments={comments.items.map(toCommentRow)} truncated={comments.truncated} loadCap={LIST_LOAD_CAP} canAttach={canWrite} demoGuest={actor.isGuest} />;
 }
 
 export function StagesTruncatedNotice({ detail }: { detail: TaskDetail }) {
-  return detail.stagesTruncated ? <Alert tone="warning">Showing the first {LIST_LOAD_CAP} stages of this pipeline.</Alert> : null;
+  const t = useTranslations("kanban.page");
+  return detail.stagesTruncated ? <Alert tone="warning">{t("truncatedStages", { count: LIST_LOAD_CAP })}</Alert> : null;
 }

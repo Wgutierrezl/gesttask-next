@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { cn } from "./cn";
 
 const SIZES = { sm: "size-6 text-[10px]", md: "size-8 text-xs" } as const;
@@ -19,8 +20,8 @@ export function Avatar({ name, size = "md" }: { name: string; size?: keyof typeo
     <span
       aria-hidden="true"
       title={name}
-      style={{ backgroundColor: `hsl(${hueOf(name)} 60% 90%)`, color: `hsl(${hueOf(name)} 60% 25%)` }}
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-pill font-semibold", SIZES[size])}
+      style={{ "--avatar-hue": hueOf(name) } as CSSProperties}
+      className={cn("avatar inline-flex shrink-0 items-center justify-center rounded-pill font-semibold", SIZES[size])}
     >
       {initialsOf(name)}
     </span>

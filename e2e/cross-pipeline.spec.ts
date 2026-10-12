@@ -37,11 +37,33 @@ test.describe("moving cards between pipelines of a board", () => {
     await expect(column(page, "Refined").getByRole("heading", { name: title })).toBeVisible();
   });
 
+  test("the options menu works from the keyboard alone and stays inside the window", async ({ page }) => {
+    const title = uniqueTitle("Keyboard menu");
+    await openKanban(page);
+    await addTask(page, title, "Done"); // the bottom of the tallest column is where a menu is most likely to be cut off
+    await page.getByLabel(`Move options for ${title}`).focus();
+    await page.keyboard.press("Enter");
+    const popover = page.getByTestId("move-popover");
+    await expect(popover).toBeVisible();
+    const box = (await popover.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    await page.getByRole("button", { name: `Move ${title} to Backlog / Refined` }).focus();
+    await page.keyboard.press("Enter");
+    await expect(board(page)).toContainText(`Moved ${title} to Refined in Backlog`);
+    await pipelines(page).getByRole("link", { name: /^Backlog/ }).click();
+    await expect(column(page, "Refined").getByRole("heading", { name: title })).toBeVisible();
+  });
+
   test("dropping a card on another pipeline's tab moves it to that pipeline's first stage, reopened if it was done", async ({ page }) => {
     const title = uniqueTitle("Tab drop");
+    // The pointer works in viewport coordinates and the tab (top of the page) and the card (bottom of a column) must both be
+    // on screen: earlier tests leave many cards behind, so the window is made tall enough for the whole board.
+    await page.setViewportSize({ width: 1280, height: 2200 });
     await openKanban(page);
     await addTask(page, title, "Done");
-    const card = page.getByRole("button", { name: `Drag ${title}` });
+    const card = page.getByRole("article", { name: `Drag ${title}` });
     const tab = pipelines(page).getByRole("link", { name: /^Backlog/ });
     await card.scrollIntoViewIfNeeded();
     const from = (await card.boundingBox())!;
@@ -78,5 +100,23 @@ test.describe("moving cards between pipelines of a board", () => {
     await waitForHydration(page);
     await expect(page.getByRole("heading", { name: "Backlog", level: 1 })).toBeVisible();
     await expect(column(page, "Refined").getByRole("heading", { name: title })).toBeVisible();
+  });
+
+  test("the task page's Move form works without JavaScript", async ({ page, browser }) => {
+    const title = uniqueTitle("No-JS move");
+    await openKanban(page);
+    await addTask(page, title, "To do");
+    await openTaskPage(page, "To do", title);
+    const url = page.url();
+    const plain = await browser.newContext({ javaScriptEnabled: false, storageState: AUTH_FILE });
+    try {
+      const bare = await plain.newPage();
+      await bare.goto(url);
+      await bare.getByLabel("Move to stage").selectOption({ label: "Refined" });
+      await bare.getByRole("button", { name: "Move task" }).click();
+      await expect(bare.getByRole("complementary", { name: "Task details" }).locator("dd").getByText("Refined", { exact: true })).toBeVisible();
+    } finally {
+      await plain.close();
+    }
   });
 });

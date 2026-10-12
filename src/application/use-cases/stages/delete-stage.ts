@@ -20,13 +20,13 @@ export function makeDeleteStage(deps: AppDeps) {
   return async (actor: Actor, input: unknown): Promise<void> => {
     const { stageId, moveToStageId } = parseInput(deleteStageSchema, input);
     const snapshot = await loadStage(deps.repos, actor, stageId, "pipeline:manage");
-    if (moveToStageId === stageId) throw new ValidationError("Destination must be a different stage");
+    if (moveToStageId === stageId) throw new ValidationError("Destination must be a different stage", {}, {}, { reason: "stage.sameDestination" });
     const now = deps.clock.now();
     await deps.uow.run(async (tx) => {
       const stages = await tx.stages.listByPipeline(snapshot.pipelineId);
       const stage = stages.find((s) => s.id === stageId);
       if (!stage) throw new NotFoundError();
-      if (stage.isDone) throw new ConflictError("The done stage cannot be deleted: move the done flag to another stage first");
+      if (stage.isDone) throw new ConflictError("The done stage cannot be deleted: move the done flag to another stage first", { reason: "stage.doneCannotDelete" });
       const destination = moveToStageId ? stages.find((s) => s.id === moveToStageId) : undefined;
       if (moveToStageId && !destination) throw new NotFoundError();
       const columns = new Map<string, Awaited<ReturnType<typeof tx.tasks.listByStage>>>();
@@ -35,7 +35,7 @@ export function makeDeleteStage(deps: AppDeps) {
       }
       const tasks = columns.get(stageId) ?? [];
       if (tasks.length > 0) {
-        if (!destination) throw new ConflictError("Stage has tasks: choose a destination stage");
+        if (!destination) throw new ConflictError("Stage has tasks: choose a destination stage", { reason: "stage.hasTasks" });
         let column = columns.get(destination.id) ?? [];
         for (const task of tasks) {
           const placement = placeAtEnd(column);
