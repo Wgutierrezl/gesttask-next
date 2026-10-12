@@ -1,12 +1,10 @@
 import { z } from "zod";
+import { MAX_INITIAL_STAGES } from "../stage-limits";
 import { idSchema, paginationSchema } from "./common";
 import { stageNameSchema } from "./stage";
 
 const name = z.string().trim().min(1, "Name is required").max(100, "Name must be at most 100 characters");
 const description = z.string().max(2000, "Description must be at most 2000 characters");
-
-/** A pipeline never has more initial stages than this: a board that wide stops being readable. */
-export const MAX_INITIAL_STAGES = 20;
 
 /** The stages a new pipeline starts with, in order; omitted means the defaults. Names are unique ignoring case. */
 const initialStages = z

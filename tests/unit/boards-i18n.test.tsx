@@ -104,9 +104,10 @@ describe("boards in Spanish", () => {
     const dialog = screen.getByRole("dialog", { name: "Nuevo pipeline" });
     expect(within(dialog).getByLabelText(/^Nombre/)).toBeTruthy();
     expect(within(dialog).getByLabelText("Descripción")).toBeTruthy();
-    expect(within(dialog).getByText(/empieza con las etapas To do, In progress y Done/)).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Agregar etapa" })).toBeTruthy();
+    expect(within(dialog).getAllByRole("textbox", { name: /^Etapa \d: nombre$/ }).map((input) => (input as HTMLInputElement).value)).toEqual(["Por hacer", "En progreso", "Completado"]);
     expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeTruthy();
-    expect(within(dialog).getByRole("button", { name: "Crear" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Crear pipeline" })).toBeTruthy();
   });
 
   it("translates the settings forms with interpolated names", () => {

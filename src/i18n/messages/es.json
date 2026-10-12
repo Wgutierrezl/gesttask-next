@@ -108,7 +108,27 @@
     "create": "Crear pipeline",
     "newPipeline": "Nuevo pipeline",
     "none": "Aún no hay pipelines.",
-    "defaultStages": "Un pipeline nuevo empieza con las etapas To do, In progress y Done."
+    "submit": "Crear pipeline",
+    "submitting": "Creando...",
+    "namePlaceholder": "Ej.: Desarrollo frontend",
+    "descriptionPlaceholder": "¿Para qué sirve este pipeline?",
+    "form": {
+      "stages": "Etapas del pipeline",
+      "addStage": "Agregar etapa",
+      "help": "Define las etapas por las que pasarán tus tareas. La última marca las tareas como completadas.",
+      "stageName": "Etapa {n}: nombre",
+      "stagePlaceholder": "Etapa {n}",
+      "moveUp": "Subir la etapa {n}",
+      "moveDown": "Bajar la etapa {n}",
+      "remove": "Quitar la etapa {n}",
+      "preview": "Vista previa del flujo",
+      "previewHeading": "Vista previa del flujo:"
+    },
+    "defaultNames": {
+      "todo": "Por hacer",
+      "inProgress": "En progreso",
+      "done": "Completado"
+    }
   },
   "board": {
     "dashboard": "Panel",

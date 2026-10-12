@@ -67,8 +67,9 @@ describe("components", () => {
 
   it("CreatePipelineForm sends the board id and submits", () => {
     const html = renderToStaticMarkup(<CreatePipelineForm boardId={BOARD_ID} />);
-    expect(html).toContain(">Create</button>");
+    expect(html).toContain(">Create pipeline</button>");
     expect(html).toContain(`name="boardId" value="${BOARD_ID}"`);
+    expect(html.match(/name="stages"/g)).toHaveLength(3);
   });
 });
 

@@ -39,6 +39,7 @@
   --animate-fade-in: fade-in var(--duration-base) var(--ease-out-soft);
   --animate-pop-in: pop-in var(--duration-base) var(--ease-out-soft);
   --animate-modal-in: modal-in var(--duration-base) var(--ease-out-soft);
+  --animate-row-in: row-in var(--duration-base) var(--ease-out-soft);
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -47,6 +48,10 @@
   @keyframes modal-in {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
@@ -92,6 +97,9 @@
   --color-icon-from: var(--icon-from);
   --color-icon-to: var(--icon-to);
   --color-icon-fg: var(--icon-fg);
+  --color-tint-violet-from: var(--tint-violet-from);
+  --color-tint-violet-to: var(--tint-violet-to);
+  --color-tint-violet-fg: var(--tint-violet-fg);
   --color-wordmark-from: var(--wordmark-from);
   --color-wordmark-to: var(--wordmark-to);
   --color-elevated-edge: var(--elevated-edge);
@@ -135,6 +143,9 @@
   --icon-from: #eff6ff;
   --icon-to: #eef2ff;
   --icon-fg: #2563eb;
+  --tint-violet-from: #f5f3ff;
+  --tint-violet-to: #faf5ff;
+  --tint-violet-fg: #7c3aed;
   --wordmark-from: #2563eb;
   --wordmark-to: #4f46e5;
   --elevated-edge: transparent;
@@ -185,6 +196,9 @@
   --icon-from: #1b2650;
   --icon-to: #232a5c;
   --icon-fg: #93b5ff;
+  --tint-violet-from: #2a1f52;
+  --tint-violet-to: #33225e;
+  --tint-violet-fg: #c4b0ff;
   --wordmark-from: #60a5fa;
   --wordmark-to: #818cf8;
   --elevated-edge: #263248;
@@ -234,6 +248,9 @@
     --icon-from: #1b2650;
     --icon-to: #232a5c;
     --icon-fg: #93b5ff;
+    --tint-violet-from: #2a1f52;
+    --tint-violet-to: #33225e;
+    --tint-violet-fg: #c4b0ff;
     --wordmark-from: #60a5fa;
     --wordmark-to: #818cf8;
     --elevated-edge: #263248;
