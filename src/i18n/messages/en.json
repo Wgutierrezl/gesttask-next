@@ -387,8 +387,8 @@
       "confirmationRequired": "Confirmation required"
     },
     "validation": {
-      "tooSmall": "Too small: expected string to have >={min} characters",
-      "tooBig": "Too big: expected string to have <={max} characters",
+      "tooSmall": "Too small: expected string to have >={min, plural, one {# characters} other {# characters}}",
+      "tooBig": "Too big: expected string to have <={max, plural, one {# characters} other {# characters}}",
       "invalidEmail": "Invalid email address",
       "name": {
         "tooSmall": "Name is required",
@@ -406,13 +406,14 @@
       },
       "size": {
         "tooSmall": "The file is empty",
-        "tooBig": "Files can be at most 5 MB"
+        "tooBig": "Files can be at most {maxMb} MB"
       },
       "contentType": {
         "invalid": "This file type is not allowed"
       },
       "email": {
-        "notFound": "No account found with that email"
+        "notFound": "No account found with that email",
+        "custom": "Use a real email address"
       },
       "assigneeId": {
         "notMember": "Assignee must be a member of the board"

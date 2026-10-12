@@ -33,6 +33,20 @@ describe("parseInput reasons", () => {
     expect(failure(z.object({ kind: z.enum(["a"], { error: "Not allowed" }) }), { kind: "b" }).fieldReasons).toEqual({ kind: [{ reason: "kind.invalid" }] });
   });
 
+  it("names a refinement the schema wrote itself, but not one with no field to attach to", () => {
+    const refined = z.object({ email: z.string().refine((value) => !value.endsWith(".invalid"), { message: "Use a real email address" }) });
+    expect(failure(refined, { email: "a@b.invalid" }).fieldReasons).toEqual({ email: [{ reason: "email.custom" }] });
+    const whole = z.object({ a: z.string().optional(), b: z.string().optional() }).refine((v) => !(v.a && v.b), { message: "Give one of them" });
+    const pathless = failure(whole, { a: "x", b: "y" });
+    expect(pathless.fieldErrors).toEqual({ _: ["Give one of them"] });
+    expect(pathless.fieldReasons).toEqual({});
+  });
+
+  it("reports a numeric bound in megabytes too, so a size message can be worded for people", () => {
+    const upload = z.object({ size: z.number().max(5 * 1024 * 1024, "Too heavy") });
+    expect(failure(upload, { size: 6_000_000 }).fieldReasons).toEqual({ size: [{ reason: "size.tooBig", params: { max: 5 * 1024 * 1024, maxMb: 5 } }] });
+  });
+
   it("gives no reason where the English message is the only truthful text", () => {
     const numeric = failure(z.object({ limit: z.number().min(1) }), { limit: 0 });
     expect(numeric.fieldErrors.limit).toHaveLength(1);

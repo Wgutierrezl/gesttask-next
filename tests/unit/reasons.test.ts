@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import en from "@/i18n/messages/en.json";
 import es from "@/i18n/messages/es.json";
 
-const ROOTS = ["src/domain", "src/application", "src/infrastructure"];
+const ROOTS = ["src/domain", "src/application", "src/infrastructure", "src/app"];
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -14,7 +14,7 @@ function sources(dir: string): string[] {
   });
 }
 
-/** Every reason a throw site declares: `reason: "stage.hasTasks"`, in the core and its adapters. */
+/** Every reason a throw site declares: `reason: "stage.hasTasks"`, in the core, its adapters and the web layer. */
 const used = new Map<string, string>();
 for (const file of ROOTS.flatMap(sources)) {
   for (const match of readFileSync(file, "utf8").matchAll(/\breason: "([\w.]+)"/g)) used.set(match[1]!, file);
@@ -27,6 +27,7 @@ describe("error reason keys", () => {
   it("finds the throw sites it is meant to guard", () => {
     expect(used.size).toBeGreaterThan(15);
     expect(used.has("stage.hasTasks")).toBe(true);
+    expect(used.has("confirmationRequired")).toBe(true);
   });
 
   it.each([["en", en], ["es", es]] as const)("every reason used in src exists in the %s catalog", (_locale, catalog) => {

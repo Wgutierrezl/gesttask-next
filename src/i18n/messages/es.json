@@ -387,8 +387,8 @@
       "confirmationRequired": "Se requiere confirmación"
     },
     "validation": {
-      "tooSmall": "Demasiado corto: se esperaban al menos {min} caracteres",
-      "tooBig": "Demasiado largo: se esperaban como máximo {max} caracteres",
+      "tooSmall": "Demasiado corto: se esperaban al menos {min, plural, one {# carácter} other {# caracteres}}",
+      "tooBig": "Demasiado largo: se esperaban como máximo {max, plural, one {# carácter} other {# caracteres}}",
       "invalidEmail": "Correo electrónico no válido",
       "name": {
         "tooSmall": "El nombre es obligatorio",
@@ -406,13 +406,14 @@
       },
       "size": {
         "tooSmall": "El archivo está vacío",
-        "tooBig": "Los archivos pueden pesar como máximo 5 MB"
+        "tooBig": "Los archivos pueden pesar como máximo {maxMb} MB"
       },
       "contentType": {
         "invalid": "Este tipo de archivo no está permitido"
       },
       "email": {
-        "notFound": "No se encontró ninguna cuenta con ese correo"
+        "notFound": "No se encontró ninguna cuenta con ese correo",
+        "custom": "Usa una dirección de correo real"
       },
       "assigneeId": {
         "notMember": "La persona asignada debe ser miembro del tablero"

@@ -42,7 +42,7 @@ describe("localizeFailure", () => {
     expect(localizeFailure(f, inEn).fieldErrors).toEqual(f.fieldErrors);
     expect(localizeFailure(f, inEs).fieldErrors).toEqual({
       name: ["El nombre es obligatorio", "raw"],
-      title: ["Demasiado corto: se esperaban al menos 1 caracteres"],
+      title: ["Demasiado corto: se esperaban al menos 1 carácter"],
       other: ["kept"],
     });
   });

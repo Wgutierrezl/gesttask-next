@@ -33,7 +33,7 @@ describe("Server Action failures are shown in the visitor's language", () => {
   it("translates field messages and the refusal to delete without confirmation", async () => {
     useCases.createTask.mockRejectedValue(new ValidationError("Invalid input", { title: ["Too small: expected string to have >=1 characters"] }, { title: [{ reason: "tooSmall", params: { min: 1 } }] }));
     expect(await tasks.createTaskAction(undefined, form({}))).toEqual({
-      ok: false, code: "VALIDATION", message: "Datos no válidos", fieldErrors: { title: ["Demasiado corto: se esperaban al menos 1 caracteres"] },
+      ok: false, code: "VALIDATION", message: "Datos no válidos", fieldErrors: { title: ["Demasiado corto: se esperaban al menos 1 carácter"] },
     });
     expect(await tasks.deleteTaskAction(undefined, form({ taskId: "t" }))).toEqual({
       ok: false, code: "VALIDATION", message: "Se requiere confirmación", fieldErrors: { confirm: ["Confirma que quieres eliminar esta tarea"] },

@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { ValidationError, type ErrorDetail, type FieldErrors, type FieldReasons } from "@/domain/errors";
 
 /** Zod's own wording; anything else is a message the schema author wrote on purpose. */
+const MIB = 1024 * 1024;
 const ZOD_DEFAULT_MESSAGE = /^(Too (small|big): |Invalid )/;
 
 /**
@@ -10,13 +11,15 @@ const ZOD_DEFAULT_MESSAGE = /^(Too (small|big): |Invalid )/;
  * and only where that wording is true to the bound (strings). Otherwise: no reason, the English message stands.
  */
 function reasonOf(issue: z.core.$ZodIssue, field: string): ErrorDetail | null {
+  if (field === "_") return null; // nothing to attach a field-scoped reason to: the English message stands
   const custom = !ZOD_DEFAULT_MESSAGE.test(issue.message);
   let code: string;
   let params: ErrorDetail["params"];
   if (issue.code === "too_small") [code, params] = ["tooSmall", { min: Number(issue.minimum) }];
-  else if (issue.code === "too_big") [code, params] = ["tooBig", { max: Number(issue.maximum) }];
+  else if (issue.code === "too_big") [code, params] = ["tooBig", { max: Number(issue.maximum), ...(issue.origin === "number" && { maxMb: Number(issue.maximum) / MIB }) }];
   else if (issue.code === "invalid_format" && issue.format === "email") code = "invalidEmail";
   else if (issue.code === "invalid_value" && custom) code = "invalid";
+  else if (issue.code === "custom" && custom) code = "custom";
   else return null;
   if (!custom && (issue.code === "too_small" || issue.code === "too_big") && issue.origin !== "string") return null;
   return { reason: custom && code !== "invalidEmail" ? `${field}.${code}` : code, ...(params && { params }) };
