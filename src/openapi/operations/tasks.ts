@@ -29,7 +29,8 @@ export const taskOperations: Operation[] = [
   },
   {
     id: "moveTask", method: "post", path: "/tasks/{taskId}/move", tag: "Tasks",
-    summary: "Move a task to a stage of its pipeline: right after afterTaskId (null = top of the column) or toEnd (exactly one of the two)",
+    summary: "Move a task to a stage of its board, in the same or another pipeline: right after afterTaskId (null = top of the column) or toEnd (exactly one of the two)",
+    conflict: "for moveTask, the task was moved by someone else while this request ran: reload and retry",
     params: taskIdSchema, body: moveTaskFields.omit({ taskId: true }), response: { kind: "item", status: 200, schema: taskResponse },
   },
   {

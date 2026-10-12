@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkupWithIntl as renderToStaticMarkup } from "@tests/support/render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "@/domain/errors";
 
@@ -9,6 +9,7 @@ const notFound = vi.fn(() => {
   throw Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
 });
 vi.mock("next/navigation", () => ({ redirect, notFound }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 
 const getActor = vi.fn();
 const useCases = { getBoard: vi.fn(), getBoardDashboard: vi.fn(), getUserDashboard: vi.fn() };
@@ -41,8 +42,8 @@ describe("CountsList", () => {
   });
 
   it("flags overdue work only when there is some", () => {
-    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2, overdue: 2 })} />)).toContain("text-red-700");
-    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2 })} />)).not.toContain("text-red-700");
+    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2, overdue: 2 })} />)).toContain("text-danger-fg");
+    expect(renderToStaticMarkup(<CountsList label="x" counts={counts({ total: 2 })} />)).not.toContain("text-danger-fg");
   });
 });
 

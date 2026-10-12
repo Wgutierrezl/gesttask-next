@@ -10,11 +10,23 @@ const walk = (dir: string): string[] =>
 const rel = (file: string) => file.slice(APP.length + 1);
 
 /** Server Actions that run before a session exists. Everything else under `_actions` must be guarded. */
-const PUBLIC_ACTION_FILES = ["_actions/auth.ts"];
+/** Public actions touch no user data: sign-in/out, and the language preference (a cookie). */
+const PUBLIC_ACTION_FILES = ["_actions/auth.ts", "_actions/preferences.ts"];
+
+/** Parallel-route slot pages that render nothing (they only close a modal): no data, so nothing to guard. */
+const IDLE_SLOT_PAGES = ["(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/page.tsx"];
 
 describe("authorization guards are present everywhere", () => {
+  it("only exempts slot pages that render nothing and import nothing", () => {
+    for (const page of IDLE_SLOT_PAGES) {
+      const source = readFileSync(join(APP, page), "utf8");
+      expect(source, page).toMatch(/return null;/);
+      expect(source, page).not.toMatch(/^import /m);
+    }
+  });
+
   it("calls requirePageActor in every page and data loader under (app)", () => {
-    const guarded = walk(join(APP, "(app)")).filter((file) => /(^|\/)(page|loader|loaders)\.tsx?$|\.loader\.tsx?$/.test(file));
+    const guarded = walk(join(APP, "(app)")).filter((file) => /(^|\/)(page|loader|loaders)\.tsx?$|\.loader\.tsx?$/.test(file) && !IDLE_SLOT_PAGES.includes(rel(file)));
     expect(guarded.map(rel)).toEqual(
       expect.arrayContaining([
         "(app)/boards/page.tsx",
@@ -22,6 +34,7 @@ describe("authorization guards are present everywhere", () => {
         "(app)/boards/[boardId]/settings/page.tsx",
         "(app)/boards/[boardId]/pipelines/[pipelineId]/page.tsx",
         "(app)/boards/[boardId]/pipelines/[pipelineId]/tasks/[taskId]/page.tsx",
+        "(app)/boards/[boardId]/pipelines/[pipelineId]/@modal/(.)tasks/[taskId]/page.tsx",
       ]),
     );
     for (const file of guarded) expect(readFileSync(file, "utf8"), rel(file)).toMatch(/\brequire(Page)?Actor\(/);
@@ -134,6 +147,7 @@ const redirect = vi.fn((to: string) => {
 vi.mock("next/navigation", () => ({ redirect }));
 const getActor = vi.fn();
 vi.mock("@/infrastructure/container", () => ({ getContainer: () => ({ session: { getActor } }) }));
+vi.mock("next-intl/server", async () => (await import("@tests/support/intl-server")).intlServer);
 
 beforeEach(() => vi.clearAllMocks());
 

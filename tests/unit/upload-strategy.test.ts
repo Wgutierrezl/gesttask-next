@@ -15,6 +15,24 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe("uploadFile cancellation", () => {
+  it("hands the abort signal to the request, and an abort surfaces as the generic upload error", async () => {
+    const controller = new AbortController();
+    fetchMock.mockRejectedValue(new DOMException("aborted", "AbortError"));
+    await expect(uploadFile({ kind: "local-put", url: "http://x/put" }, file, controller.signal)).rejects.toBeInstanceOf(UploadError);
+    expect(fetchMock.mock.calls[0]![1].signal).toBe(controller.signal);
+  });
+
+  it("passes it to the other strategies too", async () => {
+    const controller = new AbortController();
+    await uploadFile({ kind: "s3-post", url: "https://b/", fields: {} }, file, controller.signal);
+    expect(fetchMock.mock.calls[0]![1].signal).toBe(controller.signal);
+    blobPut.mockResolvedValue({});
+    await uploadFile({ kind: "blob-token", clientToken: "t", pathname: "p" }, file, controller.signal);
+    expect(blobPut.mock.calls[0]![2].abortSignal).toBe(controller.signal);
+  });
+});
+
 describe("uploadFile", () => {
   it("s3-post: sends the signed fields first and the file last, straight to the bucket", async () => {
     await uploadFile({ kind: "s3-post", url: "https://bucket.example/", fields: { key: "k", Policy: "p", "X-Amz-Signature": "s" } }, file);
