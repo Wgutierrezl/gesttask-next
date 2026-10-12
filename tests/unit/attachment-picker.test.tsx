@@ -96,6 +96,23 @@ describe("attaching files to a comment", () => {
     expect(fields(comments.createCommentAction.mock.calls[0]![1]).some(([name]) => name === "attachmentIds")).toBe(false);
   });
 
+  it("logs a failure that is not the storage's own refusal, but shows the same safe message", async () => {
+    const bug = new TypeError("reader.read is not a function");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    strategy.uploadFile.mockRejectedValueOnce(bug);
+    const user = userEvent.setup();
+    render(<CommentForm taskId="t1" canAttach demoGuest={false} />);
+    await pick(user, png());
+    expect(await screen.findByText("pixel.png: The upload failed. Try again.")).toBeTruthy();
+    expect(log).toHaveBeenCalledWith("attachment upload failed", bug);
+    log.mockClear();
+    strategy.uploadFile.mockRejectedValueOnce(new strategy.UploadError("The upload failed. Try again."));
+    await pick(user, png("other.png"));
+    expect(await screen.findByText("other.png: The upload failed. Try again.")).toBeTruthy();
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
   it("lets the visitor remove a file before posting", async () => {
     const user = userEvent.setup();
     render(<CommentForm taskId="t1" canAttach demoGuest={false} />);

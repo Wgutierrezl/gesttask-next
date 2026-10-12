@@ -9,7 +9,7 @@ import { CreateBoardForm } from "./create-board-form";
 import { CreatePipelineForm } from "./create-pipeline-form";
 
 /** A button that opens `children` in a modal; `children` is a function so the form can close it on success. */
-function DialogButton({ label, title, icon, children }: { label: string; title: string; icon: ReactNode; children: (close: () => void) => ReactNode }) {
+function DialogButton({ label, title, icon, wide = false, iconTone, children }: { label: string; title: string; icon: ReactNode; wide?: boolean; iconTone?: "brand" | "violet"; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return (
@@ -18,7 +18,7 @@ function DialogButton({ label, title, icon, children }: { label: string; title: 
         <Plus aria-hidden="true" className="size-4" />
         {label}
       </Button>
-      <Dialog title={title} icon={icon} open={open} onClose={close}>{children(close)}</Dialog>
+      <Dialog title={title} icon={icon} iconTone={iconTone} size={wide ? "lg" : "md"} open={open} onClose={close}>{children(close)}</Dialog>
     </>
   );
 }
@@ -31,5 +31,5 @@ export function CreateBoardDialog() {
 
 export function CreatePipelineDialog({ boardId }: { boardId: string }) {
   const t = useTranslations("pipeline");
-  return <DialogButton label={t("create")} title={t("newPipeline")} icon={<Workflow className="size-5" />}>{(close) => <CreatePipelineForm boardId={boardId} onSuccess={close} onCancel={close} />}</DialogButton>;
+  return <DialogButton label={t("create")} title={t("newPipeline")} icon={<Workflow className="size-5" />} iconTone="violet" wide>{(close) => <CreatePipelineForm boardId={boardId} onSuccess={close} onCancel={close} />}</DialogButton>;
 }

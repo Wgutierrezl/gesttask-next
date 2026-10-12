@@ -2,7 +2,7 @@
 import { cleanup, screen } from "@testing-library/react";
 import { renderToStaticMarkupWithIntl, renderWithIntl as render } from "@tests/support/render";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatDate, formatInstant } from "@/components/kanban/format";
+import { formatDate, formatDay, formatInstant } from "@/components/kanban/format";
 import { LocalTime } from "@/components/kanban/local-time";
 
 const ISO = "2026-10-09T10:00:00.000Z";
@@ -30,6 +30,18 @@ describe("locale-aware formatting", () => {
   it("follows Spanish conventions for dates and instants", () => {
     expect(formatDate("2026-10-09", "es")).toBe("9 oct 2026");
     expect(formatInstant(ISO, "UTC", "es")).toBe("9 oct 2026, 10:00 UTC");
+  });
+});
+
+describe("formatDay", () => {
+  it("writes a calendar date as a short day without the year, in each language", () => {
+    expect(formatDay("2026-10-16", "en")).toBe("Oct 16");
+    expect(formatDay("2026-10-16", "es")).toBe("16 oct");
+  });
+
+  it("reads an ISO timestamp in UTC so the server and the browser agree on the day", () => {
+    expect(formatDay("2026-10-09T23:30:00.000Z", "en")).toBe("Oct 9");
+    expect(formatDay("2026-01-05", "es")).toBe("5 ene");
   });
 });
 

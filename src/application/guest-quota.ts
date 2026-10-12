@@ -20,7 +20,7 @@ export async function assertGuestBoardQuota(members: MemberRepo, actor: Actor): 
   if (!actor.isGuest) return;
   await members.lockUserQuota(actor.userId);
   if ((await boardIdsOf(members, actor, "owner")).length >= GUEST_MAX_BOARDS) {
-    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_BOARDS} boards. Sign up to create more.`);
+    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_BOARDS} boards. Sign up to create more.`, { reason: "guest.boardLimit", params: { max: GUEST_MAX_BOARDS } });
   }
 }
 
@@ -29,7 +29,7 @@ export async function assertGuestTaskQuota(repos: { members: MemberRepo; tasks: 
   if (!actor.isGuest) return;
   await repos.members.lockUserQuota(actor.userId);
   if ((await repos.tasks.countByBoards(await boardIdsOf(repos.members, actor))) >= GUEST_MAX_TASKS) {
-    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_TASKS} tasks. Sign up to create more.`);
+    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_TASKS} tasks. Sign up to create more.`, { reason: "guest.taskLimit", params: { max: GUEST_MAX_TASKS } });
   }
 }
 
@@ -38,6 +38,6 @@ export async function assertGuestAttachmentQuota(repos: { members: MemberRepo; a
   if (!actor.isGuest) return;
   await repos.members.lockUserQuota(actor.userId);
   if ((await repos.attachments.countByUploader(actor.userId, new Date(now.getTime() - PENDING_UPLOAD_TTL_MS))) >= GUEST_MAX_ATTACHMENTS) {
-    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_ATTACHMENTS} attachments. Sign up to attach more.`);
+    throw new ConflictError(`Guest limit reached: at most ${GUEST_MAX_ATTACHMENTS} attachments. Sign up to attach more.`, { reason: "guest.attachmentLimit", params: { max: GUEST_MAX_ATTACHMENTS } });
   }
 }

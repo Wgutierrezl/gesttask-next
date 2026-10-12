@@ -7,7 +7,7 @@ import { failureOf } from "@/app/_shared/mutation-state";
 import { FormError } from "@/components/auth/form-error";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { RoleSelect } from "./role-select";
-import type { MemberView } from "./members-panel";
+import type { MemberView } from "./member-view";
 
 export function ChangeRoleForm({ boardId, member }: { boardId: string; member: MemberView }) {
   const t = useTranslations("board.member");

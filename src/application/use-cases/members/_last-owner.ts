@@ -13,6 +13,6 @@ export function countOwners(members: MemberRepo, boardId: string): Promise<numbe
 /** A board must always keep at least one owner (REQ-BRD-04). */
 export function assertNotLastOwner(ownerCount: number, target: BoardMember): void {
   if (target.role === "owner" && ownerCount <= 1) {
-    throw new ConflictError("A board needs at least one owner");
+    throw new ConflictError("A board needs at least one owner", { reason: "member.lastOwner" });
   }
 }

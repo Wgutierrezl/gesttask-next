@@ -18,10 +18,10 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   const actor = await getContainer().session.getActor();
   if (actor && !actor.isGuest) redirect(next);
   return (
-    <AuthShell title={t("signUpTitle")}>
+    <AuthShell title={t("signUpTitle")} subtitle={t("signUpSubtitle")}>
       <CredentialsForm mode="sign-up" action={signUpAction} next={next} />
-      <p className="text-sm">
-        {t("alreadyRegistered")} <Link href="/login" className="font-medium text-brand-link underline">{t("signInLink")}</Link>
+      <p className="text-center text-sm text-fg-muted">
+        {t("alreadyRegistered")} <Link href="/login" className="font-medium text-brand-link underline underline-offset-2">{t("signInLink")}</Link>
       </p>
     </AuthShell>
   );
