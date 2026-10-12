@@ -83,6 +83,14 @@ for (const theme of THEMES) {
           await waitForHydration(page);
           await scan(page, "task modal");
         });
+
+        test("the full task page", async ({ page }) => {
+          await openKanban(page);
+          const href = await page.getByRole("region", { name: /^To do, \d+ (?:tasks?|tareas?)$/ }).getByRole("link").first().getAttribute("href");
+          await page.goto(href!);
+          await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+          await scan(page, "full task page");
+        });
       });
     });
   }
