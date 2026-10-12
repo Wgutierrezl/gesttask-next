@@ -105,6 +105,14 @@ describe("Avatar", () => {
     expect((container.firstElementChild as HTMLElement).getAttribute("style")).toBe(style);
   });
 
+  it("carries only the hue inline; lightness comes from the theme tokens", () => {
+    const { container } = render(<Avatar name="Ana Perez" />);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.getAttribute("style")).toMatch(/^--avatar-hue:\s*\d+;?$/);
+    expect(el.getAttribute("style")).not.toMatch(/hsl|rgb|#/);
+    expect(el.className).toContain("avatar");
+  });
+
   it("handles astral characters in names", () => {
     const { container } = render(<Avatar name="😀 Zed" />);
     expect(container.textContent).toBe("😀Z");

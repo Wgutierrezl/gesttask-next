@@ -68,6 +68,7 @@
   --color-ring: var(--ring);
   --color-brand-soft: var(--brand-soft);
   --color-brand-link: var(--brand-link);
+  --color-skeleton: var(--skeleton);
   --color-danger-edge: var(--danger-edge);
   --color-warning-edge: var(--warning-edge);
   --color-success-edge: var(--success-edge);
@@ -124,6 +125,9 @@
   --success-fg: #047857;
   --fg-secondary: #1e293b;
   --fg-strong: #334155;
+  --skeleton: #e2e8f0;
+  --avatar-l-bg: 90%;
+  --avatar-l-fg: 25%;
   --surface-hover: #f8fafc;
   --border-subtle: #f1f5f9;
   --border-control: #7b8aa0;
@@ -171,6 +175,9 @@
   --success-fg: #6ee7b7;
   --fg-secondary: #eaeff5;
   --fg-strong: #e2e8f0;
+  --skeleton: #3b4a66;
+  --avatar-l-bg: 22%;
+  --avatar-l-fg: 88%;
   --surface-hover: #18223a;
   --border-subtle: #1c2639;
   --border-control: #66779a;
@@ -216,7 +223,10 @@
     --success-soft: #0b2e22;
     --success-fg: #6ee7b7;
     --fg-secondary: #eaeff5;
-  --fg-strong: #e2e8f0;
+    --fg-strong: #e2e8f0;
+    --skeleton: #3b4a66;
+    --avatar-l-bg: 22%;
+    --avatar-l-fg: 88%;
     --surface-hover: #18223a;
     --border-subtle: #1c2639;
     --border-control: #66779a;
@@ -269,4 +279,10 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Initials badge: the hue comes from the name, the lightness from the theme (pastel in light, deep in dark). */
+.avatar {
+  background-color: hsl(var(--avatar-hue) 60% var(--avatar-l-bg));
+  color: hsl(var(--avatar-hue) 60% var(--avatar-l-fg));
 }

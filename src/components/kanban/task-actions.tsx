@@ -23,7 +23,7 @@ export function TaskActions({ task, members }: TaskActionsProps) {
         <Pencil aria-hidden="true" className="size-4" />
         Edit
       </Button>
-      <Button variant="secondary" size="sm" onClick={() => setDeleting(true)} className="text-danger-fg">
+      <Button variant="danger-secondary" size="sm" onClick={() => setDeleting(true)}>
         <Trash2 aria-hidden="true" className="size-4" />
         Delete
       </Button>

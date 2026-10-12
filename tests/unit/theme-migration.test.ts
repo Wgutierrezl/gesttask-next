@@ -10,7 +10,7 @@ const MIGRATED = ["components", "app"];
 // Allowed on purpose: `text-white` and `bg-danger-600/700` (theme-independent fills), `bg-brand-gradient`, and solid
 // 600 accents (`border-danger-600`, `text-success-600`), which stay legible on both themes.
 const PALETTES = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
-const UTILITIES = "bg|text|border|border-[xytblrse]|ring|divide|outline|from|via|to|fill|stroke|decoration|shadow|accent|caret";
+const UTILITIES = "bg|text|border|border-[xytblrse]|ring|ring-offset|divide|outline|from|via|to|fill|stroke|decoration|shadow|accent|caret";
 const RAW = new RegExp(
   [
     String.raw`\b(?:${UTILITIES})-(?:white|black)\b`,
@@ -21,6 +21,9 @@ const RAW = new RegExp(
     String.raw`-\[[^\]]*(?:rgb|hsl|oklch)\(|-\[#[0-9a-fA-F]{3,8}\]`,
   ].join("|"),
 );
+// Colors written inline (`style={{ color: "#fff" }}`) bypass the tokens as well; the brand art module paints with its own palette.
+const INLINE_STYLE = /\bstyle\b.*(?:#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|lab)a?\()/;
+const INLINE_ALLOWED = ["/components/brand/"];
 const ALLOWED = /\btext-white\b|\b(?:hover:)?bg-danger-(?:600|700)\b/g;
 
 function files(path: string): string[] {
@@ -37,6 +40,24 @@ describe("theme migration of every component and page", () => {
   it.each(MIGRATED.flatMap(files))("%s uses semantic tokens only", (file) => {
     const raw = readFileSync(file, "utf8").split("\n").filter((line) => RAW.test(line.replace(ALLOWED, "")));
     expect(raw).toEqual([]);
+  });
+
+  it.each(MIGRATED.flatMap(files).filter((file) => !INLINE_ALLOWED.some((part) => file.includes(part))))("%s paints no inline color", (file) => {
+    expect(readFileSync(file, "utf8").split("\n").filter((line) => INLINE_STYLE.test(line))).toEqual([]);
+  });
+
+  it.each(["style={{ color: '#fff' }}", 'style={{ backgroundColor: "hsl(1 2% 3%)" }}', "style={{ background: `rgb(1 2 3)` }}"])("flags the inline style %s", (line) => {
+    expect(INLINE_STYLE.test(line)).toBe(true);
+  });
+  it("accepts an inline style that only carries a variable", () => {
+    expect(INLINE_STYLE.test('style={{ "--avatar-hue": hue }}')).toBe(false);
+  });
+
+  it.each(["ring-offset-white", "ring-offset-slate-100", "ring-offset-black"])("flags %s", (cls) => {
+    expect(RAW.test(cls)).toBe(true);
+  });
+  it("accepts ring-offset-surface", () => {
+    expect(RAW.test("ring-offset-surface")).toBe(false);
   });
 
   it.each(["text-black", "border-l-slate-300", "border-danger-600/30", "text-red-600", "border-brand-600", "bg-brand-50", "shadow-2xl", "bg-[#fff]", "bg-[rgb(1_2_3)]", "to-emerald-100", "bg-neutral-900"])("flags %s", (cls) => {
