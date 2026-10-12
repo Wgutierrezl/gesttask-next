@@ -59,6 +59,7 @@ describe("CredentialsForm like v1", () => {
     expect(decorative(form)).toHaveLength(3);
     expect(screen.getByLabelText(/Email/).getAttribute("placeholder")).toBe("you@email.com");
     expect(screen.getByRole("button", { name: "Sign in" }).className).toContain("bg-brand-gradient");
+    expect(screen.getByLabelText(/Password/).hasAttribute("placeholder")).toBe(false);
   });
 
   it("adds the name icon when signing up, with localized placeholders", () => {

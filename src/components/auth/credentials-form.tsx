@@ -39,7 +39,6 @@ export function CredentialsForm({ mode, action, next }: CredentialsFormProps) {
         <Input
           className={ROOMY}
           name="password"
-          placeholder={t("passwordPlaceholder")}
           type="password"
           autoComplete={signUp ? "new-password" : "current-password"}
           minLength={signUp ? MIN_PASSWORD_LENGTH : undefined}
